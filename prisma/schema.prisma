@@ -1,0 +1,477 @@
+// ============================================================================
+// QUIMICORP PERU S.A.C. - ERP INDUSTRIAL
+// schema.prisma - Modelo relacional completo (Sprints 1-5)
+// PostgreSQL 16 (Supabase) + Prisma ORM
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// ENUMS GLOBALES
+// ============================================================================
+
+enum UnidadMedida {
+  KG
+  L
+  GR
+  UN
+}
+
+enum EstadoGenerico {
+  ACTIVO
+  INACTIVO
+}
+
+enum EstadoFormula {
+  ACTIVA
+  INACTIVA
+  EN_REVISION
+}
+
+enum EstadoOrdenProduccion {
+  PENDIENTE
+  EN_PROCESO
+  QA_PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum TipoMovimientoKardex {
+  ENTRADA
+  SALIDA
+  AJUSTE_FINO
+  MERMA
+  REAPROVECHAMIENTO
+}
+
+enum EstadoSubAlmacen {
+  DISPONIBLE
+  REUSADO
+  DESCARTADO
+}
+
+enum TipoMarcacion {
+  ENTRADA
+  SALIDA_ALMUERZO
+  RETORNO_ALMUERZO
+  SALIDA
+}
+
+enum EstadoAsistencia {
+  PUNTUAL
+  TARDANZA
+  FALTA
+  JUSTIFICADO
+}
+
+enum TipoEtiqueta {
+  INSUMO
+  GALON
+  BARRIL
+  FRASCO
+}
+
+enum EstadoDespacho {
+  PENDIENTE
+  EN_RUTA
+  ENTREGADO
+  DEVUELTO
+}
+
+enum AccionPermiso {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+}
+
+enum NombreRol {
+  GERENCIA
+  SUPERVISOR_QA
+  ALMACENERO
+  OPERARIO
+  VENTAS
+  ADMIN_SISTEMA
+}
+
+// ============================================================================
+// 🟢 MODULO 1: PRODUCCION, FORMULAS E INVENTARIO (SPRINT 1)
+// ============================================================================
+
+model FamiliaInsumo {
+  id          String   @id @default(uuid())
+  nombre      String   @unique
+  descripcion String?
+  insumos     Insumo[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("familias_insumo")
+}
+
+model Insumo {
+  id             String         @id @default(uuid())
+  codigo         String         @unique
+  nombre         String
+  familiaId      String
+  familia        FamiliaInsumo  @relation(fields: [familiaId], references: [id])
+  unidadMedida   UnidadMedida
+  stockTeorico   Decimal        @default(0) @db.Decimal(14, 4)
+  stockReal      Decimal        @default(0) @db.Decimal(14, 4)
+  stockMinimo    Decimal        @default(0) @db.Decimal(14, 4)
+  costoUnitario  Decimal        @default(0) @db.Decimal(14, 4)
+  estado         EstadoGenerico @default(ACTIVO)
+
+  formulaDetalles      FormulaDetalle[]
+  ajustesFinos         AjusteFino[]
+  kardexMovimientos    KardexInmutable[]
+  subAlmacenSobrantes  SubAlmacenSobrante[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([familiaId])
+  @@index([estado])
+  @@map("insumos")
+}
+
+model FormulaMaster {
+  id               String        @id @default(uuid())
+  codigoFormula    String        @unique
+  nombreProducto   String
+  version           Int          @default(1)
+  densidadTeorica  Decimal       @db.Decimal(10, 4)
+  estado           EstadoFormula @default(EN_REVISION)
+
+  detalles         FormulaDetalle[]
+  ordenesProduccion OrdenProduccion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estado])
+  @@map("formulas_master")
+}
+
+model FormulaDetalle {
+  id                String        @id @default(uuid())
+  formulaId         String
+  formula           FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  insumoId          String
+  insumo            Insumo        @relation(fields: [insumoId], references: [id])
+  porcentaje        Decimal       @db.Decimal(6, 3)
+  pesoMasaTeorico   Decimal       @db.Decimal(14, 4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([formulaId, insumoId])
+  @@index([formulaId])
+  @@map("formula_detalles")
+}
+
+model OrdenProduccion {
+  id                  String                @id @default(uuid())
+  codigoLote          String                @unique
+  formulaId           String
+  formula             FormulaMaster         @relation(fields: [formulaId], references: [id])
+  cantidadPlanificada Decimal               @db.Decimal(14, 4)
+  cantidadObtenida    Decimal?              @db.Decimal(14, 4)
+  mermaCalculada      Decimal?              @db.Decimal(14, 4)
+  estado              EstadoOrdenProduccion @default(PENDIENTE)
+  supervisorId        String
+  supervisor          Usuario               @relation("SupervisorOrdenes", fields: [supervisorId], references: [id])
+
+  ajustesFinos        AjusteFino[]
+  subAlmacenOrigen    SubAlmacenSobrante[]
+  etiquetas           EtiquetaImpresa[]
+  ticketsDespacho     TicketDespacho[]
+  incidencias         IncidenciaLote[]
+  calificaciones      CalificacionOperario[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estado])
+  @@index([formulaId])
+  @@map("ordenes_produccion")
+}
+
+model AjusteFino {
+  id                 String          @id @default(uuid())
+  ordenProduccionId  String
+  ordenProduccion    OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
+  insumoId           String
+  insumo             Insumo          @relation(fields: [insumoId], references: [id])
+  cantidadAgregada   Decimal         @db.Decimal(14, 4)
+  observacion        String?
+  registradoPorId    String
+  registradoPor      Usuario         @relation("RegistroAjustesFinos", fields: [registradoPorId], references: [id])
+  timestamp          DateTime        @default(now())
+
+  @@index([ordenProduccionId])
+  @@map("ajustes_finos")
+}
+
+model SubAlmacenSobrante {
+  id                    String           @id @default(uuid())
+  loteOrigenId          String
+  loteOrigen            OrdenProduccion  @relation(fields: [loteOrigenId], references: [id])
+  insumoSubproductoId   String
+  insumoSubproducto     Insumo           @relation(fields: [insumoSubproductoId], references: [id])
+  pesoDisponible        Decimal          @db.Decimal(14, 4)
+  ubicacion             String
+  estado                EstadoSubAlmacen @default(DISPONIBLE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estado])
+  @@map("sub_almacen_sobrantes")
+}
+
+// KardexInmutable: registro append-only, sin updatedAt (inmutable por diseño)
+model KardexInmutable {
+  id                   String                @id @default(uuid())
+  insumoId             String
+  insumo               Insumo                @relation(fields: [insumoId], references: [id])
+  tipoMovimiento       TipoMovimientoKardex
+  cantidad             Decimal               @db.Decimal(14, 4)
+  stockAnterior        Decimal               @db.Decimal(14, 4)
+  stockNuevo           Decimal               @db.Decimal(14, 4)
+  documentoReferencia  String?
+  usuarioId            String
+  usuario              Usuario               @relation(fields: [usuarioId], references: [id])
+  createdAt            DateTime              @default(now()) // sello de tiempo inalterable
+
+  @@index([insumoId])
+  @@index([tipoMovimiento])
+  @@index([createdAt])
+  @@map("kardex_inmutable")
+}
+
+// ============================================================================
+// 🔵 MODULO 2: PERSONAL, BIOMETRICO Y ASISTENCIA (SPRINT 2)
+// ============================================================================
+
+model Rol {
+  id       String        @id @default(uuid())
+  nombre   NombreRol     @unique
+  permisos RolPermiso[]
+  usuarios Usuario[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Usuario {
+  id                String   @id @default(uuid())
+  dni               String   @unique
+  nombres           String
+  apellidos         String
+  rolId             String
+  rol               Rol      @relation(fields: [rolId], references: [id])
+  passwordHash      String
+  codigoBiometrico  String?  @unique
+  estado            EstadoGenerico @default(ACTIVO)
+
+  ordenesSupervisadas   OrdenProduccion[]      @relation("SupervisorOrdenes")
+  ajustesFinosRegistrados AjusteFino[]         @relation("RegistroAjustesFinos")
+  kardexMovimientos     KardexInmutable[]
+  marcaciones           MarcacionBiometrico[]
+  asistencias           Asistencia[]
+  calificaciones        CalificacionOperario[]
+  etiquetasImpresas      EtiquetaImpresa[]
+  incidenciasReportadas  IncidenciaLote[]
+  auditLogs              AuditLog[]
+  ventanasAprobadasQA    VentanaAlmuerzoQA[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([rolId])
+  @@map("usuarios")
+}
+
+model MarcacionBiometrico {
+  id             String        @id @default(uuid())
+  usuarioId      String
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id])
+  tipoMarcacion  TipoMarcacion
+  timestamp      DateTime      @default(now())
+  dispositivoId  String
+
+  @@index([usuarioId, timestamp])
+  @@map("marcaciones_biometrico")
+}
+
+model Asistencia {
+  id                 String           @id @default(uuid())
+  usuarioId          String
+  usuario            Usuario          @relation(fields: [usuarioId], references: [id])
+  fecha              DateTime         @db.Date
+  horasTrabajadas    Decimal          @db.Decimal(5, 2)
+  minutosTardanza    Int              @default(0)
+  estadoAsistencia   EstadoAsistencia @default(PUNTUAL)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([usuarioId, fecha])
+  @@map("asistencias")
+}
+
+model VentanaAlmuerzoQA {
+  id                       String   @id @default(uuid())
+  fecha                    DateTime @db.Date
+  horaInicioAprobada       DateTime
+  horaFinMinima            DateTime
+  aprobadoPorQAId          String
+  aprobadoPorQA            Usuario  @relation(fields: [aprobadoPorQAId], references: [id])
+  operariosHabilitadosIds  String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ventanas_almuerzo_qa")
+}
+
+model CalificacionOperario {
+  id                 String          @id @default(uuid())
+  usuarioId          String
+  usuario            Usuario         @relation(fields: [usuarioId], references: [id])
+  ordenProduccionId  String
+  ordenProduccion    OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
+  puntajeEficiencia  Decimal         @db.Decimal(5, 2)
+  comentarios        String?
+
+  createdAt DateTime @default(now())
+
+  @@map("calificaciones_operario")
+}
+
+// ============================================================================
+// 🟡 MODULO 3: TRAZABILIDAD, ETIQUETADO Y DESPACHO (SPRINT 3)
+// ============================================================================
+
+model EtiquetaImpresa {
+  id                  String          @id @default(uuid())
+  codigoEtiqueta      String          @unique
+  loteProduccionId    String
+  loteProduccion      OrdenProduccion @relation(fields: [loteProduccionId], references: [id])
+  tipoEtiqueta        TipoEtiqueta
+  impresoPorId        String
+  impresoPor          Usuario         @relation(fields: [impresoPorId], references: [id])
+  timestamp           DateTime        @default(now())
+
+  @@index([loteProduccionId])
+  @@map("etiquetas_impresas")
+}
+
+model TicketDespacho {
+  id                  String          @id @default(uuid())
+  codigoTicket        String          @unique
+  ordenProduccionId   String
+  ordenProduccion     OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
+  clienteDestino      String
+  cantidadCajas       Int
+  estadoDespacho      EstadoDespacho  @default(PENDIENTE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tickets_despacho")
+}
+
+model IncidenciaLote {
+  id                  String          @id @default(uuid())
+  loteProduccionId    String
+  loteProduccion      OrdenProduccion @relation(fields: [loteProduccionId], references: [id])
+  reportadoPorId      String
+  reportadoPor        Usuario         @relation(fields: [reportadoPorId], references: [id])
+  tipoIncidencia      String
+  descripcion         String
+  impactoMerma        Decimal?        @db.Decimal(14, 4)
+
+  createdAt DateTime @default(now())
+
+  @@map("incidencias_lote")
+}
+
+// ============================================================================
+// 🔴 MODULO 4: ANALYTICS, KPIs Y GERENCIA (SPRINT 4)
+// ============================================================================
+
+model MetricaProduccionDiaria {
+  id                    String   @id @default(uuid())
+  fecha                 DateTime @unique @db.Date
+  volumenTotalLitros    Decimal  @db.Decimal(14, 4)
+  mermaTotalKg          Decimal  @db.Decimal(14, 4)
+  eficienciaPromedio    Decimal  @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+
+  @@map("metricas_produccion_diaria")
+}
+
+model ValorizacionInventario {
+  id                              String   @id @default(uuid())
+  fechaCierre                     DateTime @unique @db.Date
+  materiaPrimaValorizada          Decimal  @db.Decimal(16, 4)
+  productoTerminadoValorizado     Decimal  @db.Decimal(16, 4)
+
+  createdAt DateTime @default(now())
+
+  @@map("valorizacion_inventario")
+}
+
+// ============================================================================
+// 🟣 MODULO 5: SEGURIDAD ENTERPRISE Y AUDIT LOGS (SPRINT 5)
+// ============================================================================
+
+model Permiso {
+  id      String         @id @default(uuid())
+  modulo  String
+  accion  AccionPermiso
+  roles   RolPermiso[]
+
+  @@unique([modulo, accion])
+  @@map("permisos")
+}
+
+model RolPermiso {
+  rolId      String
+  rol        Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permisoId  String
+  permiso    Permiso  @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+
+  @@id([rolId, permisoId])
+  @@map("rol_permisos")
+}
+
+model AuditLog {
+  id               String   @id @default(uuid())
+  usuarioId        String
+  usuario          Usuario  @relation(fields: [usuarioId], references: [id])
+  accion           String
+  tablaAfectada    String
+  registroId       String
+  datosAnteriores  Json?
+  datosNuevos      Json?
+  ipOrigen         String?
+  timestamp        DateTime @default(now())
+
+  @@index([tablaAfectada, registroId])
+  @@index([usuarioId])
+  @@map("audit_logs")
+}
