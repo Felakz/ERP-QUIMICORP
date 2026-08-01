@@ -18,10 +18,31 @@ import {
   Sun,
   Moon,
   Inbox,
+  FileText,
+  Sliders,
+  Clock,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 
-const NAV_GROUPS = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+  badge?: string;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'KPIS & CONTROL',
+    items: [
+      { href: '/dashboard', label: 'Dashboard Ejecutivo', icon: LayoutDashboard },
+    ],
+  },
   {
     title: 'PEDIDOS DE ADMINISTRACIÓN',
     items: [
@@ -29,29 +50,24 @@ const NAV_GROUPS = [
     ],
   },
   {
-    title: 'PRODUCCIÓN',
+    title: 'PRODUCCIÓN & PLANTA',
     items: [
-      { href: '/dashboard/inventario', label: 'Inventarios', icon: Package },
-      { href: '/dashboard/formulas', label: 'Fórmulas & Ajuste', icon: Beaker },
-      { href: '/dashboard/qa', label: 'QA & Kardex', icon: CheckCircle2 },
+      { href: '/dashboard/inventario', label: 'Inventarios & Stock', icon: Package },
+      { href: '/dashboard/formulas', label: 'Fórmulas & Ajuste Fino', icon: Beaker },
+      { href: '/dashboard/produccion-qa', label: 'Control de Producción & QA', icon: Sliders },
+    ],
+  },
+  {
+    title: 'TRAZABILIDAD & LOGÍSTICA',
+    items: [
+      { href: '/dashboard/kardex', label: 'Kardex de Inventario', icon: FileText },
+      { href: '/dashboard/etiquetas', label: 'Etiquetas & Despacho', icon: Tag },
     ],
   },
   {
     title: 'PERSONAL DE PLANTA',
     items: [
-      { href: '/dashboard/biometria', label: 'Biometría & Turnos', icon: Users },
-    ],
-  },
-  {
-    title: 'TRAZABILIDAD & DESPACHO',
-    items: [
-      { href: '/dashboard/etiquetas', label: 'Etiquetas & Despacho', icon: Tag },
-    ],
-  },
-  {
-    title: 'KPIS & CONTROL',
-    items: [
-      { href: '/dashboard', label: 'Dashboard Ejecutivo', icon: LayoutDashboard },
+      { href: '/dashboard/biometria', label: 'Biometría & Turnos', icon: Clock },
     ],
   },
   {
@@ -80,8 +96,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           month: 'short',
           year: 'numeric',
         }) +
-          ' ' +
-          now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        ' ' +
+        now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
       );
     };
     updateTime();
@@ -92,20 +108,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const getHeaderInfo = () => {
     switch (pathname) {
       case '/dashboard/pedidos-admin':
-        return { title: 'Pedidos de Administración', moduleName: 'Gestión de Órdenes Entrantes' };
+        return { title: 'Pedidos Entrantes', moduleName: 'Pedidos de Administración' };
       case '/dashboard/inventario':
-        return { title: 'Inventarios & Sub-Almacén', moduleName: 'Módulo de Producción' };
+        return { title: 'Inventarios & Stock', moduleName: 'Producción & Planta' };
       case '/dashboard/formulas':
-        return { title: 'Fórmulas & Ajuste Fino', moduleName: 'Módulo de Producción' };
+        return { title: 'Fórmulas ', moduleName: 'Producción & Planta' };
       case '/dashboard/qa':
+      case '/dashboard/produccion-qa':
+        return { title: 'Control de Producción & QA', moduleName: 'Producción & Planta' };
       case '/dashboard/kardex':
-        return { title: 'QA Approval & Kardex Inmutable', moduleName: 'Módulo de Producción' };
+        return { title: 'Kardex de Inventario', moduleName: 'Trazabilidad & Logística' };
       case '/dashboard/biometria':
-        return { title: 'Biometría & Turnos', moduleName: 'Personal de Planta' };
+        return { title: 'Biometría & Turnos (ZKTeco)', moduleName: 'Personal de Planta' };
       case '/dashboard/etiquetas':
-        return { title: 'Etiquetas & Despacho', moduleName: 'Trazabilidad & Despacho' };
+        return { title: 'Etiquetas & Despacho', moduleName: 'Trazabilidad & Logística' };
       case '/dashboard/seguridad':
-        return { title: 'Seguridad & RBAC', moduleName: 'Control de Acceso' };
+        return { title: 'Seguridad & RBAC', moduleName: 'Seguridad & Permisos' };
+      case '/dashboard':
       default:
         return { title: 'Dashboard Ejecutivo', moduleName: 'KPIs & Control' };
     }
@@ -115,40 +134,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div
-      className={`flex min-h-screen font-mono transition-colors duration-200 ${
-        isDark ? 'bg-[#090C10] text-slate-100' : 'bg-[#F1F5F9] text-slate-900'
-      }`}
+      className={`flex h-screen w-screen overflow-hidden font-sans transition-colors duration-200 ${isDark ? 'bg-[#090C10] text-slate-100' : 'bg-slate-50 text-slate-900'
+        }`}
     >
       {/* Sidebar */}
       <aside
-        className={`hidden w-64 shrink-0 sticky top-0 h-screen overflow-y-auto flex-col justify-between border-r lg:flex transition-colors duration-200 ${
-          isDark
-            ? 'bg-[#0B0F17] border-[#1A2232]'
-            : 'bg-white border-slate-200 shadow-sm'
-        }`}
+        className={`w-64 shrink-0 flex flex-col justify-between border-r transition-colors duration-200 ${isDark
+          ? 'bg-[#0B0F17] border-[#1A2232]'
+          : 'bg-white border-slate-200 shadow-sm'
+          }`}
       >
         <div>
           {/* Logo Header */}
           <div
-            className={`border-b px-6 py-5 flex items-center gap-3 ${
-              isDark ? 'border-[#1A2232]' : 'border-slate-100'
-            }`}
+            className={`flex h-16 items-center gap-3 px-6 border-b ${isDark ? 'border-[#1A2232]' : 'border-slate-100'
+              }`}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#00F2C3]/15 text-[#00F2C3] border border-[#00F2C3]/30 font-black text-lg">
-              Q
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#00F2C3] to-teal-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20">
+              <Beaker className="h-5 w-5 stroke-[2.5]" />
             </div>
             <div>
-              <p
-                className={`text-sm font-bold tracking-wider uppercase ${
-                  isDark ? 'text-slate-100' : 'text-slate-900'
-                }`}
+              <h2
+                className={`text-sm font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'
+                  }`}
               >
                 QUIMICORP
-              </p>
+              </h2>
               <p
-                className={`text-[10px] tracking-widest font-semibold uppercase ${
-                  isDark ? 'text-slate-400' : 'text-slate-400'
-                }`}
+                className={`text-[9px] font-mono tracking-widest font-bold ${isDark ? 'text-cyan-400' : 'text-cyan-700'
+                  }`}
               >
                 ERP INDUSTRIAL v2.4
               </p>
@@ -156,45 +170,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Navigation Groups */}
-          <nav className="space-y-5 px-3 py-5">
+          <nav className="space-y-5 px-3 py-5 overflow-y-auto max-h-[calc(100vh-8rem)]">
             {NAV_GROUPS.map((group) => (
               <div key={group.title}>
                 <p
-                  className={`px-3 text-[10px] font-bold tracking-widest uppercase mb-2 ${
-                    isDark ? 'text-slate-500' : 'text-slate-400'
-                  }`}
+                  className={`px-3 text-[10px] font-bold tracking-widest uppercase mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'
+                    }`}
                 >
                   {group.title}
                 </p>
                 <div className="space-y-1">
                   {group.items.map((item) => {
-                    const isActive =
-                      pathname === item.href ||
-                      (item.href === '/dashboard/qa' && pathname === '/dashboard/kardex');
+                    const isActive = pathname === item.href;
                     const Icon = item.icon;
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150 ${
-                          isActive
-                            ? isDark
-                              ? 'bg-[#00F2C3]/10 text-[#00F2C3] border border-[#00F2C3]/20 font-bold'
-                              : 'bg-cyan-50 text-cyan-700 border border-cyan-200 font-bold'
-                            : isDark
+                        className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150 ${isActive
+                          ? isDark
+                            ? 'bg-[#00F2C3]/10 text-[#00F2C3] border border-[#00F2C3]/20 font-bold'
+                            : 'bg-cyan-50 text-cyan-700 border border-cyan-200 font-bold'
+                          : isDark
                             ? 'text-slate-400 hover:bg-[#151D2A] hover:text-slate-200'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <Icon
-                            className={`h-4 w-4 ${
-                              isActive
-                                ? isDark
-                                  ? 'text-[#00F2C3]'
-                                  : 'text-cyan-600'
-                                : 'text-slate-400'
-                            }`}
+                            className={`h-4 w-4 ${isActive
+                              ? isDark
+                                ? 'text-[#00F2C3]'
+                                : 'text-cyan-600'
+                              : 'text-slate-400'
+                              }`}
                           />
                           <span>{item.label}</span>
                         </div>
@@ -214,29 +223,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User Footer Profile */}
         <div
-          className={`border-t p-4 ${
-            isDark ? 'border-[#1A2232]' : 'border-slate-100'
-          }`}
+          className={`border-t p-4 ${isDark ? 'border-[#1A2232]' : 'border-slate-100'
+            }`}
         >
           <div
-            className={`flex items-center gap-3 rounded-xl p-2.5 border ${
-              isDark
-                ? 'bg-[#0F141C] border-[#1A2232]'
-                : 'bg-slate-50 border-slate-200'
-            }`}
+            className={`flex items-center gap-3 rounded-xl p-2.5 border ${isDark
+              ? 'bg-[#0F141C] border-[#1A2232]'
+              : 'bg-slate-50 border-slate-200'
+              }`}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-600 font-bold text-xs border border-cyan-500/30">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400 font-bold text-xs border border-cyan-500/30">
               SP
             </div>
             <div className="overflow-hidden">
               <p
-                className={`text-xs font-bold truncate ${
-                  isDark ? 'text-slate-200' : 'text-slate-900'
-                }`}
+                className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-900'
+                  }`}
               >
                 Supervisor Planta
               </p>
-              <p className="text-[10px] text-slate-400 truncate">PRODUCCIÓN</p>
+              <p className="text-[10px] text-cyan-400 font-mono font-bold truncate uppercase">
+                PRODUCCIÓN & QA
+              </p>
             </div>
           </div>
         </div>
@@ -246,19 +254,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
         <header
-          className={`flex h-14 shrink-0 items-center justify-between border-b px-6 transition-colors duration-200 ${
-            isDark
-              ? 'bg-[#0B0F17] border-[#1A2232]'
-              : 'bg-white border-slate-200 shadow-sm'
-          }`}
+          className={`flex h-14 shrink-0 items-center justify-between border-b px-6 transition-colors duration-200 ${isDark
+            ? 'bg-[#0B0F17] border-[#1A2232]'
+            : 'bg-white border-slate-200 shadow-sm'
+            }`}
         >
           {/* Title & Status */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm">
               <h1
-                className={`font-bold tracking-wide ${
-                  isDark ? 'text-white' : 'text-slate-900'
-                }`}
+                className={`font-bold tracking-wide ${isDark ? 'text-white' : 'text-slate-900'
+                  }`}
               >
                 {headerInfo.title}
               </h1>
@@ -268,9 +274,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
             </div>
             <div
-              className={`hidden md:flex items-center gap-4 ml-6 border-l pl-6 text-[11px] ${
-                isDark ? 'border-[#1A2232]' : 'border-slate-200'
-              }`}
+              className={`hidden md:flex items-center gap-4 ml-6 border-l pl-6 text-[11px] ${isDark ? 'border-[#1A2232]' : 'border-slate-200'
+                }`}
             >
               <span className="flex items-center gap-1.5 font-bold text-emerald-500">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -289,15 +294,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {timeString}
             </span>
 
-            {/* Theme Toggle Button (Sol / Luna) */}
+            {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
               title={isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border transition-all ${
-                isDark
-                  ? 'bg-[#0F141C] text-amber-400 border-[#1A2232] hover:bg-slate-800'
-                  : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-              }`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border transition-all ${isDark
+                ? 'bg-[#0F141C] text-amber-400 border-[#1A2232] hover:bg-slate-800'
+                : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                }`}
             >
               {isDark ? (
                 <>
@@ -322,11 +326,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {pathname === '/dashboard/formulas' && (
               <>
                 <button
-                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border transition-colors ${
-                    isDark
-                      ? 'bg-[#151D2A] text-slate-300 border-[#1A2232] hover:bg-slate-800'
-                      : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-                  }`}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold border transition-colors ${isDark
+                    ? 'bg-[#151D2A] text-slate-300 border-[#1A2232] hover:bg-slate-800'
+                    : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                    }`}
                 >
                   <Download className="h-3.5 w-3.5" />
                   <span>Exportar Ficha</span>
@@ -338,39 +341,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </>
             )}
 
-            {pathname === '/dashboard' && (
-              <div
-                className={`flex rounded-lg p-1 border text-xs ${
-                  isDark
-                    ? 'bg-[#0F141C] border-[#1A2232]'
-                    : 'bg-slate-100 border-slate-300'
-                }`}
-              >
-                {(['Semana', 'Mes', 'Trimestre'] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    className={`rounded px-3 py-1 font-bold transition-all ${
-                      period === p
-                        ? 'bg-[#00F2C3] text-[#090C10]'
-                        : isDark
-                        ? 'text-slate-400 hover:text-slate-200'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* Notification Bell */}
             <button
-              className={`relative rounded-lg p-2 border transition-colors ${
-                isDark
-                  ? 'bg-[#0F141C] text-slate-400 hover:text-slate-200 border-[#1A2232]'
-                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-300'
-              }`}
+              className={`relative rounded-lg p-2 border transition-colors ${isDark
+                ? 'bg-[#0F141C] text-slate-400 hover:text-slate-200 border-[#1A2232]'
+                : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-300'
+                }`}
             >
               <Bell className="h-4 w-4" />
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rose-500" />
@@ -380,9 +356,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main Content Area */}
         <main
-          className={`flex-1 overflow-y-auto p-5 transition-colors duration-200 ${
-            isDark ? 'bg-[#090C10]' : 'bg-[#F1F5F9]'
-          }`}
+          className={`flex-1 overflow-y-auto p-5 transition-colors duration-200 ${isDark ? 'bg-[#090C10]' : 'bg-[#F1F5F9]'
+            }`}
         >
           {children}
         </main>

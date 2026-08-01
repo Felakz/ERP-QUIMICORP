@@ -4,23 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, TipoMovimientoKardex } from '@prisma/client';
+import { Prisma, TipoMovimientoKardex, CategoriaKardex, TipoMovimiento } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RegistrarMovimientoDto } from './dto/registrar-movimiento.dto';
 
-/**
- * Movimientos que INCREMENTAN el stock real del insumo.
- */
 const MOVIMIENTOS_INGRESO: TipoMovimientoKardex[] = [
   TipoMovimientoKardex.ENTRADA,
   TipoMovimientoKardex.REAPROVECHAMIENTO,
 ];
 
-/**
- * Movimientos que DECREMENTAN el stock real del insumo.
- * AJUSTE_FINO puede ir en cualquier sentido (se resuelve por signo del DTO
- * a nivel de negocio); aquí se trata como ingreso adicional a producción.
- */
 const MOVIMIENTOS_EGRESO: TipoMovimientoKardex[] = [
   TipoMovimientoKardex.SALIDA,
   TipoMovimientoKardex.MERMA,
@@ -30,17 +22,6 @@ const MOVIMIENTOS_EGRESO: TipoMovimientoKardex[] = [
 export class KardexService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Registra un movimiento de Kardex de forma ATOMICA e INMUTABLE.
-   * - Bloquea la fila del insumo (SELECT ... FOR UPDATE) dentro de una
-   *   transacción SERIALIZABLE para evitar condiciones de carrera entre
-   *   operarios registrando movimientos simultáneos.
-   * - Calcula stockAnterior/stockNuevo en servidor (nunca confía en el
-   *   cliente) y persiste ambos en el registro histórico.
-   * - El registro de KardexInmutable NUNCA se actualiza ni se borra
-   *   (append-only); cualquier corrección se hace con un nuevo movimiento
-   *   tipo AJUSTE_FINO referenciando el documento original.
-   */
   async registrarMovimiento(dto: RegistrarMovimientoDto) {
     if (dto.cantidad <= 0) {
       throw new BadRequestException('La cantidad debe ser mayor a cero.');
@@ -48,7 +29,6 @@ export class KardexService {
 
     return this.prisma.$transaction(
       async (tx) => {
-        // 1. Bloqueo pesimista de la fila del insumo
         const insumoRows = await tx.$queryRaw<
           { id: string; stockReal: Prisma.Decimal }[]
         >`SELECT id, "stockReal" FROM insumos WHERE id = ${dto.insumoId}::uuid FOR UPDATE`;
@@ -70,17 +50,14 @@ export class KardexService {
             );
           }
         } else {
-          // AJUSTE_FINO: se registra como ingreso neto (cantidad agregada en planta)
           stockNuevo = stockAnterior.plus(dto.cantidad);
         }
 
-        // 2. Actualiza stock real del insumo
         await tx.insumo.update({
           where: { id: dto.insumoId },
           data: { stockReal: stockNuevo },
         });
 
-        // 3. Inserta el movimiento inmutable (nunca se editará este registro)
         const movimiento = await tx.kardexInmutable.create({
           data: {
             insumoId: dto.insumoId,
@@ -119,6 +96,53 @@ export class KardexService {
         insumo: { select: { codigo: true, nombre: true, unidadMedida: true } },
         usuario: { select: { nombres: true, apellidos: true } },
       },
+    });
+  }
+
+  /**
+   * Consulta el Kardex Categorizado de Inventario según la categoría (PRODUCTO_TERMINADO, MATERIA_PRIMA, INSUMO, ENVASE, EMBALAJE),
+   * filtros de búsqueda, fechas y tipo de operación.
+   */
+  async listarCategorizado(params: {
+    categoria?: CategoriaKardex;
+    search?: string;
+    tipoOperacion?: string;
+    desde?: string;
+    hasta?: string;
+    take?: number;
+    skip?: number;
+  }) {
+    const { categoria, search, tipoOperacion, desde, hasta, take = 100, skip = 0 } = params;
+
+    const whereCondition: Prisma.KardexMovimientoWhereInput = {
+      AND: [
+        categoria ? { categoriaKardex: categoria } : {},
+        search
+          ? {
+              OR: [
+                { productoNombre: { contains: search, mode: 'insensitive' } },
+                { proveedorCliente: { contains: search, mode: 'insensitive' } },
+                { numero: { contains: search, mode: 'insensitive' } },
+                { otp: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {},
+        tipoOperacion && tipoOperacion !== 'TODAS'
+          ? tipoOperacion === 'ENTRADAS'
+            ? { cantidadEntrada: { gt: 0 } }
+            : { cantidadSalida: { gt: 0 } }
+          : {},
+        desde ? { fecha: { gte: new Date(desde) } } : {},
+        hasta ? { fecha: { lte: new Date(hasta) } } : {},
+      ],
+    };
+
+    return this.prisma.kardexMovimiento.findMany({
+      where: whereCondition,
+      orderBy: { fecha: 'desc' },
+      take,
+      skip,
+      include: { insumo: true },
     });
   }
 }

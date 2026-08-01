@@ -52,6 +52,23 @@ enum TipoMovimientoKardex {
   REAPROVECHAMIENTO
 }
 
+enum CategoriaKardex {
+  PRODUCTO_TERMINADO
+  MATERIA_PRIMA
+  INSUMO
+  ENVASE
+  EMBALAJE
+}
+
+enum TipoMovimiento {
+  ENTRADA_COMPRA
+  ENTRADA_PRODUCCION
+  ENTRADA_AJUSTE
+  SALIDA_VENTA
+  SALIDA_CONSUMO_PRODUCCION
+  SALIDA_MERMA
+}
+
 enum EstadoSubAlmacen {
   DISPONIBLE
   REUSADO
@@ -133,6 +150,7 @@ model Insumo {
   formulaDetalles      FormulaDetalle[]
   ajustesFinos         AjusteFino[]
   kardexMovimientos    KardexInmutable[]
+  kardexCategorizados  KardexMovimiento[]
   subAlmacenSobrantes  SubAlmacenSobrante[]
 
   createdAt DateTime @default(now())
@@ -181,6 +199,11 @@ model FormulaDetalle {
 model OrdenProduccion {
   id                  String                @id @default(uuid())
   codigoLote          String                @unique
+  clienteNombre       String?               @default("Cliente Quimicorp SAC")
+  operariosAsignados  String?
+  observacionesQA     String?
+  motivoRechazo       String?
+  pasoProceso         String?               @default("PENDIENTE_ASIGNACION")
   formulaId           String
   formula             FormulaMaster         @relation(fields: [formulaId], references: [id])
   cantidadPlanificada Decimal               @db.Decimal(14, 4)
@@ -258,6 +281,40 @@ model KardexInmutable {
   @@map("kardex_inmutable")
 }
 
+model KardexMovimiento {
+  id               String          @id @default(uuid())
+  categoriaKardex  CategoriaKardex @map("categoria_kardex")
+  productoNombre   String          @map("producto_nombre")
+  familia          String?
+  categoriaNombre  String?         @map("categoria_nombre")
+  proveedorCliente String?         @map("proveedor_cliente")
+  unidadMedida     String          @map("unidad_medida")
+
+  fecha            DateTime        @default(now())
+  tipoDoc          String?         @map("tipo_doc")
+  serie            String?
+  numero           String?
+  otp              String?
+
+  tipoOperacion    TipoMovimiento  @map("tipo_operacion")
+  cantidadEntrada  Float           @default(0) @map("cantidad_entrada")
+  cantidadSalida   Float           @default(0) @map("cantidad_salida")
+  saldoFinal       Float           @map("saldo_final")
+
+  insumoId         String?         @map("insumo_id")
+  insumo           Insumo?         @relation(fields: [insumoId], references: [id])
+  usuarioId        String?         @map("usuario_id")
+  usuario          Usuario?        @relation(fields: [usuarioId], references: [id])
+  sedeId           String?         @default("SEDE-LIMA") @map("sede_id")
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  @@index([categoriaKardex])
+  @@index([productoNombre])
+  @@index([fecha])
+  @@map("kardex_movimientos")
+}
+
+
 // ============================================================================
 // 🔵 MODULO 2: PERSONAL, BIOMETRICO Y ASISTENCIA (SPRINT 2)
 // ============================================================================
@@ -295,6 +352,7 @@ model Usuario {
   incidenciasReportadas  IncidenciaLote[]
   auditLogs              AuditLog[]
   ventanasAprobadasQA    VentanaAlmuerzoQA[]
+  kardexCategorizados    KardexMovimiento[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -391,6 +449,24 @@ model TicketDespacho {
   updatedAt DateTime @updatedAt
 
   @@map("tickets_despacho")
+}
+
+model ColaDespacho {
+  id               String   @id @default(uuid())
+  loteCodigo       String   @map("lote_codigo")
+  productoNombre   String   @map("producto_nombre")
+  clienteNombre    String   @map("cliente_nombre")
+  cantidad         String
+  fechaFabricacion DateTime @default(now()) @map("fecha_fabricacion")
+  codigoQR         String   @map("codigo_qr")
+  codigoBarras     String   @map("codigo_barras")
+  estado           String   @default("LISTO_PARA_IMPRIMIR")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([loteCodigo])
+  @@index([estado])
+  @@map("cola_despacho")
 }
 
 model IncidenciaLote {

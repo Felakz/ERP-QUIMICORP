@@ -1,8 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { EstadoOrdenProduccion, Prisma, TipoMovimientoKardex } from '@prisma/client';
+import { EstadoOrdenProduccion, Prisma, TipoMovimientoKardex, CategoriaKardex, TipoMovimiento } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { KardexService } from '../kardex/kardex.service';
+import { ProduccionGateway } from './produccion.gateway';
 import {
+  AsignarOperariosDto,
+  CambiarPasoDto,
   CrearOrdenDto,
   DecidirQADto,
   RegistrarAjusteFinoDto,
@@ -25,14 +28,9 @@ export class ProduccionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly kardexService: KardexService,
+    private readonly produccionGateway: ProduccionGateway,
   ) {}
 
-  /**
-   * Endpoint clave del Sprint 1: calcula, a partir de la FormulaMaster y sus
-   * porcentajes, cuánto insumo se requiere para la cantidad planificada y lo
-   * compara contra el stockReal actual. Se usa ANTES de permitir iniciar una
-   * Orden de Producción, para evitar detener la planta a mitad de proceso.
-   */
   async validarStockDisponible(dto: ValidarStockDto): Promise<{
     formulaId: string;
     cantidadPlanificada: number;
@@ -81,10 +79,6 @@ export class ProduccionService {
     };
   }
 
-  /**
-   * Crea la Orden de Producción SOLO si la validación de stock es
-   * satisfactoria; en caso contrario lanza 400 con el detalle de faltantes.
-   */
   async crearOrden(dto: CrearOrdenDto) {
     const validacion = await this.validarStockDisponible({
       formulaId: dto.formulaId,
@@ -101,23 +95,108 @@ export class ProduccionService {
     const ultimoCodigo = await this.prisma.ordenProduccion.count();
     const codigoLote = `LOTE-${String(ultimoCodigo + 1).padStart(6, '0')}`;
 
-    return this.prisma.ordenProduccion.create({
+    const orden = await this.prisma.ordenProduccion.create({
       data: {
         codigoLote,
         formulaId: dto.formulaId,
         cantidadPlanificada: dto.cantidadPlanificada,
         supervisorId: dto.supervisorId,
+        clienteNombre: dto.clienteNombre || 'Cliente Quimicorp SAC',
         estado: EstadoOrdenProduccion.EN_PROCESO,
+        pasoProceso: 'PENDIENTE_ASIGNACION',
       },
       include: { formula: true, supervisor: true },
     });
+
+    this.produccionGateway.emitirEstadoActualizado({
+      ordenId: orden.id,
+      codigoLote: orden.codigoLote,
+      clienteNombre: orden.clienteNombre || 'Cliente Quimicorp SAC',
+      nuevoEstado: 'EN_PROCESO',
+      pasoProceso: 'PENDIENTE_ASIGNACION',
+      timestamp: new Date().toISOString(),
+    });
+
+    return orden;
   }
 
-  /**
-   * Registra un Ajuste Fino en planta: crea el registro de negocio
-   * (AjusteFino) y, en la misma operación, dispara el movimiento inmutable
-   * de Kardex de tipo AJUSTE_FINO para mantener el stockReal sincronizado.
-   */
+  async asignarOperarios(dto: AsignarOperariosDto) {
+    const orden = await this.prisma.ordenProduccion.findUnique({
+      where: { id: dto.ordenProduccionId },
+    });
+    if (!orden) {
+      throw new NotFoundException('Orden de producción no encontrada.');
+    }
+
+    const operariosStr = dto.operarios.join(', ');
+    const nuevoPaso = dto.operarios.length > 0 ? 'ELABORANDO' : 'PENDIENTE_ASIGNACION';
+
+    const ordenActualizada = await this.prisma.ordenProduccion.update({
+      where: { id: dto.ordenProduccionId },
+      data: {
+        operariosAsignados: operariosStr,
+        pasoProceso: nuevoPaso,
+      },
+      include: { formula: true },
+    });
+
+    this.produccionGateway.emitirEstadoActualizado({
+      ordenId: ordenActualizada.id,
+      codigoLote: ordenActualizada.codigoLote,
+      clienteNombre: ordenActualizada.clienteNombre || 'Cliente Quimicorp SAC',
+      nuevoEstado: ordenActualizada.estado,
+      pasoProceso: nuevoPaso,
+      operarios: dto.operarios,
+      timestamp: new Date().toISOString(),
+    });
+
+    return ordenActualizada;
+  }
+
+  async cambiarPasoProceso(dto: CambiarPasoDto) {
+    const orden = await this.prisma.ordenProduccion.findUnique({
+      where: { id: dto.ordenProduccionId },
+    });
+    if (!orden) {
+      throw new NotFoundException('Orden de producción no encontrada.');
+    }
+
+    // Regla de negocio: no se puede pasar a ELABORANDO ni EN_MUESTREO_QA sin operarios
+    const operariosList = orden.operariosAsignados ? orden.operariosAsignados.split(', ') : [];
+    if ((dto.pasoProceso === 'ELABORANDO' || dto.pasoProceso === 'EN_MUESTREO_QA') && operariosList.length === 0) {
+      throw new BadRequestException('⚠️ Asigna al menos un operario para habilitar la fabricación.');
+    }
+
+    let nuevoEstadoEnum = orden.estado;
+    if (dto.pasoProceso === 'EN_MUESTREO_QA') {
+      nuevoEstadoEnum = EstadoOrdenProduccion.QA_PENDIENTE;
+    } else if (dto.pasoProceso === 'LIBERADO_QA') {
+      nuevoEstadoEnum = EstadoOrdenProduccion.APROBADO;
+    }
+
+    const ordenActualizada = await this.prisma.ordenProduccion.update({
+      where: { id: dto.ordenProduccionId },
+      data: {
+        pasoProceso: dto.pasoProceso,
+        estado: nuevoEstadoEnum,
+        observacionesQA: dto.observacionesQA || orden.observacionesQA,
+      },
+      include: { formula: true },
+    });
+
+    this.produccionGateway.emitirEstadoActualizado({
+      ordenId: ordenActualizada.id,
+      codigoLote: ordenActualizada.codigoLote,
+      clienteNombre: ordenActualizada.clienteNombre || 'Cliente Quimicorp SAC',
+      nuevoEstado: ordenActualizada.estado,
+      pasoProceso: dto.pasoProceso,
+      observaciones: dto.observacionesQA,
+      timestamp: new Date().toISOString(),
+    });
+
+    return ordenActualizada;
+  }
+
   async registrarAjusteFino(dto: RegistrarAjusteFinoDto) {
     const orden = await this.prisma.ordenProduccion.findUnique({
       where: { id: dto.ordenProduccionId },
@@ -148,10 +227,15 @@ export class ProduccionService {
     });
   }
 
-  /** Bandeja de aprobación QA: lotes pendientes de revisión. */
   listarPendientesQA() {
     return this.prisma.ordenProduccion.findMany({
-      where: { estado: EstadoOrdenProduccion.QA_PENDIENTE },
+      where: {
+        OR: [
+          { estado: EstadoOrdenProduccion.QA_PENDIENTE },
+          { estado: EstadoOrdenProduccion.EN_PROCESO },
+          { estado: EstadoOrdenProduccion.PENDIENTE },
+        ],
+      },
       include: { formula: true, supervisor: { select: { nombres: true, apellidos: true } } },
       orderBy: { updatedAt: 'asc' },
     });
@@ -162,23 +246,176 @@ export class ProduccionService {
       where: { id: ordenProduccionId },
       data: {
         estado: EstadoOrdenProduccion.QA_PENDIENTE,
+        pasoProceso: 'EN_MUESTREO_QA',
         cantidadObtenida,
       },
     });
   }
 
-  aprobarLote(dto: DecidirQADto) {
-    return this.prisma.ordenProduccion.update({
+  /**
+   * Al APROBAR & LIBERAR un Lote en Control de Producción & QA:
+   * 1. Cambia el estado a APROBADO y pasoProceso a LIBERADO_QA.
+   * 2. Registra automáticamente en el KardexMovimiento:
+   *    - Salida por consumo (SALIDA_CONSUMO_PRODUCCION) de cada Materia Prima / Insumo según receta.
+   *    - Entrada de Producto Terminado (ENTRADA_PRODUCCION) en PRODUCTO_TERMINADO con el nombre del Cliente y los KG/L.
+   * 3. Emite evento WebSocket en tiempo real para Administración y Logística.
+   */
+  async aprobarLote(dto: DecidirQADto) {
+    const orden = await this.prisma.ordenProduccion.findUnique({
       where: { id: dto.ordenProduccionId },
-      data: { estado: EstadoOrdenProduccion.APROBADO },
+      include: {
+        formula: {
+          include: {
+            detalles: {
+              include: {
+                insumo: {
+                  include: { familia: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!orden) {
+      throw new NotFoundException('Orden de producción no encontrada.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const ordenAprobada = await tx.ordenProduccion.update({
+        where: { id: dto.ordenProduccionId },
+        data: {
+          estado: EstadoOrdenProduccion.APROBADO,
+          pasoProceso: 'LIBERADO_QA',
+          observacionesQA: dto.observacionesQA || orden.observacionesQA,
+        },
+      });
+
+      const cantidadProducida = Number(dto.cantidadObtenida || orden.cantidadObtenida || orden.cantidadPlanificada);
+      const clienteFinal = orden.clienteNombre || 'Cliente Quimicorp SAC';
+
+      // 1. Salidas por Consumo de Materia Prima / Insumos
+      for (const detalle of orden.formula.detalles) {
+        const porcentaje = Number(detalle.porcentaje);
+        const consumoCalculado = (Number(orden.cantidadPlanificada) * porcentaje) / 100;
+        const stockActual = Number(detalle.insumo.stockReal);
+        const nuevoSaldo = Math.max(0, stockActual - consumoCalculado);
+
+        await tx.insumo.update({
+          where: { id: detalle.insumoId },
+          data: { stockReal: nuevoSaldo },
+        });
+
+        const esMateriaPrima = detalle.insumo.familia?.nombre.toLowerCase().includes('ácido') ||
+                               detalle.insumo.familia?.nombre.toLowerCase().includes('solvente');
+
+        await tx.kardexMovimiento.create({
+          data: {
+            categoriaKardex: esMateriaPrima
+              ? CategoriaKardex.MATERIA_PRIMA
+              : CategoriaKardex.INSUMO,
+            productoNombre: detalle.insumo.nombre,
+            familia: detalle.insumo.familia?.nombre || 'General',
+            categoriaNombre: detalle.insumo.familia?.nombre || 'Químicos Base',
+            proveedorCliente: `Consumo Planta - Lote ${orden.codigoLote} (${clienteFinal})`,
+            unidadMedida: detalle.insumo.unidadMedida,
+            fecha: new Date(),
+            tipoDoc: 'OP',
+            serie: 'LOTE',
+            numero: orden.codigoLote,
+            otp: `OTP-${orden.codigoLote}`,
+            tipoOperacion: TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,
+            cantidadEntrada: 0,
+            cantidadSalida: consumoCalculado,
+            saldoFinal: nuevoSaldo,
+            insumoId: detalle.insumoId,
+          },
+        });
+      }
+
+      // 2. Entrada del Producto Terminado Aprobado
+      await tx.kardexMovimiento.create({
+        data: {
+          categoriaKardex: CategoriaKardex.PRODUCTO_TERMINADO,
+          productoNombre: orden.formula.nombreProducto,
+          familia: 'Detergentes & Limpiadores Industriales',
+          categoriaNombre: 'Producto Terminado Aprobado',
+          proveedorCliente: clienteFinal,
+          unidadMedida: 'KG',
+          fecha: new Date(),
+          tipoDoc: 'OP',
+          serie: 'LOTE',
+          numero: orden.codigoLote,
+          otp: `OTP-${orden.codigoLote}`,
+          tipoOperacion: TipoMovimiento.ENTRADA_PRODUCCION,
+          cantidadEntrada: cantidadProducida,
+          cantidadSalida: 0,
+          saldoFinal: cantidadProducida,
+        },
+      });
+
+      // 3. Enviar a la Cola de Etiquetas & Despacho (/dashboard/etiquetas)
+      await tx.colaDespacho.create({
+        data: {
+          loteCodigo: orden.codigoLote,
+          productoNombre: orden.formula.nombreProducto,
+          clienteNombre: clienteFinal,
+          cantidad: `${cantidadProducida} KG`,
+          fechaFabricacion: new Date(),
+          codigoQR: `QR-QUIMICORP-${orden.codigoLote}`,
+          codigoBarras: `7759000${orden.codigoLote.replace(/\D/g, '') || '1001'}`,
+          estado: 'LISTO_PARA_IMPRIMIR',
+        },
+      });
+
+      // 4. Emisión de Evento WebSocket
+      this.produccionGateway.emitirEstadoActualizado({
+        ordenId: ordenAprobada.id,
+        codigoLote: ordenAprobada.codigoLote,
+        clienteNombre: clienteFinal,
+        nuevoEstado: 'APROBADO',
+        pasoProceso: 'LIBERADO_QA',
+        observaciones: dto.observacionesQA,
+        timestamp: new Date().toISOString(),
+      });
+
+      return ordenAprobada;
     });
   }
 
-  rechazarLote(dto: DecidirQADto) {
-    return this.prisma.ordenProduccion.update({
-      where: { id: dto.ordenProduccionId },
-      data: { estado: EstadoOrdenProduccion.RECHAZADO },
+  obtenerColaDespacho() {
+    return this.prisma.colaDespacho.findMany({
+      orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async rechazarLote(dto: DecidirQADto) {
+    if (!dto.motivoRechazo?.trim()) {
+      throw new BadRequestException('El motivo de rechazo es obligatorio para detener el lote.');
+    }
+
+    const ordenRechazada = await this.prisma.ordenProduccion.update({
+      where: { id: dto.ordenProduccionId },
+      data: {
+        estado: EstadoOrdenProduccion.RECHAZADO,
+        pasoProceso: 'RECHAZADO',
+        motivoRechazo: dto.motivoRechazo,
+        observacionesQA: dto.observacionesQA,
+      },
+    });
+
+    this.produccionGateway.emitirEstadoActualizado({
+      ordenId: ordenRechazada.id,
+      codigoLote: ordenRechazada.codigoLote,
+      clienteNombre: ordenRechazada.clienteNombre || 'Cliente Quimicorp SAC',
+      nuevoEstado: 'RECHAZADO',
+      pasoProceso: 'RECHAZADO',
+      observaciones: dto.motivoRechazo,
+      timestamp: new Date().toISOString(),
+    });
+
+    return ordenRechazada;
   }
 
   listar() {

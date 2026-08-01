@@ -1,0 +1,3522 @@
+[
+  {
+    "sheetName": "Resumen",
+    "familia": "FAMILIA",
+    "categoria": "CATEGORIA",
+    "proveedor": "PRODUCTO",
+    "producto": "UNIDAD",
+    "unidadMedida": "STOCK ACUM.",
+    "stockInicial": 0,
+    "movimientos": []
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "ALFALION",
+    "producto": "BASES DE GLICERINA - BLANCA",
+    "unidadMedida": "KG",
+    "stockInicial": 60,
+    "movimientos": [
+      {
+        "fechaRaw": 46220,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 20,
+        "saldoCalculado": 40
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "FT",
+        "serie": "E001",
+        "numero": "5252",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 0,
+        "saldoCalculado": 40
+      }
+    ]
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "ALFALION",
+    "producto": "BASES DE GLICERINA - TRANSPARENTE",
+    "unidadMedida": "KG",
+    "stockInicial": 140,
+    "movimientos": [
+      {
+        "fechaRaw": 46220,
+        "tipoDoc": "OP",
+        "serie": "",
+        "numero": "",
+        "otro": "",
+        "operacion": "AJUSTE",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 15,
+        "saldoCalculado": 125
+      }
+    ]
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "ÑAUPARI",
+    "producto": "BASES DE GLICERINA - AMBAR",
+    "unidadMedida": "KG",
+    "stockInicial": 69,
+    "movimientos": []
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "AUSTIN",
+    "producto": "GEL RETARDANTE NEGRO",
+    "unidadMedida": "KG",
+    "stockInicial": 1.9,
+    "movimientos": []
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "BASE MAQUILLAJE BEIGE",
+    "unidadMedida": "KG",
+    "stockInicial": 11.9,
+    "movimientos": []
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "GEYMA",
+    "producto": "SHAMPOO DE BATANA NARANJA FRA. MANZANA",
+    "unidadMedida": "KG",
+    "stockInicial": 12,
+    "movimientos": []
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "BASE TRANSPARENTE DE SHAMPOO",
+    "unidadMedida": "KG",
+    "stockInicial": 5,
+    "movimientos": []
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "BASE DE MAQUILLAJE NUDE",
+    "unidadMedida": "KG",
+    "stockInicial": 4,
+    "movimientos": []
+  },
+  {
+    "sheetName": "PROD. TERMINADO",
+    "familia": "PROD. TERM.",
+    "categoria": "PROD. TERM.",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "SHAMPOO EROS BLANCO",
+    "unidadMedida": "KG",
+    "stockInicial": 17.6,
+    "movimientos": []
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "SOLIDOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "GOICOCHEA",
+    "producto": "ALCOHOL CETILICO",
+    "unidadMedida": "KG",
+    "stockInicial": 283400,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 15,
+        "saldoCalculado": 283385
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "FT",
+        "serie": "E001",
+        "numero": "5252",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 0,
+        "saldoCalculado": 283385
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "ESPESANTES",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "MAPRIAL",
+    "producto": "BETAINA",
+    "unidadMedida": "KG",
+    "stockInicial": 215600,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4671,
+        "saldoCalculado": 210929
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "POLVOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "NORPERU",
+    "producto": "CARBOPOL",
+    "unidadMedida": "KG",
+    "stockInicial": 7350,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4671,
+        "saldoCalculado": 2679
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "POLVOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "PFLUCKER E HIJOS",
+    "producto": "CELLOSIZE",
+    "unidadMedida": "KG",
+    "stockInicial": 11200,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4672,
+        "saldoCalculado": 6528
+      },
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 66,
+        "saldoCalculado": 6462
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "SOLIDOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "NORPERU",
+    "producto": "CERA CARNAUBA",
+    "unidadMedida": "KG",
+    "stockInicial": 18945,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4673,
+        "saldoCalculado": 14272
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "SOLIDOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "COLDA SAC - AYACUCHO",
+    "producto": "CERA DE ABEJA",
+    "unidadMedida": "KG",
+    "stockInicial": 200000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4674,
+        "saldoCalculado": 195326
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "ESPESANTES",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "NORPERU",
+    "producto": "COPERLAND",
+    "unidadMedida": "KG",
+    "stockInicial": 9424,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4675,
+        "saldoCalculado": 4749
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "LIQUIDOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "GOICOCHEA",
+    "producto": "DEYQUART",
+    "unidadMedida": "KG",
+    "stockInicial": 82943,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4676,
+        "saldoCalculado": 78267
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "SOLIDOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "CABANILLAS JULCA",
+    "producto": "EMULGADE 1000",
+    "unidadMedida": "KG",
+    "stockInicial": 50000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4677,
+        "saldoCalculado": 45323
+      }
+    ]
+  },
+  {
+    "sheetName": "MATERIA PRIMA",
+    "familia": "SOLIDOS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "NORPERU",
+    "producto": "EMULGADOR",
+    "unidadMedida": "KG",
+    "stockInicial": 15200,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4678,
+        "saldoCalculado": 10522
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4679,
+        "saldoCalculado": -4679
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4680,
+        "saldoCalculado": -4680
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4681,
+        "saldoCalculado": -4681
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4682,
+        "saldoCalculado": -4682
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4683,
+        "saldoCalculado": -4683
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4684,
+        "saldoCalculado": -4684
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4685,
+        "saldoCalculado": -4685
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4686,
+        "saldoCalculado": -4686
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4687,
+        "saldoCalculado": -4687
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4688,
+        "saldoCalculado": -4688
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4689,
+        "saldoCalculado": -4689
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4690,
+        "saldoCalculado": -4690
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4691,
+        "saldoCalculado": -4691
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "PFLUKER E HIJOS",
+    "producto": "A.E ALMENDRA",
+    "unidadMedida": "KG",
+    "stockInicial": 9745,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 15,
+        "saldoCalculado": 9730
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "FT",
+        "serie": "E001",
+        "numero": "5252",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 0,
+        "saldoCalculado": 9730
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "A.E CALENDULA",
+    "unidadMedida": "KG",
+    "stockInicial": 7716,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4671,
+        "saldoCalculado": 3045
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "A.E EUCALIPTO",
+    "unidadMedida": "GR",
+    "stockInicial": 300,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4672,
+        "saldoCalculado": -4372
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "A.E JOJOBA",
+    "unidadMedida": "KG",
+    "stockInicial": 9300,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4673,
+        "saldoCalculado": 4627
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "A.E LAVANDA",
+    "unidadMedida": "KG",
+    "stockInicial": 10900,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4674,
+        "saldoCalculado": 6226
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUMASTER",
+    "producto": "A.E MENTA",
+    "unidadMedida": "KG",
+    "stockInicial": 1520,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4675,
+        "saldoCalculado": -3155
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "A.E ROMERO",
+    "unidadMedida": "KG",
+    "stockInicial": 8371,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4676,
+        "saldoCalculado": 3695
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "PFLUCKER E HJOS",
+    "producto": "A.E ROSA MOSQUETA",
+    "unidadMedida": "KG",
+    "stockInicial": 5800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4677,
+        "saldoCalculado": 1123
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "A.E TEA TREE",
+    "unidadMedida": "KG",
+    "stockInicial": 23600,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4678,
+        "saldoCalculado": 18922
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ACEITE DE RICINO",
+    "unidadMedida": "KG",
+    "stockInicial": 39801,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4680,
+        "saldoCalculado": 35121
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ACIDO ACETICO",
+    "unidadMedida": "KG",
+    "stockInicial": 8800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4681,
+        "saldoCalculado": 4119
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "MARVA",
+    "producto": "ACIDO ASCORBICO",
+    "unidadMedida": "KG",
+    "stockInicial": 7700,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4682,
+        "saldoCalculado": 3018
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "QUIM. EXPRESS",
+    "producto": "ACIDO BANZOICO",
+    "unidadMedida": "GR",
+    "stockInicial": 700,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4683,
+        "saldoCalculado": -3983
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ACIDO BORICO",
+    "unidadMedida": "KG",
+    "stockInicial": 6437,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4684,
+        "saldoCalculado": 1753
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "MAPRIAL",
+    "producto": "ACIDO CITRICO",
+    "unidadMedida": "KG",
+    "stockInicial": 18048,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4685,
+        "saldoCalculado": 13363
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "SOLUCIONES QUIMICAS GK",
+    "producto": "ACIDO ESTERICO",
+    "unidadMedida": "KG",
+    "stockInicial": 30700,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4686,
+        "saldoCalculado": 26014
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ACIDO FOSFORICO",
+    "unidadMedida": "GR",
+    "stockInicial": 200,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4687,
+        "saldoCalculado": -4487
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "SOLUCIONES QUIMICAS GK",
+    "producto": "ACIDO HIALURONICO",
+    "unidadMedida": "KG",
+    "stockInicial": 1320,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4688,
+        "saldoCalculado": -3368
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "ACIDO KOJICO",
+    "unidadMedida": "KG",
+    "stockInicial": 5000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4689,
+        "saldoCalculado": 311
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "ACIDO LACTICO",
+    "unidadMedida": "KG",
+    "stockInicial": 12000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4690,
+        "saldoCalculado": 7310
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "OMNICHEM",
+    "producto": "ACIDO MANDELICO",
+    "unidadMedida": "KG",
+    "stockInicial": 1800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4691,
+        "saldoCalculado": -2891
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "ACIDO OLEICO",
+    "unidadMedida": "GR",
+    "stockInicial": 850,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4692,
+        "saldoCalculado": -3842
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "PFLUCKER E HJOS",
+    "producto": "ACIDO OXALICO",
+    "unidadMedida": "KG",
+    "stockInicial": 1900,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4693,
+        "saldoCalculado": -2793
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "MARVA",
+    "producto": "ACIDO SALICILICO",
+    "unidadMedida": "KG",
+    "stockInicial": 35000,
+    "movimientos": [
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "GR",
+        "serie": "T002",
+        "numero": "00052789",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 25000,
+        "cantidadSalida": 0,
+        "saldoCalculado": 60000
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ACIDO SULFONICO",
+    "unidadMedida": "KG",
+    "stockInicial": 16000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4695,
+        "saldoCalculado": 11305
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "PFLUCKER E HJOS",
+    "producto": "ACIDO TIOGLICOLICO",
+    "unidadMedida": "KG",
+    "stockInicial": 3500,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4696,
+        "saldoCalculado": -1196
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "QUIM. EXPRESS",
+    "producto": "ACIDO UNDECILEICO",
+    "unidadMedida": "GR",
+    "stockInicial": 210,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4697,
+        "saldoCalculado": -4487
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "CONSERVANTES",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ACTICIDE",
+    "unidadMedida": "KG",
+    "stockInicial": 5000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4698,
+        "saldoCalculado": 302
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "DINOKO",
+    "producto": "AGUA DESHIONIZADA",
+    "unidadMedida": "LT",
+    "stockInicial": 364800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4699,
+        "saldoCalculado": 360101
+      },
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 5334,
+        "saldoCalculado": 354767
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "OREGOM CHEM",
+    "producto": "AGUA DESTILADA",
+    "unidadMedida": "LT",
+    "stockInicial": 4800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4700,
+        "saldoCalculado": 100
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "ALANTOINA",
+    "unidadMedida": "KG",
+    "stockInicial": 4400,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4701,
+        "saldoCalculado": -301
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "ACEITES",
+    "categoria": "INSUMO",
+    "proveedor": "MARVA",
+    "producto": "ALCANFOR",
+    "unidadMedida": "KG",
+    "stockInicial": 3725,
+    "movimientos": [
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "GR",
+        "serie": "T002",
+        "numero": "00052789",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 25000,
+        "cantidadSalida": 0,
+        "saldoCalculado": 28725
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "ALKOLER",
+    "producto": "ALCOHOL",
+    "unidadMedida": "LT",
+    "stockInicial": 867000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4703,
+        "saldoCalculado": 862297
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "INVERS. AGO.",
+    "producto": "ALCOHOL ISOPROPILICO",
+    "unidadMedida": "KG",
+    "stockInicial": 54000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4705,
+        "saldoCalculado": 49295
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "PASTOSOS",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "ALCOHOL LAURICO",
+    "unidadMedida": "KG",
+    "stockInicial": 200000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4706,
+        "saldoCalculado": 195294
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "ALCOHOL POLIVINILICO",
+    "unidadMedida": "GR",
+    "stockInicial": 140,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4707,
+        "saldoCalculado": -4567
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "QUIMICA SKR",
+    "producto": "ANITRAZ",
+    "unidadMedida": "KG",
+    "stockInicial": 50000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4708,
+        "saldoCalculado": 45292
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ANTIESPUMANTE BLANCO",
+    "unidadMedida": "GR",
+    "stockInicial": 600,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4709,
+        "saldoCalculado": -4109
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "INSUMASTER",
+    "producto": "ANTIESPUMANTE INDUSTRIAL",
+    "unidadMedida": "KG",
+    "stockInicial": 1700,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4710,
+        "saldoCalculado": -3010
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "AUROL NACARANTE SDS",
+    "unidadMedida": "GR",
+    "stockInicial": 800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4711,
+        "saldoCalculado": -3911
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "INDERAL",
+    "producto": "BENCINA",
+    "unidadMedida": "KG",
+    "stockInicial": 25000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4712,
+        "saldoCalculado": 20288
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "CONSERVANTES",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "BENZOATO",
+    "unidadMedida": "KG",
+    "stockInicial": 14903,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4713,
+        "saldoCalculado": 10190
+      },
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 6,
+        "saldoCalculado": 10184
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "AROMAS DEL P.",
+    "producto": "BICARBONATO FOOD GRADE",
+    "unidadMedida": "KG",
+    "stockInicial": 18005,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4714,
+        "saldoCalculado": 13291
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "BIOTINA",
+    "unidadMedida": "KG",
+    "stockInicial": 1000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4715,
+        "saldoCalculado": -3715
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "QUIM. EXPRESS",
+    "producto": "BIOTINA 2%",
+    "unidadMedida": "GR",
+    "stockInicial": 532,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4716,
+        "saldoCalculado": -4184
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "BUTIL",
+    "unidadMedida": "KG",
+    "stockInicial": 24600,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4717,
+        "saldoCalculado": 19883
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "MARVA",
+    "producto": "CAFEINA",
+    "unidadMedida": "KG",
+    "stockInicial": 5307,
+    "movimientos": [
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "GR",
+        "serie": "T002",
+        "numero": "00052789",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 40000,
+        "cantidadSalida": 0,
+        "saldoCalculado": 45307
+      },
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "GR",
+        "serie": "T003",
+        "numero": "00004646",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 10000,
+        "cantidadSalida": 0,
+        "saldoCalculado": 55307
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "MOLICAL SAC.",
+    "producto": "CAL",
+    "unidadMedida": "KG",
+    "stockInicial": 25000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4719,
+        "saldoCalculado": 20281
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "CAOLIN ARCILLA BLANCA",
+    "unidadMedida": "KG",
+    "stockInicial": 25000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4720,
+        "saldoCalculado": 20280
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "MOLICAL SAC.",
+    "producto": "CARBONATO 1000",
+    "unidadMedida": "KG",
+    "stockInicial": 48394,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4721,
+        "saldoCalculado": 43673
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "MOLICAL SAC.",
+    "producto": "CARBONATO 400",
+    "unidadMedida": "KG",
+    "stockInicial": 42304,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4722,
+        "saldoCalculado": 37582
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "GENERAL",
+    "categoria": "INSUMO",
+    "proveedor": "SG QUIMICOS",
+    "producto": "CICLOMETICONA",
+    "unidadMedida": "KG",
+    "stockInicial": 6500,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4723,
+        "saldoCalculado": 1777
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "CLOREXIDINA DE ALUMINIO",
+    "unidadMedida": "KG",
+    "stockInicial": 16503,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4724,
+        "saldoCalculado": 11779
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "CLORURO DE BENZALCONIO",
+    "unidadMedida": "KG",
+    "stockInicial": 1000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4725,
+        "saldoCalculado": -3725
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "MARVA",
+    "producto": "CLORURO DE MAGNESIO",
+    "unidadMedida": "KG",
+    "stockInicial": 24000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4726,
+        "saldoCalculado": 19274
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "CMC",
+    "unidadMedida": "KG",
+    "stockInicial": 8700,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4727,
+        "saldoCalculado": 3973
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "COMERCIALIZADORA MARIFE SAC",
+    "producto": "COL. ALIMENTICIO BLANCO",
+    "unidadMedida": "KG",
+    "stockInicial": 24400,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4728,
+        "saldoCalculado": 19672
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUMASTER",
+    "producto": "COL. AMARILLO DISPERSANTE",
+    "unidadMedida": "GR",
+    "stockInicial": 900,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4729,
+        "saldoCalculado": -3829
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUMASTER",
+    "producto": "COL. AZUL DISPERSANTE",
+    "unidadMedida": "GR",
+    "stockInicial": 900,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4730,
+        "saldoCalculado": -3830
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUMASTER",
+    "producto": "COL. NEGRO DISPERSANTE",
+    "unidadMedida": "KG",
+    "stockInicial": 7090,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4731,
+        "saldoCalculado": 2359
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "GRUPO FLUKER",
+    "producto": "COL. OXIDO DE HIERRO AMARILLO",
+    "unidadMedida": "KG",
+    "stockInicial": 24500,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4732,
+        "saldoCalculado": 19768
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "GRUPO FLUKER",
+    "producto": "COL. OXIDO DE HIERRO ROJO",
+    "unidadMedida": "KG",
+    "stockInicial": 21900,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4733,
+        "saldoCalculado": 17167
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUMASTER",
+    "producto": "COL. ROJO DISPERSANTE",
+    "unidadMedida": "GR",
+    "stockInicial": 550,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4734,
+        "saldoCalculado": -4184
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "COLORANTES",
+    "categoria": "INSUMO",
+    "proveedor": "INSUMASTER",
+    "producto": "COL. VERDE DISPERSANTE",
+    "unidadMedida": "KG",
+    "stockInicial": 1150,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4735,
+        "saldoCalculado": -3585
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "SOLUCIONES QUIMICA GK",
+    "producto": "COLAGENO HIDROLIZADO",
+    "unidadMedida": "KG",
+    "stockInicial": 9397,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4736,
+        "saldoCalculado": 4661
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "SG QUIMICOS",
+    "producto": "COUMARINA",
+    "unidadMedida": "KG",
+    "stockInicial": 3592,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4737,
+        "saldoCalculado": -1145
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "GAMARRA",
+    "producto": "CURCUMA",
+    "unidadMedida": "KG",
+    "stockInicial": 3770,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4738,
+        "saldoCalculado": -968
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "DECYL GLUCIDE",
+    "unidadMedida": "KG",
+    "stockInicial": 10200,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4739,
+        "saldoCalculado": 5461
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "OREGON CHEM",
+    "producto": "DIOXIDO DE SILICIO",
+    "unidadMedida": "KG",
+    "stockInicial": 21000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4740,
+        "saldoCalculado": 16260
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "POLVOS",
+    "categoria": "INSUMO",
+    "proveedor": "ECOMAFER",
+    "producto": "DIOXIDO DE TITANIO BLANCO",
+    "unidadMedida": "KG",
+    "stockInicial": 16900,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4741,
+        "saldoCalculado": 12159
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "DIPROPILENGRLICOL",
+    "unidadMedida": "KG",
+    "stockInicial": 10000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4742,
+        "saldoCalculado": 5258
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4743,
+        "saldoCalculado": -4743
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "ESTABILIZADOR DE PEROXIDO",
+    "unidadMedida": "KG",
+    "stockInicial": 5950,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4744,
+        "saldoCalculado": 1206
+      },
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 0,
+        "saldoCalculado": 1206
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE CENTELLA ASIATICA",
+    "unidadMedida": "KG",
+    "stockInicial": 11174,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4745,
+        "saldoCalculado": 6429
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE ALHOE",
+    "unidadMedida": "KG",
+    "stockInicial": 18000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4746,
+        "saldoCalculado": 13254
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE HAMAMELIS",
+    "unidadMedida": "KG",
+    "stockInicial": 17500,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4747,
+        "saldoCalculado": 12753
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE CALENDULA",
+    "unidadMedida": "KG",
+    "stockInicial": 7500,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4748,
+        "saldoCalculado": 2752
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE CASTAÑA DE INDIAS",
+    "unidadMedida": "KG",
+    "stockInicial": 13084,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4749,
+        "saldoCalculado": 8335
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE GINSENG",
+    "unidadMedida": "KG",
+    "stockInicial": 6300,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4750,
+        "saldoCalculado": 1550
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE JENGIBRE",
+    "unidadMedida": "KG",
+    "stockInicial": 5000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4751,
+        "saldoCalculado": 249
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE MANZANILLA",
+    "unidadMedida": "KG",
+    "stockInicial": 8548,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4752,
+        "saldoCalculado": 3796
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE ROMERO",
+    "unidadMedida": "KG",
+    "stockInicial": 12440,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4753,
+        "saldoCalculado": 7687
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "EXTRACTO NATURAL DE ARNICA",
+    "unidadMedida": "KG",
+    "stockInicial": 7100,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4754,
+        "saldoCalculado": 2346
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO NATURAL DE AVENA",
+    "unidadMedida": "KG",
+    "stockInicial": 12600,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4755,
+        "saldoCalculado": 7845
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "EXTRACTOS",
+    "categoria": "INSUMO",
+    "proveedor": "CABANILLA JULCA",
+    "producto": "EXTRACTO DE ORTIGA",
+    "unidadMedida": "KG",
+    "stockInicial": 4600,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4756,
+        "saldoCalculado": -156
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "EXXOL",
+    "unidadMedida": "KG",
+    "stockInicial": 1800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4757,
+        "saldoCalculado": -2957
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "FORMOL",
+    "unidadMedida": "KG",
+    "stockInicial": 3529,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4758,
+        "saldoCalculado": -1229
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "FRAG. ARIEL INTENSE",
+    "unidadMedida": "GR",
+    "stockInicial": 300,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4759,
+        "saldoCalculado": -4459
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "SMART CHEM",
+    "producto": "FRAG. ARIS ACTIFIT",
+    "unidadMedida": "KG",
+    "stockInicial": 1000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4760,
+        "saldoCalculado": -3760
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "SMART CHEM",
+    "producto": "FRAG. AVENA Y MIEL",
+    "unidadMedida": "KG",
+    "stockInicial": 1933,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4761,
+        "saldoCalculado": -2828
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "FRAG. B INTENSE",
+    "unidadMedida": "GR",
+    "stockInicial": 225,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4762,
+        "saldoCalculado": -4537
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "FRAG. BABY POWERS",
+    "unidadMedida": "GR",
+    "stockInicial": 317,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4763,
+        "saldoCalculado": -4446
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "FRAG. BELLE",
+    "unidadMedida": "GR",
+    "stockInicial": 500,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4764,
+        "saldoCalculado": -4264
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "FRAG. BLUE CHANEL",
+    "unidadMedida": "GR",
+    "stockInicial": 170,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4765,
+        "saldoCalculado": -4595
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "FRAPECCO",
+    "producto": "FRAG. BORN IN ROMA",
+    "unidadMedida": "GR",
+    "stockInicial": 200,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4766,
+        "saldoCalculado": -4566
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "FRAG. BOSMAN",
+    "unidadMedida": "GR",
+    "stockInicial": 105,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4767,
+        "saldoCalculado": -4662
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "FLOROSINTESIS",
+    "producto": "FRAG. BRITNEY SPEARS",
+    "unidadMedida": "KG",
+    "stockInicial": 4245,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4768,
+        "saldoCalculado": -523
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "SG QUIMICOS",
+    "producto": "FRAG. CALVIN KLEIN",
+    "unidadMedida": "GR",
+    "stockInicial": 800,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4769,
+        "saldoCalculado": -3969
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "SMART CHEM",
+    "producto": "FRAG. CANELA Y MANZANA",
+    "unidadMedida": "KG",
+    "stockInicial": 2400,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4770,
+        "saldoCalculado": -2370
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "FRAG. CARO LA ROSE",
+    "unidadMedida": "GR",
+    "stockInicial": 105,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4771,
+        "saldoCalculado": -4666
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "FRAG. CHICLE MIX",
+    "unidadMedida": "GR",
+    "stockInicial": 700,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4772,
+        "saldoCalculado": -4072
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "INSUQUIMICA",
+    "producto": "FRAG. COCO INTENSE",
+    "unidadMedida": "KG",
+    "stockInicial": 1300,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4773,
+        "saldoCalculado": -3473
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "FRAG. COCO PASION",
+    "unidadMedida": "GR",
+    "stockInicial": 105,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4774,
+        "saldoCalculado": -4669
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "FRAG. MANZANA INTENS",
+    "unidadMedida": "KG",
+    "stockInicial": 10000,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4775,
+        "saldoCalculado": 5225
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "NORPERU",
+    "producto": "FRAG. DELICATE FLOWERS",
+    "unidadMedida": "GR",
+    "stockInicial": 500,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4776,
+        "saldoCalculado": -4276
+      }
+    ]
+  },
+  {
+    "sheetName": "INSUMOS",
+    "familia": "LIQUIDOS",
+    "categoria": "INSUMO",
+    "proveedor": "LIMACHEM",
+    "producto": "FRAG. DESIRE MAGNET",
+    "unidadMedida": "GR",
+    "stockInicial": 550,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4777,
+        "saldoCalculado": -4227
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4778,
+        "saldoCalculado": -4778
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4779,
+        "saldoCalculado": -4779
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4780,
+        "saldoCalculado": -4780
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4781,
+        "saldoCalculado": -4781
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4782,
+        "saldoCalculado": -4782
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4783,
+        "saldoCalculado": -4783
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4784,
+        "saldoCalculado": -4784
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4785,
+        "saldoCalculado": -4785
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4786,
+        "saldoCalculado": -4786
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4787,
+        "saldoCalculado": -4787
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4788,
+        "saldoCalculado": -4788
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4789,
+        "saldoCalculado": -4789
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4790,
+        "saldoCalculado": -4790
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4791,
+        "saldoCalculado": -4791
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4792,
+        "saldoCalculado": -4792
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "ENVASE",
+    "categoria": "ENVASES",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "VALDES + TAPA",
+    "unidadMedida": "UNID",
+    "stockInicial": 236,
+    "movimientos": [
+      {
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 15,
+        "saldoCalculado": 221
+      },
+      {
+        "tipoDoc": "FT",
+        "serie": "E001",
+        "numero": "5252",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 0,
+        "saldoCalculado": 221
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "ENVASE",
+    "categoria": "ENVASES",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 188,
+    "movimientos": [
+      {
+        "fechaRaw": 46220,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 2,
+        "saldoCalculado": 186
+      },
+      {
+        "fechaRaw": 46221,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 2,
+        "saldoCalculado": 184
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "ENVASE",
+    "categoria": "ENVASES",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "BOTELLA 1 LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 189,
+    "movimientos": [
+      {
+        "fechaRaw": 46216,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 3,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "ENVASE",
+    "categoria": "ENVASES",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "BOTELLA 500 ML",
+    "unidadMedida": "UNID",
+    "stockInicial": 190,
+    "movimientos": [
+      {
+        "fechaRaw": 46212,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 191,
+    "movimientos": [
+      {
+        "fechaRaw": 46208,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 5,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 192,
+    "movimientos": [
+      {
+        "fechaRaw": 46204,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 6,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 193,
+    "movimientos": [
+      {
+        "fechaRaw": 46200,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 7,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 194,
+    "movimientos": [
+      {
+        "fechaRaw": 46196,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 8,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 195,
+    "movimientos": [
+      {
+        "fechaRaw": 46192,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 9,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 196,
+    "movimientos": [
+      {
+        "fechaRaw": 46188,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 10,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 197,
+    "movimientos": [
+      {
+        "fechaRaw": 46184,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 11,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 198,
+    "movimientos": [
+      {
+        "fechaRaw": 46180,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 12,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 199,
+    "movimientos": [
+      {
+        "fechaRaw": 46176,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 13,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 200,
+    "movimientos": [
+      {
+        "fechaRaw": 46172,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 14,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 201,
+    "movimientos": [
+      {
+        "fechaRaw": 46168,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 15,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 202,
+    "movimientos": [
+      {
+        "fechaRaw": 46164,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 16,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 203,
+    "movimientos": [
+      {
+        "fechaRaw": 46160,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 17,
+        "saldoCalculado": 186
+      }
+    ]
+  },
+  {
+    "sheetName": "ENVASES",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDOR INDUSTRIAL",
+    "producto": "GALONERA PET 4LT",
+    "unidadMedida": "UNID",
+    "stockInicial": 204,
+    "movimientos": []
+  },
+  {
+    "sheetName": "EMBALAJE",
+    "familia": "FRAGANCIAS",
+    "categoria": "MATERIA PRIMA",
+    "proveedor": "PROVEEDOR FRAGANCIAS S.A.C.",
+    "producto": "FRAGANCIA MANZANILLA",
+    "unidadMedida": "GR",
+    "stockInicial": 250,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0001",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 15,
+        "saldoCalculado": 235
+      },
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "FT",
+        "serie": "E001",
+        "numero": "5252",
+        "otro": "",
+        "operacion": "COMPRA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 0,
+        "saldoCalculado": 235
+      }
+    ]
+  },
+  {
+    "sheetName": "EMBALAJE",
+    "familia": "SOLVENTES",
+    "categoria": "INSUMO",
+    "proveedor": "PROVEEDORES ALCOHOL S.A.C.",
+    "producto": "ALCOHOL CETILICO",
+    "unidadMedida": "GR",
+    "stockInicial": 46710,
+    "movimientos": [
+      {
+        "fechaRaw": 46218,
+        "tipoDoc": "OP",
+        "serie": "0007",
+        "numero": "0002",
+        "otro": "",
+        "operacion": "VENTA",
+        "cantidadEntrada": 0,
+        "cantidadSalida": 4671,
+        "saldoCalculado": 42039
+      }
+    ]
+  }
+]

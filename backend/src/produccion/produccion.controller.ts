@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ProduccionService } from './produccion.service';
 import {
+  AsignarOperariosDto,
+  CambiarPasoDto,
   CrearOrdenDto,
   DecidirQADto,
   RegistrarAjusteFinoDto,
@@ -11,7 +13,6 @@ import {
 export class ProduccionController {
   constructor(private readonly produccionService: ProduccionService) {}
 
-  // Endpoint clave: validación PREVIA de stock antes de iniciar producción
   @Post('ordenes/validar-stock')
   validarStock(@Body() dto: ValidarStockDto) {
     return this.produccionService.validarStockDisponible(dto);
@@ -25,6 +26,16 @@ export class ProduccionController {
   @Get('ordenes')
   listar() {
     return this.produccionService.listar();
+  }
+
+  @Patch('ordenes/operarios')
+  asignarOperarios(@Body() dto: AsignarOperariosDto) {
+    return this.produccionService.asignarOperarios(dto);
+  }
+
+  @Patch('ordenes/paso')
+  cambiarPaso(@Body() dto: CambiarPasoDto) {
+    return this.produccionService.cambiarPasoProceso(dto);
   }
 
   @Post('ajustes-finos')
@@ -50,5 +61,10 @@ export class ProduccionController {
   @Patch('ordenes/:id/enviar-qa')
   enviarAQA(@Param('id', ParseUUIDPipe) id: string, @Body('cantidadObtenida') cantidadObtenida: number) {
     return this.produccionService.enviarAQA(id, cantidadObtenida);
+  }
+
+  @Get('etiquetas/cola')
+  obtenerColaDespacho() {
+    return this.produccionService.obtenerColaDespacho();
   }
 }

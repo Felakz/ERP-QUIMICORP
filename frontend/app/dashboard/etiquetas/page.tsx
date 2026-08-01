@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Printer,
   CheckCircle2,
@@ -14,6 +14,8 @@ import {
   FileCheck,
   Edit3,
   Barcode,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 
@@ -21,15 +23,18 @@ interface LoteEtiquetado {
   id: string;
   codigoLote: string;
   nombreProducto: string;
+  clienteNombre: string;
   unidades: number;
   contenido: string;
   sku: string;
   fechaFab: string;
   fechaVenc: string;
   codigoBarras: string;
+  codigoQR: string;
   ruc: string;
   advertenciaGHS: string;
   aprobadoQA: boolean;
+  estadoImpresion: string;
 }
 
 interface IncidenteDespacho {
@@ -62,54 +67,118 @@ export default function EtiquetasDespachoPage() {
   const [lotesAprobados, setLotesAprobados] = useState<LoteEtiquetado[]>([
     {
       id: '1',
-      codigoLote: 'LOT-2024-0892',
-      nombreProducto: 'Detergente Industrial Multiusos 5L',
-      unidades: 98,
-      contenido: '5.0 L',
-      sku: 'DET-IND-05L',
-      fechaFab: '2024-07-31',
-      fechaVenc: '2025-07-31',
-      codigoBarras: '758123488922824',
+      codigoLote: 'LOTE-000040',
+      nombreProducto: 'CREMA CÚRCUMA Y MENTOL',
+      clienteNombre: 'JHON CANTO INDUSTRIAL',
+      unidades: 250,
+      contenido: '250.00 KG',
+      sku: 'CRM-CUR-250',
+      fechaFab: '2026-07-31',
+      fechaVenc: '2027-07-31',
+      codigoBarras: '7759000000040',
+      codigoQR: 'QR-QUIMICORP-LOTE-000040',
       ruc: '20512345678',
       advertenciaGHS: 'GHS07 (Irritante Cutáneo)',
       aprobadoQA: true,
+      estadoImpresion: 'LISTO_PARA_IMPRIMIR',
     },
     {
       id: '2',
-      codigoLote: 'LOT-2024-0891',
-      nombreProducto: 'Limpiador Multiuso 1L',
-      unidades: 248,
-      contenido: '1.0 L',
-      sku: 'LIM-MUL-01L',
-      fechaFab: '2024-07-30',
-      fechaVenc: '2025-07-30',
-      codigoBarras: '758123488911002',
+      codigoLote: 'LOTE-000039',
+      nombreProducto: 'DETERGENTE MULTIUSOS INDUSTRIAL',
+      clienteNombre: 'JHON CANTO INDUSTRIAL',
+      unidades: 2500,
+      contenido: '2,500.00 L',
+      sku: 'DET-IND-2500',
+      fechaFab: '2026-07-30',
+      fechaVenc: '2027-07-30',
+      codigoBarras: '7759000000039',
+      codigoQR: 'QR-QUIMICORP-LOTE-000039',
       ruc: '20512345678',
       advertenciaGHS: 'GHS07 (Irritante Ocular)',
       aprobadoQA: true,
-    },
-    {
-      id: '3',
-      codigoLote: 'LOT-2024-0889',
-      nombreProducto: 'Gel Antibacterial 500ml',
-      unidades: 360,
-      contenido: '500 ml',
-      sku: 'GEL-ANT-500',
-      fechaFab: '2024-07-29',
-      fechaVenc: '2025-07-29',
-      codigoBarras: '758123488899500',
-      ruc: '20512345678',
-      advertenciaGHS: 'GHS02 (Inflamable)',
-      aprobadoQA: true,
+      estadoImpresion: 'LISTO_PARA_IMPRIMIR',
     },
   ]);
+
+  // Cargar registros recién liberados por QA desde el Backend y localStorage en tiempo real
+  const cargarColaBackend = async () => {
+    // 1. Cargar desde localStorage
+    try {
+      const rawCustom = localStorage.getItem('quimicorp_etiquetas_cola_custom');
+      if (rawCustom) {
+        const customEtiquetas: LoteEtiquetado[] = JSON.parse(rawCustom);
+        if (Array.isArray(customEtiquetas) && customEtiquetas.length > 0) {
+          setLotesAprobados((prev) => {
+            const idsExistentes = new Set(prev.map((l) => l.codigoLote));
+            const filtradosNuevos = customEtiquetas.filter((nl) => !idsExistentes.has(nl.codigoLote));
+            if (filtradosNuevos.length > 0) {
+              setSelectedLoteId((curr) => curr || filtradosNuevos[0].id);
+              return [...filtradosNuevos, ...prev];
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (e) {
+      console.log('Error reading local etiquetas:', e);
+    }
+
+    // 2. Cargar desde API Backend
+    try {
+      const res = await fetch('http://localhost:3001/api/v1/produccion/etiquetas/cola');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const nuevosLotes: LoteEtiquetado[] = data.map((item: any, idx: number) => ({
+            id: item.id || `api-${idx}`,
+            codigoLote: item.loteCodigo,
+            nombreProducto: item.productoNombre,
+            clienteNombre: item.clienteNombre,
+            unidades: 100,
+            contenido: item.cantidad,
+            sku: `SKU-${item.loteCodigo}`,
+            fechaFab: new Date(item.fechaFabricacion).toISOString().split('T')[0],
+            fechaVenc: '2027-08-01',
+            codigoBarras: item.codigoBarras || `7759000${idx + 10}`,
+            codigoQR: item.codigoQR || `QR-${item.loteCodigo}`,
+            ruc: '20512345678',
+            advertenciaGHS: 'GHS07 (Control Industrial QA)',
+            aprobadoQA: true,
+            estadoImpresion: item.estado || 'LISTO_PARA_IMPRIMIR',
+          }));
+
+          setLotesAprobados((prev) => {
+            const idsExistentes = new Set(prev.map((l) => l.codigoLote));
+            const filtradosNuevos = nuevosLotes.filter((nl) => !idsExistentes.has(nl.codigoLote));
+            if (filtradosNuevos.length > 0) {
+              return [...filtradosNuevos, ...prev];
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (e) {
+      console.log('Cola despacho sync check local:', e);
+    }
+  };
+
+  useEffect(() => {
+    cargarColaBackend();
+    window.addEventListener('storage', cargarColaBackend);
+    const interval = setInterval(cargarColaBackend, 2000);
+    return () => {
+      window.removeEventListener('storage', cargarColaBackend);
+      clearInterval(interval);
+    };
+  }, []);
 
   const [incidentes] = useState<IncidenteDespacho[]>([
     {
       id: '1',
       codigo: 'INC-0041',
       titulo: 'Escáner QR no lectura bulto 12',
-      loteOImpresora: 'Lote LOT-2024-0887',
+      loteOImpresora: 'Lote LOTE-000039',
       fecha: '2026-07-30 14:20',
       estado: 'RESUELTO',
     },
@@ -133,20 +202,26 @@ export default function EtiquetasDespachoPage() {
 
   const handleImprimir = () => {
     alert(
-      `Imprimiendo ${cantidadDespachar} etiqueta(s) en formato [${
+      `🖨️ Imprimiendo ${cantidadDespachar} etiqueta(s) en formato [${
         formatoCodigo === 'QR_COMPLETO' ? 'Código QR Completo' : 'EAN-13 / GS1-128'
-      }] para ${selectedLote.nombreProducto} (${selectedLote.codigoLote})...`
+      }] para ${selectedLote.nombreProducto} (${selectedLote.codigoLote}) de cliente ${selectedLote.clienteNombre}...`
     );
   };
 
   const handleConfirmarDespacho = () => {
     alert(
-      `¡Despacho Confirmado!\n- Lote: ${selectedLote.codigoLote}\n- Cantidad: ${cantidadDespachar} bulto(s)\n- Destino: ${destino}\n- Responsable: ${responsable}`
+      `🚀 ¡DESPACHO CONFIRMADO!\n\n` +
+      `- Lote: ${selectedLote.codigoLote}\n` +
+      `- Producto: ${selectedLote.nombreProducto}\n` +
+      `- Cliente: ${selectedLote.clienteNombre}\n` +
+      `- Cantidad: ${cantidadDespachar} bulto(s) (${selectedLote.contenido})\n` +
+      `- Destino: ${destino}\n` +
+      `- Responsable: ${responsable}`
     );
   };
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
-  const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
+  const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
   const inputBg = isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800';
 
@@ -155,42 +230,58 @@ export default function EtiquetasDespachoPage() {
       {/* Top Right View Switcher Header Bar */}
       <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-3 ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
         <div>
-          <h2 className={`text-sm font-bold tracking-widest uppercase ${textTitle}`}>
-            ETIQUETAS & DESPACHO INTERNO
+          <h2 className={`text-sm font-bold tracking-widest uppercase flex items-center gap-2 ${textTitle}`}>
+            <span>ETIQUETAS & DESPACHO INTERNO</span>
+            <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-mono">
+              LIBERACIÓN QA EN TIEMPO REAL
+            </span>
           </h2>
           <p className="text-xs text-slate-400 font-sans">
-            Impresión de etiquetas GS1-128 / QR con validación manual y generación de tickets de despacho.
+            Impresión de etiquetas GS1-128 / QR con validación manual y generación de tickets de despacho para clientes reales.
           </p>
         </div>
 
         {/* View Switcher Tabs */}
-        <div className={`flex rounded-lg p-1 border text-xs font-sans ${isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-slate-100 border-slate-300'}`}>
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => setActiveTab('ETIQUETAS')}
-            className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 font-bold transition-all ${
-              activeTab === 'ETIQUETAS'
-                ? 'bg-[#00F2C3] text-[#090C10] shadow-md'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
+            onClick={cargarColaBackend}
+            className={`p-2 rounded-lg border text-xs flex items-center gap-1 transition-all ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
             }`}
+            title="Sincronizar cola de lotes recién liberados por QA"
           >
-            <FileCheck className="h-3.5 w-3.5" />
-            <span>Etiquetas & Despacho</span>
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="font-sans text-[11px] font-bold">Sincronizar QA</span>
           </button>
-          <button
-            onClick={() => setActiveTab('INCIDENTES')}
-            className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 font-bold transition-all ${
-              activeTab === 'INCIDENTES'
-                ? 'bg-[#00F2C3] text-[#090C10] shadow-md'
-                : isDark
-                ? 'text-slate-400 hover:text-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <AlertOctagon className="h-3.5 w-3.5" />
-            <span>Incidentes (2)</span>
-          </button>
+
+          <div className={`flex rounded-lg p-1 border text-xs font-sans ${isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-slate-100 border-slate-300'}`}>
+            <button
+              onClick={() => setActiveTab('ETIQUETAS')}
+              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 font-bold transition-all ${
+                activeTab === 'ETIQUETAS'
+                  ? 'bg-teal-600 text-white dark:bg-[#00F2C3] dark:text-[#090C10] shadow-md'
+                  : isDark
+                  ? 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileCheck className="h-3.5 w-3.5" />
+              <span>Etiquetas & Despacho ({lotesAprobados.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('INCIDENTES')}
+              className={`flex items-center gap-2 rounded-md px-3.5 py-1.5 font-bold transition-all ${
+                activeTab === 'INCIDENTES'
+                  ? 'bg-teal-600 text-white dark:bg-[#00F2C3] dark:text-[#090C10] shadow-md'
+                  : isDark
+                  ? 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <AlertOctagon className="h-3.5 w-3.5" />
+              <span>Incidentes (2)</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -200,7 +291,7 @@ export default function EtiquetasDespachoPage() {
           {/* Left Panel: LOTES APROBADOS (3 Cols) */}
           <div className="lg:col-span-3 space-y-3">
             <h3 className={`text-xs font-bold tracking-widest uppercase px-1 ${textTitle}`}>
-              LOTES APROBADOS PARA ETIQUETADO
+              LOTES LIBERADOS POR QA ({lotesAprobados.length})
             </h3>
 
             <div className="space-y-3">
@@ -214,27 +305,33 @@ export default function EtiquetasDespachoPage() {
                       isSelected
                         ? isDark
                           ? 'bg-[#0F141C] border-[#00F2C3]/70 shadow-lg shadow-[#00F2C3]/5'
-                          : 'bg-white border-cyan-500 shadow-md ring-2 ring-cyan-500/20'
+                          : 'bg-white border-teal-500 shadow-md ring-2 ring-teal-500/20'
                         : isDark
                         ? 'bg-[#0B0F17] border-[#1A2232] hover:bg-[#0F141C]/60'
                         : 'bg-white border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-[#00F2C3]">
+                      <span className="font-mono text-xs font-bold text-teal-700 dark:text-[#00F2C3]">
                         {lote.codigoLote}
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                        <Check className="h-3 w-3 stroke-[3]" /> QA
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
+                        <Check className="h-3 w-3 stroke-[3]" /> LIBERADO QA
                       </span>
                     </div>
 
-                    <h4 className={`text-xs font-bold font-sans ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    <h4 className={`text-xs font-bold font-sans ${textValue}`}>
                       {lote.nombreProducto}
                     </h4>
 
-                    <p className="text-[11px] text-slate-400 font-mono">
-                      {lote.unidades} unidades · {lote.contenido}
+                    {/* Cliente Real */}
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 font-sans">
+                      <Building2 className="w-3 h-3" />
+                      <span>{lote.clienteNombre}</span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 font-mono">
+                      {lote.contenido}
                     </p>
                   </div>
                 );
@@ -253,14 +350,14 @@ export default function EtiquetasDespachoPage() {
 
                 {/* Validation Selector (QR vs EAN-13) */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400 font-sans">Formato Validación:</span>
+                  <span className="text-[11px] text-slate-500 font-sans">Formato Validación:</span>
                   <div className={`flex rounded-lg p-1 border text-xs font-sans ${isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-100 border-slate-300'}`}>
                     <button
                       onClick={() => setFormatoCodigo('QR_COMPLETO')}
                       className={`flex items-center gap-1.5 rounded px-2.5 py-1 font-bold ${
                         formatoCodigo === 'QR_COMPLETO'
-                          ? 'bg-[#00F2C3] text-[#090C10]'
-                          : 'text-slate-400 hover:text-slate-200'
+                          ? 'bg-teal-600 text-white dark:bg-[#00F2C3] dark:text-[#090C10]'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
                       }`}
                     >
                       <QrCode className="h-3.5 w-3.5" /> QR Completo
@@ -269,8 +366,8 @@ export default function EtiquetasDespachoPage() {
                       onClick={() => setFormatoCodigo('EAN13_GS1')}
                       className={`flex items-center gap-1.5 rounded px-2.5 py-1 font-bold ${
                         formatoCodigo === 'EAN13_GS1'
-                          ? 'bg-[#00F2C3] text-[#090C10]'
-                          : 'text-slate-400 hover:text-slate-200'
+                          ? 'bg-teal-600 text-white dark:bg-[#00F2C3] dark:text-[#090C10]'
+                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
                       }`}
                     >
                       <Barcode className="h-3.5 w-3.5" /> Barcode EAN-13
@@ -303,7 +400,7 @@ export default function EtiquetasDespachoPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 mr-3">
                     <span className="text-[10px] tracking-widest text-slate-400 block font-semibold">
-                      QUIMICORP S.A.C.
+                      QUIMICORP PERÚ S.A.C. · CLIENTE: {selectedLote.clienteNombre}
                     </span>
                     {editMode ? (
                       <input
@@ -423,17 +520,17 @@ export default function EtiquetasDespachoPage() {
             {/* Card 2: TICKET DE DESPACHO INTERNO */}
             <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
               <h3 className={`text-xs font-bold tracking-widest uppercase ${textTitle}`}>
-                TICKET DE DESPACHO INTERNO
+                TICKET DE DESPACHO INTERNO PARA CLIENTE ({selectedLote.clienteNombre})
               </h3>
 
               {/* Form Fields Row */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 font-sans text-xs">
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-medium">Destino</label>
+                  <label className={`font-medium ${textTitle}`}>Destino</label>
                   <select
                     value={destino}
                     onChange={(e) => setDestino(e.target.value)}
-                    className={`w-full rounded-lg border p-2.5 font-mono focus:border-[#00F2C3] focus:outline-none ${inputBg}`}
+                    className={`w-full rounded-lg border p-2.5 font-mono focus:border-teal-500 focus:outline-none ${inputBg}`}
                   >
                     <option value="Almacén Central">Almacén Central</option>
                     <option value="Almacén Lurin - Km 24">Almacén Lurin - Km 24</option>
@@ -443,22 +540,22 @@ export default function EtiquetasDespachoPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-medium">Cantidad a despachar</label>
+                  <label className={`font-medium ${textTitle}`}>Cantidad a despachar</label>
                   <input
                     type="number"
                     value={cantidadDespachar}
                     onChange={(e) => setCantidadDespachar(Number(e.target.value))}
-                    className={`w-full rounded-lg border p-2.5 font-mono focus:border-[#00F2C3] focus:outline-none ${inputBg}`}
+                    className={`w-full rounded-lg border p-2.5 font-mono focus:border-teal-500 focus:outline-none ${inputBg}`}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-slate-400 font-medium">Responsable</label>
+                  <label className={`font-medium ${textTitle}`}>Responsable</label>
                   <input
                     type="text"
                     value={responsable}
                     onChange={(e) => setResponsable(e.target.value)}
-                    className={`w-full rounded-lg border p-2.5 font-mono focus:border-[#00F2C3] focus:outline-none ${inputBg}`}
+                    className={`w-full rounded-lg border p-2.5 font-mono focus:border-teal-500 focus:outline-none ${inputBg}`}
                   />
                 </div>
               </div>
@@ -479,10 +576,14 @@ export default function EtiquetasDespachoPage() {
 
                 <button
                   onClick={handleConfirmarDespacho}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#00F2C3] py-3 text-xs font-bold text-[#090C10] hover:bg-[#00d8ad] transition-all shadow-md"
+                  className={`flex-1 flex items-center justify-center gap-2 rounded-lg py-3 text-xs font-bold transition-all shadow-md ${
+                    isDark
+                      ? 'bg-[#00F2C3] text-[#090C10] hover:bg-[#00d8ad]'
+                      : 'bg-teal-600 text-white hover:bg-teal-700'
+                  }`}
                 >
                   <span className="text-base font-black">⬡</span>
-                  <span>Confirmar Despacho</span>
+                  <span>Confirmar Despacho a {selectedLote.clienteNombre}</span>
                 </button>
               </div>
             </div>
@@ -512,17 +613,17 @@ export default function EtiquetasDespachoPage() {
                 {incidentes.map((inc) => (
                   <tr key={inc.id} className={`transition-colors ${isDark ? 'hover:bg-[#151D2A]/50' : 'hover:bg-slate-50'}`}>
                     <td className="py-3.5 px-3 font-bold text-rose-400">{inc.codigo}</td>
-                    <td className={`py-3.5 px-3 font-sans font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{inc.titulo}</td>
+                    <td className={`py-3.5 px-3 font-sans font-bold ${textValue}`}>{inc.titulo}</td>
                     <td className="py-3.5 px-3 text-slate-400">{inc.loteOImpresora}</td>
                     <td className="py-3.5 px-3 text-slate-400">{inc.fecha}</td>
                     <td className="py-3.5 px-3">
                       {inc.estado === 'RESUELTO' && (
-                        <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                        <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
                           RESUELTO
                         </span>
                       )}
                       {inc.estado === 'PENDIENTE' && (
-                        <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30">
+                        <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-400 border border-amber-500/30">
                           PENDIENTE
                         </span>
                       )}
