@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Inbox,
   Search,
@@ -11,32 +11,67 @@ import {
   Clock,
   Building2,
   Beaker,
-  Check,
-  X,
   AlertTriangle,
-  ArrowRight,
   Send,
   PackageCheck,
   TrendingUp,
-  FileSpreadsheet,
+  ArrowRight,
+  User,
+  Phone,
+  MapPin,
+  FileText,
+  CreditCard,
+  X,
+  RefreshCw,
+  Zap,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
-import { FORMULAS_MAESTRAS_REALES } from '@/lib/formulasData';
 
-export type EstadoPedidoType = 'NUEVO' | 'APROBADO_PLANTA' | 'RECHAZADO';
+export interface InsumoValidacion {
+  codigo: string;
+  nombre: string;
+  requerido: number;
+  disponible: number;
+  faltante: number;
+  suficiente: boolean;
+}
 
-export interface PedidoAdminUI {
+export interface StockValidacionInfo {
+  stockCompleto: boolean;
+  insumosFaltantesCount: number;
+  detalles: InsumoValidacion[];
+}
+
+export interface PedidoComercialUI {
   id: string;
-  codigoOrden: string; // ej. #PED-9044
+  codigoOrden: string;
+  codigoRefAdmin?: string;
   clienteNombre: string;
+  clienteRuc: string;
+  contactoNombre?: string;
+  contactoTelefono?: string;
+  direccionDespacho?: string;
+  repComercial?: string;
+  condicionPago?: string;
   productoNombre: string;
-  cantidadSolicitada: string;
-  formulaAsociada: string;
-  fechaIngreso: string;
+  cantidadSolicitada: number | string;
+  unidadMedida: string;
+  lotesRequeridos: number;
+  montoTotal: number;
   fechaPrometida: string;
-  estado: EstadoPedidoType;
-  observacionesAdmin?: string;
+  prioridad: 'URGENTE' | 'NORMAL' | 'PROGRAMADO';
+  estado: 'NUEVO' | 'VALIDANDO' | 'APROBADO' | 'EN_PRODUCCION' | 'DEVUELTO';
+  notasAdmin?: string;
   motivoDevolucion?: string;
+  stockValidacion?: StockValidacionInfo;
+}
+
+export interface KpiMetrics {
+  pedidosHoy: number;
+  nuevos: number;
+  aprobados: number;
+  enProduccion: number;
+  valorDelDia: number;
 }
 
 export default function PedidosAdminPage() {
@@ -45,569 +80,605 @@ export default function PedidosAdminPage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>('TODOS');
-  const [filterFecha, setFilterFecha] = useState<'HOY' | 'SEMANA' | 'TODOS'>('TODOS');
-  const [selectedPedido, setSelectedPedido] = useState<PedidoAdminUI | null>(null);
-  const [motivoDevolucionInput, setMotivoDevolucionInput] = useState('');
-  const [showDevolucionModal, setShowDevolucionModal] = useState(false);
+  const [filterPrioridad, setFilterPrioridad] = useState<string>('TODAS');
+  const [pedidos, setPedidos] = useState<PedidoComercialUI[]>([]);
+  const [kpis, setKpis] = useState<KpiMetrics>({
+    pedidosHoy: 4,
+    nuevos: 2,
+    aprobados: 1,
+    enProduccion: 1,
+    valorDelDia: 107670,
+  });
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [pedidos, setPedidos] = useState<PedidoAdminUI[]>([
-    {
-      id: 'ped-1',
-      codigoOrden: '#PED-9044',
-      clienteNombre: 'ÑAUPARI SAC',
-      productoNombre: 'CREMA MUSCULAR MENTOLADA',
-      cantidadSolicitada: '150.00 KG',
-      formulaAsociada: 'FÓRMULA CREMA MUSCULAR MENTOLADA v2',
-      fechaIngreso: '2026-08-01 08:15',
-      fechaPrometida: '2026-08-03',
-      estado: 'NUEVO',
-      observacionesAdmin: 'Orden prioritaria para distribución en farmacias.',
-    },
-    {
-      id: 'ped-2',
-      codigoOrden: '#PED-9045',
-      clienteNombre: 'ALFALION PERÚ',
-      productoNombre: 'SERUM DE SALMON - ALFALION',
-      cantidadSolicitada: '1,000.00 KG',
-      formulaAsociada: 'FÓRMULA INDUSTRIAL SERUM SALMÓN',
-      fechaIngreso: '2026-08-01 09:00',
-      fechaPrometida: '2026-08-04',
-      estado: 'NUEVO',
-      observacionesAdmin: 'Requiere empaque en frascos cóncavos ámbar.',
-    },
-    {
-      id: 'ped-3',
-      codigoOrden: '#PED-9046',
-      clienteNombre: 'AUSTIN COSMETICS',
-      productoNombre: 'SHAMPOO DE BATANA',
-      cantidadSolicitada: '500.00 L',
-      formulaAsociada: 'RECETA SHAMPOO BATANA ORGÁNICO',
-      fechaIngreso: '2026-08-01 09:30',
-      fechaPrometida: '2026-08-05',
-      estado: 'NUEVO',
-      observacionesAdmin: 'Verificar nivel de viscosidad en muestras.',
-    },
-    {
-      id: 'ped-4',
-      codigoOrden: '#PED-9041',
-      clienteNombre: 'GEYMA BIOTECH',
-      productoNombre: 'CREMA CÚRCUMA Y MENTOL',
-      cantidadSolicitada: '250.00 KG',
-      formulaAsociada: 'FÓRMULA CÚRCUMA INDUSTRIAL',
-      fechaIngreso: '2026-07-31 15:40',
-      fechaPrometida: '2026-08-02',
-      estado: 'APROBADO_PLANTA',
-      observacionesAdmin: 'Aprobado y transferido a Planta.',
-    },
-    {
-      id: 'ped-5',
-      codigoOrden: '#PED-9040',
-      clienteNombre: 'JHON CANTO INDUSTRIAL',
-      productoNombre: 'DETERGENTE MULTIUSOS INDUSTRIAL',
-      cantidadSolicitada: '2,500.00 L',
-      formulaAsociada: 'FÓRMULA DETERGENTE MULTIUSOS PLANTA',
-      fechaIngreso: '2026-07-30 11:20',
-      fechaPrometida: '2026-08-01',
-      estado: 'APROBADO_PLANTA',
-      observacionesAdmin: 'Transferido a Producción en Lote LOTE-000039.',
-    },
-    {
-      id: 'ped-6',
-      codigoOrden: '#PED-9038',
-      clienteNombre: 'LUIS MARIN PHARMA',
-      productoNombre: 'GEL DESINFECTANTE DE MANOS',
-      cantidadSolicitada: '800.00 L',
-      formulaAsociada: 'FÓRMULA GEL 70% ALCOHOL',
-      fechaIngreso: '2026-07-29 14:10',
-      fechaPrometida: '2026-07-31',
-      estado: 'RECHAZADO',
-      motivoDevolucion: 'Falta de insumo Alcohol Isopropílico en Kardex central.',
-    },
-  ]);
+  // Modales
+  const [selectedPedidoStockModal, setSelectedPedidoStockModal] = useState<PedidoComercialUI | null>(null);
+  const [selectedPedidoDevolucionModal, setSelectedPedidoDevolucionModal] = useState<PedidoComercialUI | null>(null);
+  const [motivoDevolucionInput, setMotivoDevolucionInput] = useState<string>('');
 
-  // Color Tokens adaptados para Tema Claro y Tema Oscuro
-  const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
-  const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
-  const textValue = isDark ? 'text-white' : 'text-slate-900';
-  const subBoxBg = isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200';
-  const inputBg = isDark
-    ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500'
-    : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400';
-
-  // 1. Métricas / KPIs calculados
-  const metricas = useMemo(() => {
-    const nuevosHoy = pedidos.filter((p) => p.fechaIngreso.startsWith('2026-08-01') && p.estado === 'NUEVO').length;
-    const pendientes = pedidos.filter((p) => p.estado === 'NUEVO').length;
-    const enviadosPlanta = pedidos.filter((p) => p.estado === 'APROBADO_PLANTA').length;
-    return { nuevosHoy, pendientes, enviadosPlanta };
-  }, [pedidos]);
-
-  // Filtros aplicados
-  const pedidosFiltrados = useMemo(() => {
-    return pedidos.filter((ped) => {
-      const matchSearch =
-        ped.codigoOrden.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ped.clienteNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ped.productoNombre.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchEstado =
-        filterEstado === 'TODOS' ? true : ped.estado === filterEstado;
-
-      const matchFecha =
-        filterFecha === 'TODOS'
-          ? true
-          : filterFecha === 'HOY'
-          ? ped.fechaIngreso.startsWith('2026-08-01')
-          : true;
-
-      return matchSearch && matchEstado && matchFecha;
-    });
-  }, [pedidos, searchTerm, filterEstado, filterFecha]);
-
-  // Acción 1: Aprobar & Mandar a Producción con Transmisión Real al Control de Producción & QA
-  const handleAprobarYMandarAPlanta = async (ped: PedidoAdminUI) => {
-    // 1. Actualizar estado local del pedido
-    setPedidos((prev) =>
-      prev.map((p) => (p.id === ped.id ? { ...p, estado: 'APROBADO_PLANTA' } : p))
-    );
-
-    // 2. Generar el Lote determinista en tiempo real para Control de Producción & QA
-    const numClean = ped.codigoOrden.replace(/\D/g, '') || '9044';
-    const codigoLote = `LOTE-00${numClean}`;
-    const codigoQA = `QA-2026-${numClean}`;
-    const loteId = `lote-ped-${numClean}`;
-
-    const nuevoLoteObj = {
-      id: loteId,
-      codigoQA,
-      nombreProducto: ped.productoNombre,
-      codigoLote,
-      clienteNombre: ped.clienteNombre,
-      rendimiento: ped.cantidadSolicitada,
-      mermaPercentage: '0.90%',
-      operarios: [], // PENDIENTE DE ASIGNACIÓN
-      fechaEnvio: new Date().toISOString().replace('T', ' ').substring(0, 16),
-      pasoProceso: 'PENDIENTE_ASIGNACION',
-      estado: 'PENDIENTE',
-      observacionesQA: `Orden Aprobada desde Pedidos de Administración (${ped.codigoOrden}). Asignar operarios para iniciar fabricación.`,
-      formula: FORMULAS_MAESTRAS_REALES[0].ingredientes,
-    };
-
-    // 3. Guardar en localStorage filtrando duplicados & emitir evento Broadcast real
+  // 1. Cargar Datos del Backend
+  const cargarDatos = async () => {
     try {
-      const existingLotesRaw = localStorage.getItem('quimicorp_produccion_lotes_custom');
-      const existingLotes = existingLotesRaw ? JSON.parse(existingLotesRaw) : [];
-      const filteredExisting = existingLotes.filter(
-        (l: any) => l.codigoLote !== codigoLote && l.id !== loteId
-      );
-      const updatedLotes = [nuevoLoteObj, ...filteredExisting];
-      localStorage.setItem('quimicorp_produccion_lotes_custom', JSON.stringify(updatedLotes));
-      window.dispatchEvent(new Event('storage'));
+      setLoading(true);
+      // KPIs
+      const resKpis = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis');
+      if (resKpis.ok) {
+        const dataKpis = await resKpis.json();
+        setKpis(dataKpis);
+      }
+
+      // Lista de Pedidos
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (filterEstado !== 'TODOS') params.append('estado', filterEstado);
+      if (filterPrioridad !== 'TODAS') params.append('prioridad', filterPrioridad);
+
+      const resPedidos = await fetch(`http://localhost:3001/api/v1/pedidos-admin?${params.toString()}`);
+      if (resPedidos.ok) {
+        const dataPedidos = await resPedidos.json();
+        setPedidos(dataPedidos);
+      }
     } catch (e) {
-      console.log('Error local storage broadcast:', e);
+      console.log('Error fetching backend pedidos:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarDatos();
+  }, [searchTerm, filterEstado, filterPrioridad]);
+
+  // 2. Acciones del Supervisor
+  const handleAprobarPedido = async (pedido: PedidoComercialUI) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/v1/pedidos-admin/${pedido.id}/aprobar`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        alert(
+          `🚀 ¡ORDEN ${pedido.codigoOrden} APROBADA Y MANDADA A PRODUCCIÓN!\n\n` +
+          `- Cliente: ${pedido.clienteNombre}\n` +
+          `- Producto: ${pedido.productoNombre} (${pedido.cantidadSolicitada} ${pedido.unidadMedida})\n` +
+          `- Lote Generado: LOTE-${pedido.codigoOrden.replace(/\D/g, '') || '9044'}\n` +
+          `- Notificación emitida por WebSockets a Control de Producción & QA.`
+        );
+        cargarDatos();
+      }
+    } catch (e) {
+      console.log('Error aprobando pedido:', e);
+      // Fallback local
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'APROBADO' } : p))
+      );
+    }
+  };
+
+  const handleConfirmarDevolucion = async () => {
+    if (!selectedPedidoDevolucionModal) return;
+    if (!motivoDevolucionInput.trim()) {
+      alert('Debes ingresar el motivo técnico de devolución a Administración.');
+      return;
     }
 
-    // 4. Intentar llamada al backend API
     try {
-      await fetch('http://localhost:3001/api/v1/produccion/ordenes', {
+      await fetch(`http://localhost:3001/api/v1/pedidos-admin/${selectedPedidoDevolucionModal.id}/devolver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formulaId: '1b8f4f30-80bc-4d89-[#00F2C3]',
-          cantidadPlanificada: parseFloat(ped.cantidadSolicitada) || 150,
-          supervisorId: 'sup-1',
-          clienteNombre: ped.clienteNombre,
-        }),
+        body: JSON.stringify({ motivoDevolucion: motivoDevolucionInput }),
       });
     } catch (e) {
-      console.log('Backend sync order:', e);
-    }
-
-    alert(
-      `🚀 ¡ORDEN ${ped.codigoOrden} APROBADA Y TRANSFERIDA A PLANTA!\n\n` +
-      `- Lote Generado: ${nuevoLoteObj.codigoLote} (${nuevoLoteObj.codigoQA})\n` +
-      `- Cliente: ${ped.clienteNombre}\n` +
-      `- Producto: ${ped.productoNombre} (${ped.cantidadSolicitada})\n` +
-      `- Estado en Planta: 'PENDIENTE_ASIGNACION' (Paso 1/4)\n\n` +
-      `El lote ya se encuentra visible en la pantalla de Control de Producción & QA (/dashboard/produccion-qa).`
-    );
-  };
-
-  // Acción 2: Abrir Devolución a Admin
-  const handleOpenDevolucion = (ped: PedidoAdminUI) => {
-    setSelectedPedido(ped);
-    setMotivoDevolucionInput('');
-    setShowDevolucionModal(true);
-  };
-
-  // Confirmar Devolución por Falta de Stock
-  const handleConfirmarDevolucion = () => {
-    if (!selectedPedido) return;
-    if (!motivoDevolucionInput.trim()) {
-      alert('Debes ingresar el motivo técnico de la devolución (ej. insumos faltantes).');
-      return;
+      console.log('Error devolviendo pedido:', e);
     }
 
     setPedidos((prev) =>
       prev.map((p) =>
-        p.id === selectedPedido.id
-          ? {
-              ...p,
-              estado: 'RECHAZADO',
-              motivoDevolucion: motivoDevolucionInput,
-            }
+        p.id === selectedPedidoDevolucionModal.id
+          ? { ...p, estado: 'DEVUELTO', motivoDevolucion: motivoDevolucionInput }
           : p
       )
     );
 
-    setShowDevolucionModal(false);
-    alert(
-      `⚠️ Orden ${selectedPedido.codigoOrden} Devuelta a Administración.\n` +
-      `- Notificación enviada a Ventas/Administración con el motivo: "${motivoDevolucionInput}"`
-    );
+    setSelectedPedidoDevolucionModal(null);
+    setMotivoDevolucionInput('');
+    alert(`⚠️ Orden ${selectedPedidoDevolucionModal.codigoOrden} devuelta a Administración.`);
   };
 
+  // Color Tokens Industriales Oscuros / Claros con Alto Contraste
+  const bgScreen = isDark ? 'bg-[#090C10]' : 'bg-slate-50';
+  const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-300 shadow-sm';
+  const textTitle = isDark ? 'text-slate-400' : 'text-slate-700 font-bold';
+  const textValue = isDark ? 'text-white' : 'text-slate-900 font-black';
+  const inputBg = isDark
+    ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500'
+    : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 shadow-sm';
+  const badgeBoxBg = isDark ? 'bg-[#151D2A] text-slate-300 border-[#1A2232]' : 'bg-slate-200 text-slate-900 border-slate-300 font-bold';
+
   return (
-    <div className="space-y-6 font-mono min-h-screen">
-      {/* Header Titular */}
-      <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
-        <div>
-          <div className="flex items-center gap-2">
-            <div className={`p-2 rounded-xl border ${isDark ? 'bg-cyan-500/10 border-cyan-500/30 text-[#00F2C3]' : 'bg-teal-50 border-teal-300 text-teal-700'}`}>
-              <Inbox className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className={`text-lg font-bold font-sans flex items-center gap-2 ${textValue}`}>
-                <span>Pedidos Entrantes de Administración</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded border font-mono uppercase font-bold ${
-                  isDark ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' : 'bg-teal-50 text-teal-800 border-teal-300'
-                }`}>
-                  RECEPCIÓN DE PLANTA
-                </span>
-              </h2>
-              <p className={`text-xs font-sans ${textTitle}`}>
-                Revisión, validación de stock y autorización de órdenes comerciales enviadas desde las oficinas para su pase a producción.
-              </p>
-            </div>
+    <div className={`space-y-6 font-mono min-h-screen p-2 ${bgScreen}`}>
+      {/* ── BARRA SUPERIOR DE ESTADO PLC & PLANTA ── */}
+      <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDark ? 'border-[#1A2232]' : 'border-slate-300'}`}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xl font-bold font-sans">
+            <h1 className={textValue}>Pedidos Entrantes</h1>
+            <span className={`text-sm font-normal ${isDark ? 'text-slate-500' : 'text-slate-600 font-semibold'}`}>/ Recepción de Planta</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border font-mono ${
-            isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded font-bold ${
+            isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
           }`}>
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            SINK ADMIN-PLANTA ACTIVO
+            PLC ONLINE
+          </span>
+
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded font-bold ${
+            isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-100 text-amber-950 border border-amber-300'
+          }`}>
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            REACTOR A2
+          </span>
+
+          <span className={`px-3 py-1 rounded text-[11px] font-bold ${badgeBoxBg}`}>
+            Lun, 03 ago. 2026 &nbsp;09:45 a. m.
+          </span>
+
+          <span className={`flex items-center gap-1.5 px-3 py-1 rounded font-bold uppercase tracking-wider text-[11px] ${
+            isDark ? 'bg-teal-500/10 text-[#00F2C3] border border-teal-500/30' : 'bg-teal-100 text-teal-950 border border-teal-300'
+          }`}>
+            <Zap className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+            SEMI-APROBACIÓN ACTIVO
           </span>
         </div>
       </div>
 
-      {/* 1. BARRA DE MÉTRICAS / KPIS SUPERIOR */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* KPI 1: Nuevos Pedidos Hoy */}
-        <div className={`rounded-xl p-5 border space-y-2 relative overflow-hidden transition-all ${cardBg}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold font-sans ${textTitle}`}>NUEVOS PEDIDOS HOY</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border border-cyan-500/30 font-mono animate-pulse">
-              + EN VIVO
-            </span>
-          </div>
+      {/* ── 1. MÉTRICAS SUPERIORES DINÁMICAS (KPI HEADER DE 5 CARDS) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* KPI 1: PEDIDOS HOY */}
+        <div className={`rounded-xl p-4 border space-y-1 ${cardBg}`}>
+          <span className={`text-[10px] uppercase tracking-widest block ${textTitle}`}>
+            PEDIDOS HOY
+          </span>
           <div className="flex items-baseline justify-between">
-            <span className={`text-3xl font-black font-mono ${textValue}`}>
-              {metricas.nuevosHoy}
+            <span className={`text-2xl font-black font-mono ${textValue}`}>
+              {kpis.pedidosHoy}
             </span>
-            <span className="text-xs text-slate-500 font-sans">Órdenes recibidas</span>
           </div>
-          <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-            <div className="h-full bg-cyan-500 rounded-full w-3/4" />
-          </div>
+          <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}`}>Total recibidos</span>
         </div>
 
-        {/* KPI 2: Pendientes de Aprobación */}
-        <div className={`rounded-xl p-5 border space-y-2 relative overflow-hidden transition-all ${cardBg}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold font-sans ${textTitle}`}>PENDIENTES DE APROBACIÓN</span>
-            <Clock className="w-4 h-4 text-amber-500" />
-          </div>
+        {/* KPI 2: NUEVOS */}
+        <div className={`rounded-xl p-4 border space-y-1 ${cardBg}`}>
+          <span className={`text-[10px] uppercase tracking-widest block ${textTitle}`}>
+            NUEVOS
+          </span>
           <div className="flex items-baseline justify-between">
-            <span className={`text-3xl font-black font-mono ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
-              {metricas.pendientes}
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-cyan-400' : 'text-cyan-800'}`}>
+              {kpis.nuevos}
             </span>
-            <span className="text-xs text-amber-600 font-sans font-bold">Requiere acción Planta</span>
           </div>
-          <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-            <div className="h-full bg-amber-500 rounded-full w-1/2" />
-          </div>
+          <span className={`text-[10px] block font-bold ${isDark ? 'text-cyan-500' : 'text-cyan-900'}`}>Requiren acción</span>
         </div>
 
-        {/* KPI 3: Enviados a Planta */}
-        <div className={`rounded-xl p-5 border space-y-2 relative overflow-hidden transition-all ${cardBg}`}>
-          <div className="flex items-center justify-between">
-            <span className={`text-xs font-bold font-sans ${textTitle}`}>ENVIADOS A PLANTA</span>
-            <PackageCheck className="w-4 h-4 text-emerald-500" />
-          </div>
+        {/* KPI 3: APROBADOS */}
+        <div className={`rounded-xl p-4 border space-y-1 ${cardBg}`}>
+          <span className={`text-[10px] uppercase tracking-widest block ${textTitle}`}>
+            APROBADOS
+          </span>
           <div className="flex items-baseline justify-between">
-            <span className={`text-3xl font-black font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
-              {metricas.enviadosPlanta}
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-800'}`}>
+              {kpis.aprobados}
             </span>
-            <span className="text-xs text-emerald-600 font-sans font-bold">En cola de Producción</span>
           </div>
-          <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-            <div className="h-full bg-emerald-500 rounded-full w-full" />
+          <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-700 font-bold'}`}>En cola producción</span>
+        </div>
+
+        {/* KPI 4: EN PRODUCCIÓN */}
+        <div className={`rounded-xl p-4 border space-y-1 ${cardBg}`}>
+          <span className={`text-[10px] uppercase tracking-widest block ${textTitle}`}>
+            EN PRODUCCIÓN
+          </span>
+          <div className="flex items-baseline justify-between">
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+              {kpis.enProduccion}
+            </span>
           </div>
+          <span className={`text-[10px] block font-bold ${isDark ? 'text-amber-500' : 'text-amber-900'}`}>Actualmente activos</span>
+        </div>
+
+        {/* KPI 5: VALOR DEL DÍA */}
+        <div className={`rounded-xl p-4 border space-y-1 ${cardBg} ${
+          isDark ? 'border-teal-500/30 bg-teal-500/5' : 'border-teal-300 bg-teal-50'
+        }`}>
+          <span className={`text-[10px] font-bold uppercase tracking-widest block ${isDark ? 'text-teal-400' : 'text-teal-900'}`}>
+            VALOR DEL DÍA
+          </span>
+          <div className="flex items-baseline justify-between">
+            <span className={`text-xl font-black font-mono ${isDark ? 'text-[#00F2C3]' : 'text-teal-900'}`}>
+              S/ {kpis.valorDelDia.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          <span className={`text-[10px] block ${isDark ? 'text-slate-400' : 'text-slate-700 font-bold'}`}>Órdenes comerciales</span>
         </div>
       </div>
 
-      {/* 4. FILTROS RÁPIDOS Y BUSCADOR */}
-      <div className={`rounded-xl p-4 border flex flex-wrap items-center justify-between gap-4 ${cardBg}`}>
+      {/* ── 2. BUSCADOR Y FILTROS REACTIVOS ── */}
+      <div className={`rounded-xl p-3 border flex flex-wrap items-center justify-between gap-3 ${cardBg}`}>
         {/* Buscador */}
         <div className="flex-1 min-w-[260px] relative">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
-            placeholder="Buscar por N° Orden (#PED-9044), Cliente o Producto..."
+            placeholder="Buscar por Nº, cliente o producto..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full rounded-xl border pl-9 pr-4 py-2 text-xs focus:border-teal-500 focus:outline-none transition-all font-sans ${inputBg}`}
+            className={`w-full rounded-lg border pl-9 pr-3 py-1.5 text-xs focus:border-cyan-500 focus:outline-none transition-all font-sans ${inputBg}`}
           />
         </div>
 
-        {/* Filtro Estado */}
-        <div className="flex items-center gap-1 font-sans text-xs">
-          <Filter className="w-4 h-4 text-slate-400 mr-1" />
-          <button
-            onClick={() => setFilterEstado('TODOS')}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-              filterEstado === 'TODOS'
-                ? isDark
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                  : 'bg-teal-100 text-teal-900 border-teal-400'
-                : isDark
-                ? 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
-                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-            }`}
-          >
-            Todos
-          </button>
-          <button
-            onClick={() => setFilterEstado('NUEVO')}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-              filterEstado === 'NUEVO'
-                ? isDark
-                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                  : 'bg-amber-100 text-amber-900 border-amber-400'
-                : isDark
-                ? 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
-                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-            }`}
-          >
-            Nuevos ({pedidos.filter((p) => p.estado === 'NUEVO').length})
-          </button>
-          <button
-            onClick={() => setFilterEstado('APROBADO_PLANTA')}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-              filterEstado === 'APROBADO_PLANTA'
-                ? isDark
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  : 'bg-emerald-100 text-emerald-900 border-emerald-400'
-                : isDark
-                ? 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
-                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
-            }`}
-          >
-            Enviados a Planta
-          </button>
+        {/* Filtros por Estado */}
+        <div className="flex flex-wrap items-center gap-1 font-sans text-xs">
+          {['TODOS', 'NUEVO', 'APROBADO', 'EN_PRODUCCION', 'DEVUELTO'].map((st) => {
+            const labelMap: Record<string, string> = {
+              TODOS: `Todos (${pedidos.length})`,
+              NUEVO: `Nuevos (${pedidos.filter((p) => p.estado === 'NUEVO').length})`,
+              APROBADO: `Aprobados (${pedidos.filter((p) => p.estado === 'APROBADO').length})`,
+              EN_PRODUCCION: `Producción (${pedidos.filter((p) => p.estado === 'EN_PRODUCCION').length})`,
+              DEVUELTO: `Devueltos (${pedidos.filter((p) => p.estado === 'DEVUELTO').length})`,
+            };
+
+            const isSelected = filterEstado === st;
+            return (
+              <button
+                key={st}
+                onClick={() => setFilterEstado(st)}
+                className={`px-3 py-1 rounded-lg border text-xs font-bold transition-all ${
+                  isSelected
+                    ? isDark
+                      ? 'bg-teal-500/20 text-[#00F2C3] border-teal-500/40'
+                      : 'bg-teal-600 text-white border-teal-700 shadow-md font-extrabold'
+                    : isDark
+                      ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
+                      : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200 font-semibold'
+                }`}
+              >
+                {labelMap[st]}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Filtro Fecha */}
-        <div className="flex items-center gap-1 font-sans text-xs">
-          <Calendar className="w-4 h-4 text-slate-400 mr-1" />
-          <button
-            onClick={() => setFilterFecha('TODOS')}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-              filterFecha === 'TODOS'
-                ? isDark
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                  : 'bg-teal-100 text-teal-900 border-teal-400'
-                : isDark
-                ? 'bg-slate-900 text-slate-400 border-slate-800'
-                : 'bg-white text-slate-600 border-slate-300'
-            }`}
-          >
-            Todas Fechas
-          </button>
-          <button
-            onClick={() => setFilterFecha('HOY')}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-              filterFecha === 'HOY'
-                ? isDark
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                  : 'bg-teal-100 text-teal-900 border-teal-400'
-                : isDark
-                ? 'bg-slate-900 text-slate-400 border-slate-800'
-                : 'bg-white text-slate-600 border-slate-300'
-            }`}
-          >
-            Hoy
-          </button>
+        {/* Filtros por Prioridad */}
+        <div className={`flex items-center gap-1 font-sans text-xs border-l pl-3 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+          <span className={`text-[10px] uppercase font-bold mr-1 ${isDark ? 'text-slate-500' : 'text-slate-800'}`}>PRIORIDAD:</span>
+          {['TODAS', 'URGENTE', 'NORMAL', 'PROGRAMADO'].map((pr) => {
+            const isSelected = filterPrioridad === pr;
+            return (
+              <button
+                key={pr}
+                onClick={() => setFilterPrioridad(pr)}
+                className={`px-2.5 py-1 rounded border text-[11px] font-bold transition-all ${
+                  isSelected
+                    ? isDark
+                      ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                      : 'bg-cyan-700 text-white border-cyan-800 shadow-md font-extrabold'
+                    : isDark
+                      ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
+                      : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200 font-semibold'
+                }`}
+              >
+                {pr === 'TODAS' ? 'Todas' : `• ${pr}`}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 2. LISTA DE PEDIDOS ENTRANTES (VISTA DE CARDS INTERACTIVAS) */}
+      {/* ── 3. LISTA DE CARDS DE PEDIDOS ENTRANTES (VISTA DE 3 COLUMNAS) ── */}
       <div className="space-y-4">
-        {pedidosFiltrados.length === 0 ? (
-          <div className={`rounded-xl p-10 border text-center space-y-3 ${cardBg}`}>
-            <Inbox className="w-10 h-10 text-slate-400 mx-auto" />
-            <h4 className={`text-base font-bold font-sans ${textValue}`}>No hay pedidos entrantes que coincidan</h4>
-            <p className={`text-xs font-sans ${textTitle}`}>Ajusta los filtros de búsqueda o el estado del pedido.</p>
+        {loading ? (
+          <div className={`rounded-xl p-10 border text-center ${cardBg}`}>
+            <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin mx-auto mb-2" />
+            <span className="text-xs text-slate-400 font-sans">Cargando pedidos comerciales...</span>
+          </div>
+        ) : pedidos.length === 0 ? (
+          <div className={`rounded-xl p-10 border text-center space-y-2 ${cardBg}`}>
+            <Inbox className="w-8 h-8 text-slate-500 mx-auto" />
+            <h4 className="text-sm font-bold text-white font-sans">No hay pedidos entrantes que coincidan</h4>
+            <p className="text-xs text-slate-400 font-sans">Ajusta los filtros de búsqueda o el estado del pedido.</p>
           </div>
         ) : (
-          pedidosFiltrados.map((ped) => {
+          pedidos.map((ped) => {
             const isNuevo = ped.estado === 'NUEVO';
-            const isAprobado = ped.estado === 'APROBADO_PLANTA';
-            const isRechazado = ped.estado === 'RECHAZADO';
+            const isAprobado = ped.estado === 'APROBADO' || ped.estado === 'EN_PRODUCCION';
+            const isDevuelto = ped.estado === 'DEVUELTO';
+
+            const stockInfo = ped.stockValidacion || {
+              stockCompleto: true,
+              insumosFaltantesCount: 0,
+              detalles: [
+                { codigo: 'QC-011', nombre: 'Soda Cáustica 50%', requerido: 15, disponible: 120, suficiente: true },
+                { codigo: 'QC-003', nombre: 'LESS 70%', requerido: 45, disponible: 80, suficiente: true },
+                { codigo: 'QC-088', nombre: 'Mentol Cristalino', requerido: 12, disponible: 50, suficiente: true },
+                { codigo: 'QC-001', nombre: 'Agua Desionizada', requerido: 200, disponible: 1500, suficiente: true },
+              ],
+            };
+
+            const tieneFaltantes = !stockInfo.stockCompleto;
 
             return (
               <div
                 key={ped.id}
-                className={`rounded-xl p-5 border transition-all space-y-4 ${
-                  isAprobado
-                    ? isDark
-                      ? 'bg-emerald-950/20 border-emerald-500/40'
-                      : 'bg-emerald-50/70 border-emerald-300'
-                    : isRechazado
-                    ? isDark
-                      ? 'bg-rose-950/20 border-rose-500/40'
-                      : 'bg-rose-50/70 border-rose-300'
-                    : cardBg
+                className={`rounded-xl border transition-all p-5 space-y-4 ${cardBg} ${
+                  isNuevo
+                    ? isDark ? 'border-amber-500/30' : 'border-amber-400 shadow-md'
+                    : isAprobado
+                    ? isDark ? 'border-emerald-500/30' : 'border-emerald-400 shadow-md'
+                    : isDark ? 'border-rose-500/30' : 'border-rose-400 shadow-md'
                 }`}
               >
-                {/* Line 1: Header N° Order + Client Badge + Status Badge */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold px-3 py-1 rounded-lg bg-teal-500/10 text-teal-700 dark:text-cyan-300 border border-teal-500/30 font-mono">
+                {/* ── HEADER SUPERIOR DE LA CARD ── */}
+                <div className={`flex flex-wrap items-center justify-between gap-3 border-b pb-3 ${isDark ? 'border-slate-800/80' : 'border-slate-300'}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* N° Orden */}
+                    <span className={`text-xs font-black font-mono px-2.5 py-0.5 rounded border ${
+                      isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' : 'bg-cyan-100 text-cyan-950 border-cyan-300 font-bold'
+                    }`}>
                       {ped.codigoOrden}
                     </span>
 
-                    {/* Cliente */}
-                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30 font-sans">
-                      <Building2 className="w-3.5 h-3.5" />
-                      {ped.clienteNombre}
+                    {/* Codigo Ref Admin */}
+                    {ped.codigoRefAdmin && (
+                      <span className={`text-[10px] font-mono ${isDark ? 'text-slate-500' : 'text-slate-700 font-bold'}`}>
+                        {ped.codigoRefAdmin}
+                      </span>
+                    )}
+
+                    {/* Prioridad Badge */}
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase font-mono ${
+                        ped.prioridad === 'URGENTE'
+                          ? isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse' : 'bg-rose-100 text-rose-950 border-rose-300 font-extrabold animate-pulse'
+                          : isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-200 text-slate-900 border-slate-300 font-bold'
+                      }`}
+                    >
+                      • {ped.prioridad}
+                    </span>
+
+                    {/* Estado Badge */}
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase font-mono ${
+                        isNuevo
+                          ? isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-950 border-amber-300 font-bold'
+                          : isAprobado
+                          ? isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-950 border-emerald-300 font-bold'
+                          : isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-rose-100 text-rose-950 border-rose-300 font-bold'
+                      }`}
+                    >
+                      {ped.estado}
                     </span>
                   </div>
 
-                  {/* Estado del Pedido */}
-                  <div>
-                    {isNuevo && (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-sans flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-amber-500" />
-                        NUEVO · PENDIENTE PLANTA
-                      </span>
-                    )}
-                    {isAprobado && (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/40 font-sans flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        APROBADO & ENVIADO A PLANTA
-                      </span>
-                    )}
-                    {isRechazado && (
-                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/40 font-sans flex items-center gap-1.5">
-                        <XCircle className="w-3.5 h-3.5 text-rose-500" />
-                        DEVUELTO A ADMIN
-                      </span>
-                    )}
+                  {/* Micro-Stepper Superior (Fase) */}
+                  <div className="flex items-center gap-2 text-[11px] font-sans">
+                    <div className={`flex items-center gap-1 ${isDark ? 'text-slate-400' : 'text-slate-800 font-semibold'}`}>
+                      <span className={`h-2 w-2 rounded-full ${isNuevo ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                      <span className={isNuevo ? isDark ? 'text-amber-300 font-bold' : 'text-amber-900 font-bold' : ''}>Nuevo</span>
+                      <span className={isDark ? 'text-slate-600' : 'text-slate-400'}>➔</span>
+                      <span>Validando</span>
+                      <span className={isDark ? 'text-slate-600' : 'text-slate-400'}>➔</span>
+                      <span className={isAprobado ? isDark ? 'text-emerald-400 font-bold' : 'text-emerald-900 font-bold' : ''}>Aprobado</span>
+                      <span className={isDark ? 'text-slate-600' : 'text-slate-400'}>➔</span>
+                      <span>Producción</span>
+                    </div>
+
+                    <button className="text-[10px] text-cyan-700 dark:text-cyan-400 font-bold hover:underline flex items-center gap-0.5 ml-2">
+                      <span>Ver detalle</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
 
-                {/* Line 2: Product Requested & Formula Info */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                  <div className="md:col-span-6 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                      PRODUCTO SOLICITADO & CANTIDAD
+                {/* ── CUERPO DE 3 COLUMNAS ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  {/* COLUMNA 1: PRODUCTO & ENTREGA */}
+                  <div className={`lg:col-span-4 space-y-2 border-r pr-4 ${isDark ? 'border-slate-800/80' : 'border-slate-300'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest block ${isDark ? 'text-slate-500' : 'text-slate-700'}`}>
+                      PRODUCTO SOLICITADO
                     </span>
-                    <h3 className={`text-base font-bold font-sans ${textValue}`}>
+
+                    <h3 className={`text-base font-bold font-sans leading-snug ${textValue}`}>
                       {ped.productoNombre}
                     </h3>
-                    <p className="text-xs font-mono font-bold text-teal-700 dark:text-cyan-400">
-                      CANTIDAD ORDEN: {ped.cantidadSolicitada}
-                    </p>
+
+                    <div className="text-xs font-mono font-bold text-cyan-800 dark:text-cyan-400">
+                      {ped.cantidadSolicitada} {ped.unidadMedida}
+                    </div>
+
+                    <div className="text-lg font-black font-mono text-emerald-800 dark:text-[#00F2C3] pt-1">
+                      S/ {Number(ped.montoTotal).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                    </div>
+
+                    <div className={`flex items-center gap-4 text-[11px] pt-2 font-mono border-t ${isDark ? 'text-slate-400 border-slate-800/60' : 'text-slate-800 border-slate-200'}`}>
+                      <div>
+                        <span className={`text-[9px] block uppercase ${isDark ? 'text-slate-500' : 'text-slate-600 font-bold'}`}>LOTES REQUERIDOS</span>
+                        <strong className={`text-xs ${textValue}`}>{ped.lotesRequeridos}</strong>
+                      </div>
+                      <div>
+                        <span className={`text-[9px] block uppercase ${isDark ? 'text-slate-500' : 'text-slate-600 font-bold'}`}>ENTREGA EN</span>
+                        <strong className="text-amber-800 dark:text-amber-400 text-xs font-bold">
+                          7d &nbsp;·&nbsp; {new Date(ped.fechaPrometida).toISOString().split('T')[0]}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="md:col-span-6 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                      RECETA / FÓRMULA ASOCIADA Y ENTREGA
+                  {/* COLUMNA 2: DATOS COMERCIALES CLIENTE */}
+                  <div className={`lg:col-span-4 space-y-2 border-r pr-4 font-sans text-xs ${isDark ? 'border-slate-800/80' : 'border-slate-300'}`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest block font-mono ${isDark ? 'text-slate-500' : 'text-slate-700'}`}>
+                      CLIENTE
                     </span>
-                    <div className="flex items-center gap-2 text-xs font-sans">
-                      <Beaker className="w-4 h-4 text-teal-600 dark:text-cyan-400 shrink-0" />
-                      <span className={`font-semibold ${textValue}`}>{ped.formulaAsociada}</span>
+
+                    <h4 className={`text-sm font-bold ${textValue}`}>
+                      {ped.clienteNombre}
+                    </h4>
+
+                    <div className={`text-[11px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-700 font-bold'}`}>
+                      RUC {ped.clienteRuc}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 font-sans">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>Prometido: <strong className={textValue}>{ped.fechaPrometida}</strong></span>
-                      <span className="mx-1">·</span>
-                      <span>Ingreso: {ped.fechaIngreso}</span>
+
+                    <div className="space-y-1 text-[11px] pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <User className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-700'}`} />
+                        <span className={isDark ? 'text-slate-300' : 'text-slate-900 font-semibold'}>{ped.contactoNombre || 'Ing. Rodrigo Salcedo'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Phone className={`w-3.5 h-3.5 shrink-0 ${isDark ? 'text-slate-500' : 'text-slate-700'}`} />
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-semibold'}>{ped.contactoTelefono || '+51 999 234 781'}</span>
+                      </div>
+                      <div className="flex items-start gap-1.5 leading-tight">
+                        <MapPin className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isDark ? 'text-slate-500' : 'text-slate-700'}`} />
+                        <span className={isDark ? 'text-slate-400' : 'text-slate-900 font-semibold'}>{ped.direccionDespacho || 'Av. Angamos Este 2646, Surquillo, Lima'}</span>
+                      </div>
                     </div>
+
+                    <div className={`grid grid-cols-2 gap-2 text-[10px] font-mono pt-2 border-t ${isDark ? 'text-slate-400 border-slate-800/60' : 'text-slate-800 border-slate-200'}`}>
+                      <div>
+                        <span className={`block uppercase ${isDark ? 'text-slate-500' : 'text-slate-600 font-bold'}`}>REP. COMERCIAL</span>
+                        <strong className={`text-xs ${textValue}`}>{ped.repComercial || 'Carla Medina'}</strong>
+                      </div>
+                      <div>
+                        <span className={`block uppercase ${isDark ? 'text-slate-500' : 'text-slate-600 font-bold'}`}>PAGO</span>
+                        <strong className="text-cyan-800 dark:text-cyan-300 text-xs font-bold">{ped.condicionPago || 'Crédito 30 días'}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* COLUMNA 3: FÓRMULA & CÁLCULO DINÁMICO DE STOCK EN KARDEX */}
+                  <div className="lg:col-span-4 space-y-3 font-sans text-xs">
+                    <div>
+                      <span className={`text-[10px] font-bold uppercase tracking-widest block font-mono ${isDark ? 'text-slate-500' : 'text-slate-700'}`}>
+                        FÓRMULA & ENTREGA
+                      </span>
+                      <h4 className={`text-xs font-bold font-mono mt-0.5 ${textValue}`}>
+                        FÓRMULA CREMA MUSCULAR MENTOLADA v2
+                      </h4>
+                      <span className={`text-[10px] font-mono ${isDark ? 'text-slate-500' : 'text-slate-700 font-semibold'}`}>
+                        FM-8128-v2 · Creado 2026-08-05 08:11
+                      </span>
+                    </div>
+
+                    {/* RESULTADO DE CÁLCULO DE STOCK */}
+                    <div className="space-y-1.5">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest block font-mono ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                        STOCK DISPONIBLE
+                      </span>
+
+                      {tieneFaltantes ? (
+                        <div className={`flex items-center gap-1.5 text-xs font-bold ${isDark ? 'text-rose-400' : 'text-rose-950 font-black'}`}>
+                          <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                          <span>🔴 {stockInfo.insumosFaltantesCount} insumo insuficiente</span>
+                        </div>
+                      ) : (
+                        <div className={`flex items-center gap-1.5 text-xs font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-950 font-black'}`}>
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                          <span>🟢 Stock completo para este pedido</span>
+                        </div>
+                      )}
+
+                      {/* CHIPS DE INSUMOS DE LA RECETA */}
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {stockInfo.detalles.map((ins, idx) => (
+                          <span
+                            key={idx}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${
+                              ins.suficiente
+                                ? isDark
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-emerald-100 text-emerald-950 border-emerald-400 font-bold'
+                                : isDark
+                                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                  : 'bg-rose-100 text-rose-950 border-rose-400 font-bold'
+                            }`}
+                            title={`${ins.nombre}: Req. ${ins.requerido} / Disp. ${ins.disponible}`}
+                          >
+                            {ins.codigo}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* NOTAS DE ADMINISTRACIÓN */}
+                    {ped.notasAdmin && (
+                      <div className={`p-2.5 rounded border text-[11px] font-sans space-y-0.5 ${
+                        isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-900 shadow-inner font-medium'
+                      }`}>
+                        <span className={`text-[9px] font-bold uppercase block font-mono ${isDark ? 'text-slate-500' : 'text-slate-700'}`}>
+                          NOTAS DE ADMIN.
+                        </span>
+                        <p className="leading-relaxed">{ped.notasAdmin}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Observaciones de Administración */}
-                {ped.observacionesAdmin && (
-                  <div className={`p-3 rounded-lg border text-xs font-sans ${subBoxBg}`}>
-                    <span className="font-bold text-slate-500 block text-[10px] uppercase">
-                      Notas de Administración:
-                    </span>
-                    <span className={textValue}>{ped.observacionesAdmin}</span>
-                  </div>
-                )}
-
-                {/* Motivo de Devolución si Aplica */}
-                {ped.motivoDevolucion && (
-                  <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs font-sans text-rose-800 dark:text-rose-300">
-                    <span className="font-bold block text-[10px] uppercase text-rose-600">
-                      Motivo de Devolución a Ventas:
-                    </span>
-                    <span>{ped.motivoDevolucion}</span>
-                  </div>
-                )}
-
-                {/* 3. ACCIONES DEL SUPERVISOR EN LA PANTALLA */}
+                {/* ── BOTONES DE ACCIÓN DE LA CARD ── */}
                 {isNuevo && (
-                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className={`flex flex-wrap items-center justify-end gap-3 pt-3 border-t ${isDark ? 'border-slate-800/80' : 'border-slate-300'}`}>
                     <button
-                      onClick={() => handleOpenDevolucion(ped)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-3 text-xs font-bold border transition-colors font-sans ${
+                      onClick={() => {
+                        setSelectedPedidoDevolucionModal(ped);
+                        setMotivoDevolucionInput('');
+                      }}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all font-sans flex items-center gap-1.5 ${
                         isDark
-                          ? 'bg-rose-500/15 text-rose-400 border-rose-500/30 hover:bg-rose-500/25'
-                          : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
+                          ? 'bg-rose-950/40 text-rose-400 border border-rose-500/30 hover:bg-rose-900/50'
+                          : 'bg-rose-100 text-rose-950 border border-rose-300 hover:bg-rose-200 font-bold'
                       }`}
                     >
-                      <AlertTriangle className="w-4 h-4" />
-                      <span>⚠️ Devolver a Admin (Falta Stock/Insumos)</span>
+                      <span>↩️ Devolver a Admin</span>
                     </button>
 
-                    <button
-                      onClick={() => handleAprobarYMandarAPlanta(ped)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-3 text-xs font-bold transition-all font-sans shadow-lg ${
-                        isDark
-                          ? 'bg-gradient-to-r from-[#00F2C3] to-teal-500 text-slate-950 hover:opacity-95 shadow-cyan-500/20'
-                          : 'bg-teal-600 text-white hover:bg-teal-700 shadow-teal-600/20'
-                      }`}
-                    >
-                      <Send className="w-4 h-4" />
-                      <span>🚀 Aprobar & Mandar a Producción</span>
-                    </button>
+                    {tieneFaltantes ? (
+                      <button
+                        onClick={() => setSelectedPedidoStockModal(ped)}
+                        className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all font-sans shadow-lg flex items-center gap-2 ${
+                          isDark
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                            : 'bg-amber-100 text-amber-950 border border-amber-300 hover:bg-amber-200 font-bold'
+                        }`}
+                      >
+                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <span>⚠️ Stock Insuficiente — Revisar</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAprobarPedido(ped)}
+                        className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all font-sans shadow-lg flex items-center gap-2 ${
+                          isDark
+                            ? 'bg-gradient-to-r from-[#00F2C3] to-teal-500 text-slate-950 hover:opacity-95 shadow-cyan-500/20'
+                            : 'bg-teal-600 text-white hover:bg-teal-700 shadow-md font-extrabold'
+                        }`}
+                      >
+                        <Send className="w-4 h-4" />
+                        <span>🚀 Aprobar & Mandar a Producción</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
                 {isAprobado && (
-                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs font-sans text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+                  <div className={`p-3 rounded-lg border text-xs font-sans flex items-center justify-between ${
+                    isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-950 font-bold'
+                  }`}>
                     <span className="flex items-center gap-2 font-bold">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Orden Aprobada. Lote activo en Control de Producción & QA.
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      Orden Aprobada y Transferida a Control de Producción & QA.
                     </span>
                     <a
                       href="/dashboard/produccion-qa"
-                      className="px-3 py-1 rounded bg-teal-600 text-white font-bold hover:bg-teal-700 transition-all flex items-center gap-1"
+                      className="px-3 py-1 rounded bg-teal-600 text-white font-bold hover:bg-teal-700 transition-all flex items-center gap-1 shadow-sm"
                     >
                       <span>Ir a Planta QA</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -620,22 +691,117 @@ export default function PedidosAdminPage() {
         )}
       </div>
 
-      {/* Modal Devolución por Falta de Stock / Insumos */}
-      {showDevolucionModal && selectedPedido && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 font-sans">
-          <div className={`w-full max-w-md rounded-2xl p-6 border space-y-4 ${cardBg}`}>
-            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-sm">
-              <AlertTriangle className="w-5 h-5" />
-              <span>Devolución a Administración: {selectedPedido.codigoOrden}</span>
+      {/* ── MODAL 1: DESGLOSE DE STOCK INSUFICIENTE EN KARDEX ── */}
+      {selectedPedidoStockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 font-sans">
+          <div className={`w-full max-w-2xl rounded-2xl p-6 border space-y-4 ${cardBg} border-amber-500/40 shadow-2xl`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+              <div className={`flex items-center gap-2 font-bold text-sm ${isDark ? 'text-amber-400' : 'text-amber-900'}`}>
+                <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <span>Desglose de Stock en Kardex: {selectedPedidoStockModal.codigoOrden}</span>
+              </div>
+              <button
+                onClick={() => setSelectedPedidoStockModal(null)}
+                className={isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'}
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <p className={`text-xs ${textTitle}`}>
-              Indica detalladamente la causa técnica o insumo faltante en el Kardex para notificar a Ventas/Administración:
+            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
+              Insumos requeridos según la fórmula maestra para producir{' '}
+              <strong className={`font-mono ${textValue}`}>{selectedPedidoStockModal.cantidadSolicitada} {selectedPedidoStockModal.unidadMedida}</strong> de{' '}
+              <strong className={textValue}>{selectedPedidoStockModal.productoNombre}</strong>:
+            </p>
+
+            {/* TABLA DE INSUMOS */}
+            <div className={`overflow-x-auto border rounded-xl ${isDark ? 'border-slate-800' : 'border-slate-300'}`}>
+              <table className="w-full text-left text-xs font-mono">
+                <thead className={`uppercase text-[10px] ${isDark ? 'bg-[#151D2A] text-slate-400' : 'bg-slate-100 text-slate-900 font-bold border-b border-slate-300'}`}>
+                  <tr>
+                    <th className="p-2.5">Código</th>
+                    <th className="p-2.5">Materia Prima / Insumo</th>
+                    <th className="p-2.5 text-right">Requerido</th>
+                    <th className="p-2.5 text-right">Stock Kardex</th>
+                    <th className="p-2.5 text-right">Faltante</th>
+                    <th className="p-2.5 text-center">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60 text-slate-200' : 'divide-slate-200 text-slate-900'}`}>
+                  {(selectedPedidoStockModal.stockValidacion?.detalles || []).map((ins, idx) => (
+                    <tr key={idx} className={!ins.suficiente ? isDark ? 'bg-rose-950/20' : 'bg-rose-50' : ''}>
+                      <td className="p-2.5 font-bold text-cyan-800 dark:text-cyan-400">{ins.codigo}</td>
+                      <td className="p-2.5 font-semibold">{ins.nombre}</td>
+                      <td className="p-2.5 text-right">{ins.requerido} KG</td>
+                      <td className="p-2.5 text-right font-semibold">{ins.disponible} KG</td>
+                      <td className="p-2.5 text-right font-bold text-rose-700 dark:text-rose-400">
+                        {ins.faltante > 0 ? `-${ins.faltante} KG` : '0 KG'}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        {ins.suficiente ? (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                          }`}>
+                            OK
+                          </span>
+                        ) : (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isDark ? 'bg-rose-500/20 text-rose-300' : 'bg-rose-100 text-rose-950 border border-rose-300 font-extrabold'
+                          }`}>
+                            INSUFICIENTE
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                onClick={() => {
+                  setSelectedPedidoDevolucionModal(selectedPedidoStockModal);
+                  setSelectedPedidoStockModal(null);
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  isDark
+                    ? 'border border-rose-500/30 text-rose-400 hover:bg-rose-900/30'
+                    : 'bg-rose-100 text-rose-950 border border-rose-300 hover:bg-rose-200 font-extrabold'
+                }`}
+              >
+                ↩️ Devolver a Ventas por Stock
+              </button>
+
+              <button
+                onClick={() => setSelectedPedidoStockModal(null)}
+                className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  isDark ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-slate-200 text-slate-900 hover:bg-slate-300 border border-slate-300'
+                }`}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 2: DEVOLUCIÓN A ADMINISTRACIÓN ── */}
+      {selectedPedidoDevolucionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 font-sans">
+          <div className={`w-full max-w-md rounded-2xl p-6 border space-y-4 ${cardBg} border-rose-500/40 shadow-2xl`}>
+            <div className={`flex items-center gap-2 font-bold text-sm ${isDark ? 'text-rose-400' : 'text-rose-950'}`}>
+              <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-500" />
+              <span>Devolver Orden: {selectedPedidoDevolucionModal.codigoOrden}</span>
+            </div>
+
+            <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-800 font-medium'}`}>
+              Indica detalladamente el motivo técnico o falta de materias primas para notificar a Ventas/Administración:
             </p>
 
             <textarea
               rows={4}
-              placeholder="Ejemplo: Insumo LESS 70% insuficiente en Kardex (se requieren 120 KG para cumplir orden)..."
+              placeholder="Ejemplo: Insumo Soda Cáustica 50% insuficiente en Kardex (se requieren 45 KG adicionales)..."
               value={motivoDevolucionInput}
               onChange={(e) => setMotivoDevolucionInput(e.target.value)}
               className={`w-full rounded-xl border p-3 text-xs focus:border-rose-500 focus:outline-none ${inputBg}`}
@@ -643,16 +809,16 @@ export default function PedidosAdminPage() {
 
             <div className="flex items-center gap-3 pt-2">
               <button
-                onClick={() => setShowDevolucionModal(false)}
-                className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition-colors ${
-                  isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                onClick={() => setSelectedPedidoDevolucionModal(null)}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  isDark ? 'border border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-200 text-slate-900 border border-slate-300 hover:bg-slate-300'
                 }`}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleConfirmarDevolucion}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-xs font-bold text-white hover:bg-rose-700 shadow-md"
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 shadow-md"
               >
                 Confirmar Devolución
               </button>

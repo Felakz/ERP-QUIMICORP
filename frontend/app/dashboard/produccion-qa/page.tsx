@@ -15,6 +15,7 @@ import {
   MessageSquare,
   CheckCircle2,
   XCircle,
+  Calendar,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { FORMULAS_MAESTRAS_REALES } from '@/lib/formulasData';
@@ -58,6 +59,57 @@ const QUICK_INCIDENTS = [
 export default function ProduccionQAPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+
+  const [subTab, setSubTab] = useState<'EN_VIVO' | 'PROGRAMACION_DIARIA'>('EN_VIVO');
+  const [fechaFiltro, setFechaFiltro] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [busquedaQuery, setBusquedaQuery] = useState<string>('');
+  const [programacionData, setProgramacionData] = useState<{
+    fecha: string;
+    resumen: {
+      totalOrdenes: number;
+      totalKgProgramados: string;
+      totalTerminados: number;
+      totalEnProceso: number;
+      totalPendientes: number;
+    };
+    ordenes: Array<{
+      id: string;
+      codigoLote: string;
+      clienteNombre: string;
+      productoNombre: string;
+      colorEspecificado: string;
+      fraganciaEspecificada: string;
+      cantidad: number;
+      unidadMedida: string;
+      estado: 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE';
+      operarios: string;
+      prioridad: string;
+      fechaCreacion: string;
+      fechaCierre?: string;
+    }>;
+  }>({
+    fecha: new Date().toISOString().split('T')[0],
+    resumen: { totalOrdenes: 0, totalKgProgramados: '0.00', totalTerminados: 0, totalEnProceso: 0, totalPendientes: 0 },
+    ordenes: [],
+  });
+
+  const cargarProgramacionDiaria = async (fecha: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/v1/produccion/ordenes/programacion-diaria?fecha=${fecha}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProgramacionData(data);
+      }
+    } catch (err) {
+      console.log('Error fetching programacion diaria:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (subTab === 'PROGRAMACION_DIARIA') {
+      cargarProgramacionDiaria(fechaFiltro);
+    }
+  }, [subTab, fechaFiltro]);
 
   const [selectedLoteId, setSelectedLoteId] = useState<string | null>(null);
   const [expandedLoteIds, setExpandedLoteIds] = useState<string[]>([]);
@@ -366,9 +418,115 @@ export default function ProduccionQAPage() {
     }
   };
 
+  const handleExportarReporte = () => {
+    const windowPrint = window.open('', '', 'width=950,height=750');
+    if (!windowPrint) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>PROGRAMACIÓN DIARIA DE PRODUCCIÓN - QUIMICORP PERU S.A.C.</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 25px; color: #0f172a; }
+            .header-banner { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px; }
+            .company-name { font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+            .sub-title { font-size: 14px; font-weight: 700; color: #475569; margin-top: 4px; }
+            .meta-bar { display: flex; justify-content: space-between; font-size: 12px; font-weight: bold; background: #f8fafc; padding: 10px 15px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+            th, td { border: 1px solid #cbd5e1; padding: 9px 12px; text-align: left; }
+            th { background-color: #f1f5f9; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+            .status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 10px; display: inline-block; }
+            .badge-terminado { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+            .badge-proceso { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+            .badge-pendiente { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+            .summary-card { margin-top: 25px; border: 1px solid #cbd5e1; padding: 15px; background: #f8fafc; border-radius: 8px; font-size: 12px; }
+            .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center; margin-top: 10px; }
+            .summary-item { background: white; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+            .summary-val { font-size: 16px; font-weight: 900; margin-top: 4px; }
+          </style>
+        </head>
+        <body>
+          <div class="header-banner">
+            <div class="company-name">QUIMICORP PERU S.A.C.</div>
+            <div class="sub-title">PROGRAMACIÓN DIARIA DE PRODUCCIÓN — HOJA OFICIAL DE PLANTA</div>
+          </div>
+          <div class="meta-bar">
+            <span>RUC: 20614697327</span>
+            <span>FECHA DEL TURNO: ${fechaFiltro}</span>
+            <span>ORDENES EMITIDAS: ${programacionData.resumen.totalOrdenes}</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>N° ORD. PROD.</th>
+                <th>CLIENTE</th>
+                <th>PRODUCTO</th>
+                <th>COLOR</th>
+                <th>FRAGANCIA</th>
+                <th>CANTIDAD</th>
+                <th>ESTADO</th>
+                <th>RESPONSABLE</th>
+                <th>PRIORIDAD</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${programacionData.ordenes.map(o => `
+                <tr>
+                  <td><strong>${o.codigoLote}</strong></td>
+                  <td>${o.clienteNombre}</td>
+                  <td>${o.productoNombre}</td>
+                  <td>${o.colorEspecificado}</td>
+                  <td>${o.fraganciaEspecificada}</td>
+                  <td><strong>${o.cantidad} ${o.unidadMedida}</strong></td>
+                  <td>
+                    <span class="status-badge ${o.estado === 'TERMINADO' ? 'badge-terminado' : o.estado === 'EN PROCESO' ? 'badge-proceso' : 'badge-pendiente'}">
+                      ${o.estado}
+                    </span>
+                  </td>
+                  <td>${o.operarios}</td>
+                  <td>${o.prioridad}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="summary-card">
+            <strong>RESUMEN OPERATIVO DEL DÍA</strong>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <div style="font-size: 10px; color: #64748b;">TOTAL ÓRDENES</div>
+                <div class="summary-val">${programacionData.resumen.totalOrdenes}</div>
+              </div>
+              <div class="summary-item">
+                <div style="font-size: 10px; color: #64748b;">TOTAL KG/LT</div>
+                <div class="summary-val">${programacionData.resumen.totalKgProgramados}</div>
+              </div>
+              <div class="summary-item">
+                <div style="font-size: 10px; color: #166534;">TERMINADOS</div>
+                <div class="summary-val" style="color: #166534;">${programacionData.resumen.totalTerminados}</div>
+              </div>
+              <div class="summary-item">
+                <div style="font-size: 10px; color: #1e40af;">EN PROCESO</div>
+                <div class="summary-val" style="color: #1e40af;">${programacionData.resumen.totalEnProceso}</div>
+              </div>
+              <div class="summary-item">
+                <div style="font-size: 10px; color: #475569;">PENDIENTES</div>
+                <div class="summary-val">${programacionData.resumen.totalPendientes}</div>
+              </div>
+            </div>
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `;
+
+    windowPrint.document.write(html);
+    windowPrint.document.close();
+  };
+
   return (
     <div className="space-y-6 font-mono min-h-screen">
-      {/* Header Titular */}
+      {/* Header Titular con Sub-Pestañas a la Derecha */}
       <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
         <div>
           <div className="flex items-center gap-2">
@@ -389,7 +547,7 @@ export default function ProduccionQAPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleLimpiarLotesPrueba}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border font-sans transition-all flex items-center gap-1.5 ${
@@ -402,16 +560,255 @@ export default function ProduccionQAPage() {
             <span>🧹 Reiniciar Pruebas</span>
           </button>
 
-          <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border font-mono ${
-            isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+          {/* Sub-Pestañas Superiores Pills (En la Cabecera) */}
+          <div className={`flex rounded-xl p-1 border text-xs font-sans ${
+            isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-slate-100 border-slate-300'
           }`}>
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            WEBSOCKETS ACTIVO
-          </span>
+            <button
+              onClick={() => setSubTab('EN_VIVO')}
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 font-bold transition-all ${
+                subTab === 'EN_VIVO'
+                  ? 'bg-[#00F2C3] text-slate-950 shadow'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <FlaskConical className="w-4 h-4" />
+              <span>Control de Producción ({lotes.length})</span>
+            </button>
+
+            <button
+              onClick={() => setSubTab('PROGRAMACION_DIARIA')}
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-1.5 font-bold transition-all ${
+                subTab === 'PROGRAMACION_DIARIA'
+                  ? 'bg-[#00F2C3] text-slate-950 shadow'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Programación & Control Diario</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Main 2-Column Layout */}
+      {subTab === 'PROGRAMACION_DIARIA' && (
+        <div className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${cardBg}`}>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-sans font-bold ${textTitle}`}>FECHA DEL TURNO:</span>
+            <input
+              type="date"
+              value={fechaFiltro}
+              onChange={(e) => setFechaFiltro(e.target.value)}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-mono ${inputBg}`}
+            />
+          </div>
+
+          <button
+            onClick={handleExportarReporte}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-sans transition-all flex items-center gap-2 ${
+              isDark
+                ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20'
+                : 'bg-teal-50 text-teal-800 border border-teal-300 hover:bg-teal-100'
+            }`}
+          >
+            <span>📥 Exportar Reporte (Excel / PDF)</span>
+          </button>
+        </div>
+      )}
+
+      {subTab === 'PROGRAMACION_DIARIA' ? (
+        <div className="space-y-6">
+          {/* Header Oficial Quimicorp */}
+          <div className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-4 ${cardBg}`}>
+            <div>
+              <h3 className={`text-sm font-bold font-sans flex items-center gap-2 ${textValue}`}>
+                <span>QUIMICORP PERU S.A.C.</span>
+                <span className="text-xs text-slate-400 font-mono">· RUC 20614697327</span>
+              </h3>
+              <p className={`text-xs font-sans ${textTitle}`}>
+                PROGRAMACIÓN DIARIA DE PRODUCCIÓN — Planilla Digital Inmutable del Turno ({fechaFiltro})
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="🔍 Buscar por Cliente, Producto o Lote..."
+                value={busquedaQuery}
+                onChange={(e) => setBusquedaQuery(e.target.value)}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-sans w-64 ${inputBg}`}
+              />
+            </div>
+          </div>
+
+          {/* 📊 KPI Bar Superior (Resumen de Métricas Diarias) */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {/* KPI 1: TOTAL ÓRDENES */}
+            <div className={`rounded-xl p-4 border relative overflow-hidden ${cardBg}`}>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-500" />
+              <div className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>
+                TOTAL ÓRDENES DE PROD.
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-2xl font-black font-mono ${textValue}`}>
+                  {programacionData.resumen.totalOrdenes}
+                </span>
+                <span className="text-xs text-slate-400 font-sans">lotes</span>
+              </div>
+            </div>
+
+            {/* KPI 2: TOTAL KG PROGRAMADOS */}
+            <div className={`rounded-xl p-4 border relative overflow-hidden ${cardBg}`}>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500" />
+              <div className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>
+                TOTAL KG/LT PROGRAMADOS
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-2xl font-black font-mono ${textValue}`}>
+                  {programacionData.resumen.totalKgProgramados}
+                </span>
+                <span className="text-xs text-slate-400 font-sans">KG/LT</span>
+              </div>
+            </div>
+
+            {/* KPI 3: TERMINADOS */}
+            <div className={`rounded-xl p-4 border relative overflow-hidden ${cardBg}`}>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
+              <div className={`text-[10px] font-bold tracking-widest uppercase text-emerald-500`}>
+                🟢 TERMINADOS
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-2xl font-black font-mono text-emerald-400`}>
+                  {programacionData.resumen.totalTerminados}
+                </span>
+                <span className="text-xs text-slate-400 font-sans">lotes liberados</span>
+              </div>
+            </div>
+
+            {/* KPI 4: EN PROCESO */}
+            <div className={`rounded-xl p-4 border relative overflow-hidden ${cardBg}`}>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
+              <div className={`text-[10px] font-bold tracking-widest uppercase text-blue-500`}>
+                🔵 EN PROCESO
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-2xl font-black font-mono text-blue-400`}>
+                  {programacionData.resumen.totalEnProceso}
+                </span>
+                <span className="text-xs text-slate-400 font-sans">en reactores</span>
+              </div>
+            </div>
+
+            {/* KPI 5: PENDIENTES */}
+            <div className={`rounded-xl p-4 border relative overflow-hidden ${cardBg}`}>
+              <div className="absolute top-0 left-0 right-0 h-1 bg-slate-500" />
+              <div className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>
+                ⚪ PENDIENTES
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-2xl font-black font-mono ${textValue}`}>
+                  {programacionData.resumen.totalPendientes}
+                </span>
+                <span className="text-xs text-slate-400 font-sans">en cola</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 📋 DataGrid Industrial (Digitalización del Excel) */}
+          <div className={`rounded-xl border overflow-hidden ${cardBg}`}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className={`border-b ${isDark ? 'bg-[#151D2A] border-slate-800 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
+                    <th className="p-3 font-bold uppercase tracking-wider">HORA</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">ORD. PROD.</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">CLIENTE</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">PRODUCTO</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">COLOR</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">FRAGANCIA</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">CANTIDAD</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">ESTADO</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">RESPONSABLE</th>
+                    <th className="p-3 font-bold uppercase tracking-wider">PRIORIDAD</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+                  {programacionData.ordenes.filter(o => 
+                    !busquedaQuery.trim() || 
+                    o.codigoLote.toLowerCase().includes(busquedaQuery.toLowerCase()) ||
+                    o.clienteNombre.toLowerCase().includes(busquedaQuery.toLowerCase()) ||
+                    o.productoNombre.toLowerCase().includes(busquedaQuery.toLowerCase())
+                  ).length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="p-8 text-center text-slate-500 font-sans">
+                        No hay registros de producción encontrados para la fecha seleccionada ({fechaFiltro}).
+                      </td>
+                    </tr>
+                  ) : (
+                    programacionData.ordenes.filter(o => 
+                      !busquedaQuery.trim() || 
+                      o.codigoLote.toLowerCase().includes(busquedaQuery.toLowerCase()) ||
+                      o.clienteNombre.toLowerCase().includes(busquedaQuery.toLowerCase()) ||
+                      o.productoNombre.toLowerCase().includes(busquedaQuery.toLowerCase())
+                    ).map((o) => (
+                      <tr key={o.id} className={`hover:bg-slate-800/20 transition-colors ${isDark ? '' : 'hover:bg-slate-50'}`}>
+                        <td className="p-3 font-mono text-[11px] text-slate-400">
+                          {new Date(o.fechaCreacion).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="p-3 font-mono font-bold text-[#00F2C3]">{o.codigoLote}</td>
+                        <td className="p-3 font-bold">{o.clienteNombre}</td>
+                        <td className="p-3 font-sans font-medium">{o.productoNombre}</td>
+                        <td className="p-3 font-sans">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            isDark ? 'bg-purple-500/10 text-purple-300 border-purple-500/30' : 'bg-purple-50 text-purple-900 border-purple-300'
+                          }`}>
+                            {o.colorEspecificado}
+                          </span>
+                        </td>
+                        <td className="p-3 font-sans">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            isDark ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-amber-50 text-amber-900 border-amber-300'
+                          }`}>
+                            {o.fraganciaEspecificada}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono font-bold">{o.cantidad} {o.unidadMedida}</td>
+                        <td className="p-3">
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-black tracking-wide border uppercase font-mono ${
+                            o.estado === 'TERMINADO'
+                              ? isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold'
+                              : o.estado === 'EN PROCESO'
+                              ? isDark ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-900 border-blue-300 font-bold'
+                              : isDark ? 'bg-rose-500/25 text-rose-300 border-rose-500/40 animate-pulse' : 'bg-rose-500 text-white border-rose-600 font-black'
+                          }`}>
+                            {o.estado}
+                          </span>
+                        </td>
+                        <td className="p-3 font-sans">
+                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                            isDark ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' : 'bg-teal-50 text-teal-800 border-teal-300'
+                          }`}>
+                            👤 {o.operarios}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            o.prioridad === 'ALTA' || o.prioridad === 'URGENTE'
+                              ? 'text-rose-400 bg-rose-500/10'
+                              : 'text-slate-400 bg-slate-500/10'
+                          }`}>
+                            {o.prioridad}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+      /* Main 2-Column Layout */
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left Column (5 Cols): List of Active Production Batches */}
         <div className="lg:col-span-5 space-y-3">
@@ -911,6 +1308,7 @@ export default function ProduccionQAPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Modal Obligatorio para Motivo de Rechazo */}
       {showRechazoModal && (

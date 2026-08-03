@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ProduccionService } from './produccion.service';
 import {
   AsignarOperariosDto,
@@ -12,6 +12,11 @@ import {
 @Controller('produccion')
 export class ProduccionController {
   constructor(private readonly produccionService: ProduccionService) {}
+
+  @Get('ordenes/programacion-diaria')
+  obtenerProgramacionDiaria(@Query('fecha') fecha?: string) {
+    return this.produccionService.obtenerProgramacionDiaria(fecha);
+  }
 
   @Post('ordenes/validar-stock')
   validarStock(@Body() dto: ValidarStockDto) {

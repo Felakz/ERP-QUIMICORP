@@ -7,6 +7,7 @@ import { InventarioModule } from './inventario/inventario.module';
 import { ProduccionModule } from './produccion/produccion.module';
 import { FormulasModule } from './formulas/formulas.module';
 import { SubAlmacenModule } from './sub-almacen/sub-almacen.module';
+import { PedidosAdminModule } from './pedidos-admin/pedidos-admin.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { SubAlmacenModule } from './sub-almacen/sub-almacen.module';
     ProduccionModule,
     FormulasModule,
     SubAlmacenModule,
+    PedidosAdminModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

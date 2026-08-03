@@ -183,13 +183,15 @@ export default function KardexPage() {
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white font-sans flex items-center gap-2">
+              <h2 className={`text-lg font-bold font-sans flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 <span>Kardex de Inventario Inmutable</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+                  isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                }`}>
                   SINCRONIZADO CON EXCEL PLANTA
                 </span>
               </h2>
-              <p className="text-xs text-slate-400 font-sans">
+              <p className={`text-xs font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                 Formato oficial Quimicorp: Registro de Stock Inicial, Entradas, Salidas y Saldos por Categorías.
               </p>
             </div>

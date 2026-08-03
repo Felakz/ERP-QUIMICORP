@@ -9,8 +9,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -135,23 +135,23 @@ model FamiliaInsumo {
 }
 
 model Insumo {
-  id             String         @id @default(uuid())
-  codigo         String         @unique
-  nombre         String
-  familiaId      String
-  familia        FamiliaInsumo  @relation(fields: [familiaId], references: [id])
-  unidadMedida   UnidadMedida
-  stockTeorico   Decimal        @default(0) @db.Decimal(14, 4)
-  stockReal      Decimal        @default(0) @db.Decimal(14, 4)
-  stockMinimo    Decimal        @default(0) @db.Decimal(14, 4)
-  costoUnitario  Decimal        @default(0) @db.Decimal(14, 4)
-  estado         EstadoGenerico @default(ACTIVO)
+  id            String         @id @default(uuid())
+  codigo        String         @unique
+  nombre        String
+  familiaId     String
+  familia       FamiliaInsumo  @relation(fields: [familiaId], references: [id])
+  unidadMedida  UnidadMedida
+  stockTeorico  Decimal        @default(0) @db.Decimal(14, 4)
+  stockReal     Decimal        @default(0) @db.Decimal(14, 4)
+  stockMinimo   Decimal        @default(0) @db.Decimal(14, 4)
+  costoUnitario Decimal        @default(0) @db.Decimal(14, 4)
+  estado        EstadoGenerico @default(ACTIVO)
 
-  formulaDetalles      FormulaDetalle[]
-  ajustesFinos         AjusteFino[]
-  kardexMovimientos    KardexInmutable[]
-  kardexCategorizados  KardexMovimiento[]
-  subAlmacenSobrantes  SubAlmacenSobrante[]
+  formulaDetalles     FormulaDetalle[]
+  ajustesFinos        AjusteFino[]
+  kardexMovimientos   KardexInmutable[]
+  kardexCategorizados KardexMovimiento[]
+  subAlmacenSobrantes SubAlmacenSobrante[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -162,15 +162,16 @@ model Insumo {
 }
 
 model FormulaMaster {
-  id               String        @id @default(uuid())
-  codigoFormula    String        @unique
-  nombreProducto   String
-  version           Int          @default(1)
-  densidadTeorica  Decimal       @db.Decimal(10, 4)
-  estado           EstadoFormula @default(EN_REVISION)
+  id              String        @id @default(uuid())
+  codigoFormula   String        @unique
+  nombreProducto  String
+  version         Int           @default(1)
+  densidadTeorica Decimal       @db.Decimal(10, 4)
+  estado          EstadoFormula @default(EN_REVISION)
 
-  detalles         FormulaDetalle[]
+  detalles          FormulaDetalle[]
   ordenesProduccion OrdenProduccion[]
+  pedidosComerciales PedidoComercial[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -180,13 +181,13 @@ model FormulaMaster {
 }
 
 model FormulaDetalle {
-  id                String        @id @default(uuid())
-  formulaId         String
-  formula           FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
-  insumoId          String
-  insumo            Insumo        @relation(fields: [insumoId], references: [id])
-  porcentaje        Decimal       @db.Decimal(6, 3)
-  pesoMasaTeorico   Decimal       @db.Decimal(14, 4)
+  id              String        @id @default(uuid())
+  formulaId       String
+  formula         FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  insumoId        String
+  insumo          Insumo        @relation(fields: [insumoId], references: [id])
+  porcentaje      Decimal       @db.Decimal(6, 3)
+  pesoMasaTeorico Decimal       @db.Decimal(14, 4)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -201,6 +202,9 @@ model OrdenProduccion {
   codigoLote          String                @unique
   clienteNombre       String?               @default("Cliente Quimicorp SAC")
   operariosAsignados  String?
+  colorEspecificado   String?
+  fraganciaEspecificada String?
+  prioridad           String?               @default("NORMAL")
   observacionesQA     String?
   motivoRechazo       String?
   pasoProceso         String?               @default("PENDIENTE_ASIGNACION")
@@ -212,13 +216,14 @@ model OrdenProduccion {
   estado              EstadoOrdenProduccion @default(PENDIENTE)
   supervisorId        String
   supervisor          Usuario               @relation("SupervisorOrdenes", fields: [supervisorId], references: [id])
+  fechaCierre         DateTime?
 
-  ajustesFinos        AjusteFino[]
-  subAlmacenOrigen    SubAlmacenSobrante[]
-  etiquetas           EtiquetaImpresa[]
-  ticketsDespacho     TicketDespacho[]
-  incidencias         IncidenciaLote[]
-  calificaciones      CalificacionOperario[]
+  ajustesFinos     AjusteFino[]
+  subAlmacenOrigen SubAlmacenSobrante[]
+  etiquetas        EtiquetaImpresa[]
+  ticketsDespacho  TicketDespacho[]
+  incidencias      IncidenciaLote[]
+  calificaciones   CalificacionOperario[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -229,30 +234,30 @@ model OrdenProduccion {
 }
 
 model AjusteFino {
-  id                 String          @id @default(uuid())
-  ordenProduccionId  String
-  ordenProduccion    OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
-  insumoId           String
-  insumo             Insumo          @relation(fields: [insumoId], references: [id])
-  cantidadAgregada   Decimal         @db.Decimal(14, 4)
-  observacion        String?
-  registradoPorId    String
-  registradoPor      Usuario         @relation("RegistroAjustesFinos", fields: [registradoPorId], references: [id])
-  timestamp          DateTime        @default(now())
+  id                String          @id @default(uuid())
+  ordenProduccionId String
+  ordenProduccion   OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
+  insumoId          String
+  insumo            Insumo          @relation(fields: [insumoId], references: [id])
+  cantidadAgregada  Decimal         @db.Decimal(14, 4)
+  observacion       String?
+  registradoPorId   String
+  registradoPor     Usuario         @relation("RegistroAjustesFinos", fields: [registradoPorId], references: [id])
+  timestamp         DateTime        @default(now())
 
   @@index([ordenProduccionId])
   @@map("ajustes_finos")
 }
 
 model SubAlmacenSobrante {
-  id                    String           @id @default(uuid())
-  loteOrigenId          String
-  loteOrigen            OrdenProduccion  @relation(fields: [loteOrigenId], references: [id])
-  insumoSubproductoId   String
-  insumoSubproducto     Insumo           @relation(fields: [insumoSubproductoId], references: [id])
-  pesoDisponible        Decimal          @db.Decimal(14, 4)
-  ubicacion             String
-  estado                EstadoSubAlmacen @default(DISPONIBLE)
+  id                  String           @id @default(uuid())
+  loteOrigenId        String
+  loteOrigen          OrdenProduccion  @relation(fields: [loteOrigenId], references: [id])
+  insumoSubproductoId String
+  insumoSubproducto   Insumo           @relation(fields: [insumoSubproductoId], references: [id])
+  pesoDisponible      Decimal          @db.Decimal(14, 4)
+  ubicacion           String
+  estado              EstadoSubAlmacen @default(DISPONIBLE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -263,17 +268,17 @@ model SubAlmacenSobrante {
 
 // KardexInmutable: registro append-only, sin updatedAt (inmutable por diseño)
 model KardexInmutable {
-  id                   String                @id @default(uuid())
-  insumoId             String
-  insumo               Insumo                @relation(fields: [insumoId], references: [id])
-  tipoMovimiento       TipoMovimientoKardex
-  cantidad             Decimal               @db.Decimal(14, 4)
-  stockAnterior        Decimal               @db.Decimal(14, 4)
-  stockNuevo           Decimal               @db.Decimal(14, 4)
-  documentoReferencia  String?
-  usuarioId            String
-  usuario              Usuario               @relation(fields: [usuarioId], references: [id])
-  createdAt            DateTime              @default(now()) // sello de tiempo inalterable
+  id                  String               @id @default(uuid())
+  insumoId            String
+  insumo              Insumo               @relation(fields: [insumoId], references: [id])
+  tipoMovimiento      TipoMovimientoKardex
+  cantidad            Decimal              @db.Decimal(14, 4)
+  stockAnterior       Decimal              @db.Decimal(14, 4)
+  stockNuevo          Decimal              @db.Decimal(14, 4)
+  documentoReferencia String?
+  usuarioId           String
+  usuario             Usuario              @relation(fields: [usuarioId], references: [id])
+  createdAt           DateTime             @default(now()) // sello de tiempo inalterable
 
   @@index([insumoId])
   @@index([tipoMovimiento])
@@ -290,23 +295,23 @@ model KardexMovimiento {
   proveedorCliente String?         @map("proveedor_cliente")
   unidadMedida     String          @map("unidad_medida")
 
-  fecha            DateTime        @default(now())
-  tipoDoc          String?         @map("tipo_doc")
-  serie            String?
-  numero           String?
-  otp              String?
+  fecha   DateTime @default(now())
+  tipoDoc String?  @map("tipo_doc")
+  serie   String?
+  numero  String?
+  otp     String?
 
-  tipoOperacion    TipoMovimiento  @map("tipo_operacion")
-  cantidadEntrada  Float           @default(0) @map("cantidad_entrada")
-  cantidadSalida   Float           @default(0) @map("cantidad_salida")
-  saldoFinal       Float           @map("saldo_final")
+  tipoOperacion   TipoMovimiento @map("tipo_operacion")
+  cantidadEntrada Float          @default(0) @map("cantidad_entrada")
+  cantidadSalida  Float          @default(0) @map("cantidad_salida")
+  saldoFinal      Float          @map("saldo_final")
 
-  insumoId         String?         @map("insumo_id")
-  insumo           Insumo?         @relation(fields: [insumoId], references: [id])
-  usuarioId        String?         @map("usuario_id")
-  usuario          Usuario?        @relation(fields: [usuarioId], references: [id])
-  sedeId           String?         @default("SEDE-LIMA") @map("sede_id")
-  createdAt        DateTime        @default(now()) @map("created_at")
+  insumoId  String?  @map("insumo_id")
+  insumo    Insumo?  @relation(fields: [insumoId], references: [id])
+  usuarioId String?  @map("usuario_id")
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+  sedeId    String?  @default("SEDE-LIMA") @map("sede_id")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([categoriaKardex])
   @@index([productoNombre])
@@ -314,14 +319,13 @@ model KardexMovimiento {
   @@map("kardex_movimientos")
 }
 
-
 // ============================================================================
 // 🔵 MODULO 2: PERSONAL, BIOMETRICO Y ASISTENCIA (SPRINT 2)
 // ============================================================================
 
 model Rol {
-  id       String        @id @default(uuid())
-  nombre   NombreRol     @unique
+  id       String       @id @default(uuid())
+  nombre   NombreRol    @unique
   permisos RolPermiso[]
   usuarios Usuario[]
 
@@ -332,27 +336,27 @@ model Rol {
 }
 
 model Usuario {
-  id                String   @id @default(uuid())
-  dni               String   @unique
-  nombres           String
-  apellidos         String
-  rolId             String
-  rol               Rol      @relation(fields: [rolId], references: [id])
-  passwordHash      String
-  codigoBiometrico  String?  @unique
-  estado            EstadoGenerico @default(ACTIVO)
+  id               String         @id @default(uuid())
+  dni              String         @unique
+  nombres          String
+  apellidos        String
+  rolId            String
+  rol              Rol            @relation(fields: [rolId], references: [id])
+  passwordHash     String
+  codigoBiometrico String?        @unique
+  estado           EstadoGenerico @default(ACTIVO)
 
-  ordenesSupervisadas   OrdenProduccion[]      @relation("SupervisorOrdenes")
-  ajustesFinosRegistrados AjusteFino[]         @relation("RegistroAjustesFinos")
-  kardexMovimientos     KardexInmutable[]
-  marcaciones           MarcacionBiometrico[]
-  asistencias           Asistencia[]
-  calificaciones        CalificacionOperario[]
-  etiquetasImpresas      EtiquetaImpresa[]
-  incidenciasReportadas  IncidenciaLote[]
-  auditLogs              AuditLog[]
-  ventanasAprobadasQA    VentanaAlmuerzoQA[]
-  kardexCategorizados    KardexMovimiento[]
+  ordenesSupervisadas     OrdenProduccion[]      @relation("SupervisorOrdenes")
+  ajustesFinosRegistrados AjusteFino[]           @relation("RegistroAjustesFinos")
+  kardexMovimientos       KardexInmutable[]
+  marcaciones             MarcacionBiometrico[]
+  asistencias             Asistencia[]
+  calificaciones          CalificacionOperario[]
+  etiquetasImpresas       EtiquetaImpresa[]
+  incidenciasReportadas   IncidenciaLote[]
+  auditLogs               AuditLog[]
+  ventanasAprobadasQA     VentanaAlmuerzoQA[]
+  kardexCategorizados     KardexMovimiento[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -362,25 +366,25 @@ model Usuario {
 }
 
 model MarcacionBiometrico {
-  id             String        @id @default(uuid())
-  usuarioId      String
-  usuario        Usuario       @relation(fields: [usuarioId], references: [id])
-  tipoMarcacion  TipoMarcacion
-  timestamp      DateTime      @default(now())
-  dispositivoId  String
+  id            String        @id @default(uuid())
+  usuarioId     String
+  usuario       Usuario       @relation(fields: [usuarioId], references: [id])
+  tipoMarcacion TipoMarcacion
+  timestamp     DateTime      @default(now())
+  dispositivoId String
 
   @@index([usuarioId, timestamp])
   @@map("marcaciones_biometrico")
 }
 
 model Asistencia {
-  id                 String           @id @default(uuid())
-  usuarioId          String
-  usuario            Usuario          @relation(fields: [usuarioId], references: [id])
-  fecha              DateTime         @db.Date
-  horasTrabajadas    Decimal          @db.Decimal(5, 2)
-  minutosTardanza    Int              @default(0)
-  estadoAsistencia   EstadoAsistencia @default(PUNTUAL)
+  id               String           @id @default(uuid())
+  usuarioId        String
+  usuario          Usuario          @relation(fields: [usuarioId], references: [id])
+  fecha            DateTime         @db.Date
+  horasTrabajadas  Decimal          @db.Decimal(5, 2)
+  minutosTardanza  Int              @default(0)
+  estadoAsistencia EstadoAsistencia @default(PUNTUAL)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -390,13 +394,13 @@ model Asistencia {
 }
 
 model VentanaAlmuerzoQA {
-  id                       String   @id @default(uuid())
-  fecha                    DateTime @db.Date
-  horaInicioAprobada       DateTime
-  horaFinMinima            DateTime
-  aprobadoPorQAId          String
-  aprobadoPorQA            Usuario  @relation(fields: [aprobadoPorQAId], references: [id])
-  operariosHabilitadosIds  String[]
+  id                      String   @id @default(uuid())
+  fecha                   DateTime @db.Date
+  horaInicioAprobada      DateTime
+  horaFinMinima           DateTime
+  aprobadoPorQAId         String
+  aprobadoPorQA           Usuario  @relation(fields: [aprobadoPorQAId], references: [id])
+  operariosHabilitadosIds String[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -405,13 +409,13 @@ model VentanaAlmuerzoQA {
 }
 
 model CalificacionOperario {
-  id                 String          @id @default(uuid())
-  usuarioId          String
-  usuario            Usuario         @relation(fields: [usuarioId], references: [id])
-  ordenProduccionId  String
-  ordenProduccion    OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
-  puntajeEficiencia  Decimal         @db.Decimal(5, 2)
-  comentarios        String?
+  id                String          @id @default(uuid())
+  usuarioId         String
+  usuario           Usuario         @relation(fields: [usuarioId], references: [id])
+  ordenProduccionId String
+  ordenProduccion   OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
+  puntajeEficiencia Decimal         @db.Decimal(5, 2)
+  comentarios       String?
 
   createdAt DateTime @default(now())
 
@@ -423,27 +427,27 @@ model CalificacionOperario {
 // ============================================================================
 
 model EtiquetaImpresa {
-  id                  String          @id @default(uuid())
-  codigoEtiqueta      String          @unique
-  loteProduccionId    String
-  loteProduccion      OrdenProduccion @relation(fields: [loteProduccionId], references: [id])
-  tipoEtiqueta        TipoEtiqueta
-  impresoPorId        String
-  impresoPor          Usuario         @relation(fields: [impresoPorId], references: [id])
-  timestamp           DateTime        @default(now())
+  id               String          @id @default(uuid())
+  codigoEtiqueta   String          @unique
+  loteProduccionId String
+  loteProduccion   OrdenProduccion @relation(fields: [loteProduccionId], references: [id])
+  tipoEtiqueta     TipoEtiqueta
+  impresoPorId     String
+  impresoPor       Usuario         @relation(fields: [impresoPorId], references: [id])
+  timestamp        DateTime        @default(now())
 
   @@index([loteProduccionId])
   @@map("etiquetas_impresas")
 }
 
 model TicketDespacho {
-  id                  String          @id @default(uuid())
-  codigoTicket        String          @unique
-  ordenProduccionId   String
-  ordenProduccion     OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
-  clienteDestino      String
-  cantidadCajas       Int
-  estadoDespacho      EstadoDespacho  @default(PENDIENTE)
+  id                String          @id @default(uuid())
+  codigoTicket      String          @unique
+  ordenProduccionId String
+  ordenProduccion   OrdenProduccion @relation(fields: [ordenProduccionId], references: [id])
+  clienteDestino    String
+  cantidadCajas     Int
+  estadoDespacho    EstadoDespacho  @default(PENDIENTE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -470,14 +474,14 @@ model ColaDespacho {
 }
 
 model IncidenciaLote {
-  id                  String          @id @default(uuid())
-  loteProduccionId    String
-  loteProduccion      OrdenProduccion @relation(fields: [loteProduccionId], references: [id])
-  reportadoPorId      String
-  reportadoPor        Usuario         @relation(fields: [reportadoPorId], references: [id])
-  tipoIncidencia      String
-  descripcion         String
-  impactoMerma        Decimal?        @db.Decimal(14, 4)
+  id               String          @id @default(uuid())
+  loteProduccionId String
+  loteProduccion   OrdenProduccion @relation(fields: [loteProduccionId], references: [id])
+  reportadoPorId   String
+  reportadoPor     Usuario         @relation(fields: [reportadoPorId], references: [id])
+  tipoIncidencia   String
+  descripcion      String
+  impactoMerma     Decimal?        @db.Decimal(14, 4)
 
   createdAt DateTime @default(now())
 
@@ -489,11 +493,11 @@ model IncidenciaLote {
 // ============================================================================
 
 model MetricaProduccionDiaria {
-  id                    String   @id @default(uuid())
-  fecha                 DateTime @unique @db.Date
-  volumenTotalLitros    Decimal  @db.Decimal(14, 4)
-  mermaTotalKg          Decimal  @db.Decimal(14, 4)
-  eficienciaPromedio    Decimal  @db.Decimal(5, 2)
+  id                 String   @id @default(uuid())
+  fecha              DateTime @unique @db.Date
+  volumenTotalLitros Decimal  @db.Decimal(14, 4)
+  mermaTotalKg       Decimal  @db.Decimal(14, 4)
+  eficienciaPromedio Decimal  @db.Decimal(5, 2)
 
   createdAt DateTime @default(now())
 
@@ -501,10 +505,10 @@ model MetricaProduccionDiaria {
 }
 
 model ValorizacionInventario {
-  id                              String   @id @default(uuid())
-  fechaCierre                     DateTime @unique @db.Date
-  materiaPrimaValorizada          Decimal  @db.Decimal(16, 4)
-  productoTerminadoValorizado     Decimal  @db.Decimal(16, 4)
+  id                          String   @id @default(uuid())
+  fechaCierre                 DateTime @unique @db.Date
+  materiaPrimaValorizada      Decimal  @db.Decimal(16, 4)
+  productoTerminadoValorizado Decimal  @db.Decimal(16, 4)
 
   createdAt DateTime @default(now())
 
@@ -516,38 +520,90 @@ model ValorizacionInventario {
 // ============================================================================
 
 model Permiso {
-  id      String         @id @default(uuid())
-  modulo  String
-  accion  AccionPermiso
-  roles   RolPermiso[]
+  id     String        @id @default(uuid())
+  modulo String
+  accion AccionPermiso
+  roles  RolPermiso[]
 
   @@unique([modulo, accion])
   @@map("permisos")
 }
 
 model RolPermiso {
-  rolId      String
-  rol        Rol      @relation(fields: [rolId], references: [id], onDelete: Cascade)
-  permisoId  String
-  permiso    Permiso  @relation(fields: [permisoId], references: [id], onDelete: Cascade)
+  rolId     String
+  rol       Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permisoId String
+  permiso   Permiso @relation(fields: [permisoId], references: [id], onDelete: Cascade)
 
   @@id([rolId, permisoId])
   @@map("rol_permisos")
 }
 
 model AuditLog {
-  id               String   @id @default(uuid())
-  usuarioId        String
-  usuario          Usuario  @relation(fields: [usuarioId], references: [id])
-  accion           String
-  tablaAfectada    String
-  registroId       String
-  datosAnteriores  Json?
-  datosNuevos      Json?
-  ipOrigen         String?
-  timestamp        DateTime @default(now())
+  id              String   @id @default(uuid())
+  usuarioId       String
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
+  accion          String
+  tablaAfectada   String
+  registroId      String
+  datosAnteriores Json?
+  datosNuevos     Json?
+  ipOrigen        String?
+  timestamp       DateTime @default(now())
 
   @@index([tablaAfectada, registroId])
   @@index([usuarioId])
   @@map("audit_logs")
 }
+
+// ============================================================================
+// 📦 MODULO PEDIDOS COMERCIALES ADMINISTRACIÓN (SPRINT 6)
+// ============================================================================
+
+enum EstadoPedidoComercial {
+  NUEVO
+  VALIDANDO
+  APROBADO
+  EN_PRODUCCION
+  DEVUELTO
+  RECHAZADO
+}
+
+enum PrioridadPedidoComercial {
+  URGENTE
+  NORMAL
+  PROGRAMADO
+}
+
+model PedidoComercial {
+  id                 String                   @id @default(uuid())
+  codigoOrden        String                   @unique @map("codigo_orden")
+  codigoRefAdmin     String?                  @map("codigo_ref_admin")
+  clienteNombre      String                   @map("cliente_nombre")
+  clienteRuc         String                   @map("cliente_ruc")
+  contactoNombre     String?                  @map("contacto_nombre")
+  contactoTelefono   String?                  @map("contacto_telefono")
+  direccionDespacho  String?                  @map("direccion_despacho")
+  repComercial       String?                  @map("rep_comercial")
+  condicionPago      String?                  @map("condicion_pago")
+  productoNombre     String                   @map("producto_nombre")
+  cantidadSolicitada Decimal                  @map("cantidad_solicitada") @db.Decimal(14, 4)
+  unidadMedida       String                   @default("KG") @map("unidad_medida")
+  lotesRequeridos    Int                      @default(1) @map("lotes_requeridos")
+  montoTotal         Decimal                  @map("monto_total") @db.Decimal(14, 2)
+  fechaPrometida     DateTime                 @map("fecha_prometida")
+  prioridad          PrioridadPedidoComercial @default(NORMAL)
+  estado             EstadoPedidoComercial    @default(NUEVO)
+  formulaId          String?                  @map("formula_id")
+  formula            FormulaMaster?           @relation(fields: [formulaId], references: [id])
+  notasAdmin         String?                  @map("notas_admin")
+  motivoDevolucion   String?                  @map("motivo_devolucion")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([estado])
+  @@index([clienteRuc])
+  @@map("pedidos_comerciales")
+}
+

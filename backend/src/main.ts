@@ -1,3 +1,7 @@
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "postgresql://quimicorp:quimicorp_dev_password@localhost:5432/quimicorp_erp?schema=public";
+}
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';

@@ -1,3 +1,10 @@
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "postgresql://quimicorp:quimicorp_dev_password@localhost:5432/quimicorp_erp?schema=public";
+}
+if (!process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = "postgresql://quimicorp:quimicorp_dev_password@localhost:5432/quimicorp_erp?schema=public";
+}
+
 import { PrismaClient, UnidadMedida, EstadoGenerico, CategoriaKardex, TipoMovimiento } from '@prisma/client';
 
 const prisma = new PrismaClient();

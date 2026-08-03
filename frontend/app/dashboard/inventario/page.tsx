@@ -181,22 +181,36 @@ export default function InventariosPage() {
     <div className="space-y-6 font-mono min-h-screen">
       {/* Banner de Alerta de Stock Crítico */}
       {criticalItems.length > 0 && (
-        <div className="rounded-xl bg-rose-500/15 p-4 border border-rose-500/30 flex items-center justify-between gap-4">
+        <div className={`rounded-xl p-4 border flex items-center justify-between gap-4 ${
+          isDark
+            ? 'bg-rose-950/40 border-rose-500/40 text-slate-200'
+            : 'bg-rose-100 border-rose-300 text-rose-950 shadow-sm'
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-500/20 text-rose-500 border border-rose-500/30">
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${
+              isDark
+                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                : 'bg-rose-200 text-rose-800 border-rose-400'
+            }`}>
               <AlertTriangle className="h-5 w-5 animate-pulse" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-rose-400 font-sans">
+              <h4 className={`text-xs font-black font-sans ${
+                isDark ? 'text-rose-300' : 'text-rose-950'
+              }`}>
                 ⚠️ ALERTA DE REAPROVISIONAMIENTO: 2 MATERIALES EN STOCK CRÍTICO (&lt; 20%)
               </h4>
-              <p className="text-[11px] text-slate-300 font-sans mt-0.5">
+              <p className={`text-[11px] font-sans mt-0.5 ${
+                isDark ? 'text-slate-300' : 'text-rose-900 font-medium'
+              }`}>
                 Ácido Sulfúrico 98% (18%) y Dióxido de Titanio Rutilo (15%) requieren orden de compra inmediata.
               </p>
             </div>
           </div>
 
-          <span className="rounded-lg bg-rose-500 px-3 py-1 text-xs font-bold text-slate-950 font-mono">
+          <span className={`rounded-lg px-3 py-1.5 text-xs font-black font-mono shrink-0 shadow ${
+            isDark ? 'bg-rose-500 text-slate-950' : 'bg-rose-700 text-white'
+          }`}>
             REAPROVISIONAR
           </span>
         </div>

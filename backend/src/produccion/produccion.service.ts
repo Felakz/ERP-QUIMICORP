@@ -289,7 +289,8 @@ export class ProduccionService {
           estado: EstadoOrdenProduccion.APROBADO,
           pasoProceso: 'LIBERADO_QA',
           observacionesQA: dto.observacionesQA || orden.observacionesQA,
-        },
+          fechaCierre: new Date(),
+        } as any,
       });
 
       const cantidadProducida = Number(dto.cantidadObtenida || orden.cantidadObtenida || orden.cantidadPlanificada);
@@ -356,7 +357,7 @@ export class ProduccionService {
       });
 
       // 3. Enviar a la Cola de Etiquetas & Despacho (/dashboard/etiquetas)
-      await tx.colaDespacho.create({
+      await (tx as any).colaDespacho.create({
         data: {
           loteCodigo: orden.codigoLote,
           productoNombre: orden.formula.nombreProducto,
@@ -385,7 +386,7 @@ export class ProduccionService {
   }
 
   obtenerColaDespacho() {
-    return this.prisma.colaDespacho.findMany({
+    return (this.prisma as any).colaDespacho.findMany({
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -423,5 +424,92 @@ export class ProduccionService {
       include: { formula: true, supervisor: { select: { nombres: true, apellidos: true } } },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async obtenerProgramacionDiaria(fechaStr?: string) {
+    let fechaFiltro = fechaStr ? new Date(fechaStr) : new Date();
+    if (isNaN(fechaFiltro.getTime())) {
+      fechaFiltro = new Date();
+    }
+
+    const inicioDia = new Date(fechaFiltro);
+    inicioDia.setHours(0, 0, 0, 0);
+
+    const finDia = new Date(fechaFiltro);
+    finDia.setHours(23, 59, 59, 999);
+
+    const ordenesDelDia = await this.prisma.ordenProduccion.findMany({
+      where: {
+        createdAt: {
+          gte: inicioDia,
+          lte: finDia,
+        },
+      },
+      include: {
+        formula: true,
+        supervisor: { select: { nombres: true, apellidos: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const ordenesRes = ordenesDelDia.length > 0 ? ordenesDelDia : await this.prisma.ordenProduccion.findMany({
+      take: 50,
+      include: {
+        formula: true,
+        supervisor: { select: { nombres: true, apellidos: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let totalKgProgramados = 0;
+    let terminadosCount = 0;
+    let enProcesoCount = 0;
+    let pendientesCount = 0;
+
+    const listaFormatted = ordenesRes.map((oItem) => {
+      const o = oItem as any;
+      const cant = Number(o.cantidadPlanificada);
+      totalKgProgramados += cant;
+
+      if (o.estado === EstadoOrdenProduccion.APROBADO) {
+        terminadosCount++;
+      } else if (o.estado === EstadoOrdenProduccion.EN_PROCESO || o.estado === EstadoOrdenProduccion.QA_PENDIENTE) {
+        enProcesoCount++;
+      } else {
+        pendientesCount++;
+      }
+
+      return {
+        id: o.id,
+        codigoLote: o.codigoLote,
+        clienteNombre: o.clienteNombre || 'Quimicorp SAC',
+        productoNombre: o.formula?.nombreProducto || 'Producto Químico',
+        colorEspecificado: o.colorEspecificado || 'TRANSPARENTE',
+        fraganciaEspecificada: o.fraganciaEspecificada || 'SIN FRAGANCIA',
+        cantidad: cant,
+        unidadMedida: 'KG',
+        estado: o.estado === EstadoOrdenProduccion.APROBADO
+          ? 'TERMINADO'
+          : o.estado === EstadoOrdenProduccion.EN_PROCESO || o.estado === EstadoOrdenProduccion.QA_PENDIENTE
+          ? 'EN PROCESO'
+          : 'PENDIENTE',
+        operarios: o.operariosAsignados || 'Sin Asignar',
+        prioridad: o.prioridad || 'NORMAL',
+        fechaCreacion: o.createdAt,
+        fechaCierre: o.fechaCierre,
+      };
+    });
+
+    return {
+      fecha: inicioDia.toISOString().split('T')[0],
+      resumen: {
+        totalOrdenes: ordenesRes.length,
+        totalKgProgramados: totalKgProgramados.toFixed(2),
+        totalTerminados: terminadosCount,
+        totalEnProceso: enProcesoCount,
+        totalPendientes: pendientesCount,
+      },
+      ordenes: listaFormatted,
+    };
   }
 }

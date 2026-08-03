@@ -34,6 +34,19 @@ export default function DashboardEjecutivoPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
+  const [valorizacionStockReal, setValorizacionStockReal] = React.useState<number>(495930);
+
+  React.useEffect(() => {
+    fetch('http://localhost:3001/api/v1/inventario/dashboard/resumen')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.valorizacionTotal) {
+          setValorizacionStockReal(parseFloat(data.valorizacionTotal));
+        }
+      })
+      .catch((err) => console.log('Error fetching dashboard resumen:', err));
+  }, []);
+
   // Rendimiento Diario Area Chart Data
   const rendimientoData = [
     { fecha: '25 Jul', producido: 1650, meta: 2000 },
@@ -55,11 +68,11 @@ export default function DashboardEjecutivoPage() {
 
   // Mix de Producción Dual Bar Chart Data
   const mixProduccionData = [
-    { producto: 'Det. Industrial', lotesPlan: 45, lotesReal: 42 },
-    { producto: 'Limpiador 1L', lotesPlan: 38, lotesReal: 35 },
-    { producto: 'Gel Antibac.', lotesPlan: 30, lotesReal: 31 },
-    { producto: 'Cera Líquida', lotesPlan: 25, lotesReal: 22 },
-    { producto: 'Desg. Mecánico', lotesPlan: 20, lotesReal: 18 },
+    { producto: 'Resina Poliéster', lotesPlan: 45, lotesReal: 42 },
+    { producto: 'Isopropílico 99%', lotesPlan: 38, lotesReal: 35 },
+    { producto: 'LESS 70%', lotesPlan: 30, lotesReal: 31 },
+    { producto: 'Glicerina USP', lotesPlan: 25, lotesReal: 22 },
+    { producto: 'Ácido Sulfúrico', lotesPlan: 20, lotesReal: 18 },
   ];
 
   // Tendencia OEE Semanal Line Chart Data
@@ -148,7 +161,9 @@ export default function DashboardEjecutivoPage() {
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className={`text-2xl font-black font-mono ${textValue}`}>S/ 184,620</span>
+            <span className={`text-2xl font-black font-mono ${textValue}`}>
+              S/ {valorizacionStockReal.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
             <span className="text-xs text-slate-400 font-sans">materia prima</span>
           </div>
         </div>
