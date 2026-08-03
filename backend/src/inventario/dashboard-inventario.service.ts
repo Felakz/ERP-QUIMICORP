@@ -150,4 +150,61 @@ export class DashboardInventarioService {
       fecha: m.createdAt,
     }));
   }
+
+  async obtenerListaCompleta() {
+    const insumos = await this.prisma.insumo.findMany({
+      where: { estado: EstadoGenerico.ACTIVO },
+      include: { familia: true },
+      orderBy: { nombre: 'asc' },
+    });
+
+    const subAlmacenSobrantes = await this.prisma.subAlmacenSobrante.findMany({
+      where: { estado: EstadoSubAlmacen.DISPONIBLE },
+      include: {
+        insumoSubproducto: true,
+        loteOrigen: true,
+      },
+    });
+
+    return {
+      totalMateriales: insumos.length,
+      disponibilidadTotalKg: insumos.reduce((acc, i) => acc + Number(i.stockReal), 0).toFixed(2),
+      insumos: insumos.map((i) => {
+        const stockReal = Number(i.stockReal);
+        const stockMinimo = Number(i.stockMinimo);
+        let estado: 'OK' | 'LOW STOCK' | 'CRITICAL' = 'OK';
+
+        if (stockReal <= 0 || stockReal <= stockMinimo * 0.5) {
+          estado = 'CRITICAL';
+        } else if (stockReal <= stockMinimo) {
+          estado = 'LOW STOCK';
+        }
+
+        const stockPercentage = stockMinimo > 0 ? Math.min(Math.round((stockReal / (stockMinimo * 3)) * 100), 100) : 85;
+
+        return {
+          id: i.id,
+          sku: i.codigo,
+          nombre: i.nombre,
+          familia: i.familia.nombre.toUpperCase(),
+          stockPercentage,
+          stockReal,
+          stockMinimo,
+          unidad: i.unidadMedida,
+          ubicacion: 'Almacén Principal Quimicorp',
+          estado,
+        };
+      }),
+      subAlmacen: subAlmacenSobrantes.map((s) => ({
+        id: s.id,
+        codigo: `RES-${s.id.slice(0, 4)}`,
+        nombre: s.insumoSubproducto?.nombre || 'Subproducto Retenido',
+        peso: Number(s.pesoDisponible).toFixed(1),
+        unidad: s.insumoSubproducto?.unidadMedida || 'KG',
+        loteOrigen: s.loteOrigen?.codigoLote || 'LOTE-DESCONOCIDO',
+        fecha: new Date(s.createdAt).toISOString().split('T')[0],
+        reutilizable: true,
+      })),
+    };
+  }
 }

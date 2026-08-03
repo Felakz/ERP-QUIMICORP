@@ -30,134 +30,42 @@ export default function InventariosPage() {
   const isDark = theme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Surfactantes');
+  const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [materialsData, setMaterialsData] = useState<MaterialItem[]>([]);
+  const [subAlmacenData, setSubAlmacenData] = useState<SubAlmacenItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [disponibilidadTotal, setDisponibilidadTotal] = useState('14,250');
+
+  const cargarInventarioReal = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('http://localhost:3001/api/v1/inventario/dashboard/lista-completa');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.insumos && Array.isArray(data.insumos)) {
+          setMaterialsData(data.insumos);
+        }
+        if (data.subAlmacen && Array.isArray(data.subAlmacen)) {
+          setSubAlmacenData(data.subAlmacen);
+        }
+        if (data.disponibilidadTotalKg) {
+          setDisponibilidadTotal(Number(data.disponibilidadTotalKg).toLocaleString('es-PE'));
+        }
+      }
+    } catch (e) {
+      console.log('Fallback inventario local:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    cargarInventarioReal();
+  }, []);
 
   const categories = [
     'Todos',
-    'Surfactantes',
-    'Solventes',
-    'Ácidos',
-    'Bases',
-    'Aditivos',
-    'Fragancias',
-  ];
-
-  const materialsData: MaterialItem[] = [
-    {
-      sku: 'QC-001',
-      nombre: 'Lauril Éter Sulfato Sódico (LESS)',
-      familia: 'SURFACTANTES',
-      stockPercentage: 87,
-      unidad: 'KG',
-      ubicacion: 'Almacén A - Rack 04',
-      estado: 'OK',
-    },
-    {
-      sku: 'QC-002',
-      nombre: 'Cocamidopropil Betaína',
-      familia: 'SURFACTANTES',
-      stockPercentage: 34,
-      unidad: 'KG',
-      ubicacion: 'Almacén A - Rack 02',
-      estado: 'LOW STOCK',
-    },
-    {
-      sku: 'QC-009',
-      nombre: 'Cloruro de Benzalconio 50%',
-      familia: 'SURFACTANTES',
-      stockPercentage: 44,
-      unidad: 'LT',
-      ubicacion: 'Tanque Inox B-01',
-      estado: 'OK',
-    },
-    {
-      sku: 'QC-004',
-      nombre: 'Ácido Sulfúrico 98%',
-      familia: 'ÁCIDOS',
-      stockPercentage: 18,
-      unidad: 'KG',
-      ubicacion: 'Zona de Ácidos - Tanque A1',
-      estado: 'CRITICAL',
-    },
-    {
-      sku: 'QC-005',
-      nombre: 'Alcohol Isopropílico 99.9%',
-      familia: 'SOLVENTES',
-      stockPercentage: 92,
-      unidad: 'LT',
-      ubicacion: 'Almacén Solventes - Tanque C2',
-      estado: 'OK',
-    },
-    {
-      sku: 'QC-008',
-      nombre: 'Dióxido de Titanio Rutilo',
-      familia: 'ADITIVOS',
-      stockPercentage: 15,
-      unidad: 'KG',
-      ubicacion: 'Almacén B - Estante 08',
-      estado: 'CRITICAL',
-    },
-    {
-      sku: 'QC-012',
-      nombre: 'Soda Cáustica 50% (NaOH)',
-      familia: 'BASES',
-      stockPercentage: 28,
-      unidad: 'KG',
-      ubicacion: 'Zona de Bases - Tanque B3',
-      estado: 'LOW STOCK',
-    },
-    {
-      sku: 'QC-015',
-      nombre: 'Fragancia Lavanda 04-A',
-      familia: 'FRAGANCIAS',
-      stockPercentage: 65,
-      unidad: 'KG',
-      ubicacion: 'Bóveda Fragancias - Estante 01',
-      estado: 'OK',
-    },
-  ];
-
-  const subAlmacenData: SubAlmacenItem[] = [
-    {
-      id: '1',
-      codigo: 'RES-0041',
-      nombre: 'LESS 70%',
-      peso: '12.4',
-      unidad: 'KG',
-      loteOrigen: 'LOT-2024-0891',
-      fecha: '2024-07-28',
-      reutilizable: true,
-    },
-    {
-      id: '2',
-      codigo: 'RES-0042',
-      nombre: 'Cocamidopropil Betaína',
-      peso: '3.7',
-      unidad: 'KG',
-      loteOrigen: 'LOT-2024-0891',
-      fecha: '2024-07-28',
-      reutilizable: true,
-    },
-    {
-      id: '3',
-      codigo: 'RES-0043',
-      nombre: 'Glicol Propilénico',
-      peso: '8.2',
-      unidad: 'LT',
-      loteOrigen: 'LOT-2024-0887',
-      fecha: '2024-07-26',
-      reutilizable: true,
-    },
-    {
-      id: '4',
-      codigo: 'RES-0044',
-      nombre: 'Fragancia Lavanda 04-A',
-      peso: '1.1',
-      unidad: 'KG',
-      loteOrigen: 'LOT-2024-0885',
-      fecha: '2024-07-25',
-      reutilizable: false,
-    },
+    ...Array.from(new Set(materialsData.map((m) => m.familia))),
   ];
 
   const filteredMaterials = materialsData.filter((item) => {

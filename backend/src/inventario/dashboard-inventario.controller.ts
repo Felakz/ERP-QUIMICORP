@@ -31,4 +31,9 @@ export class DashboardInventarioController {
   obtenerTendenciaMovimientos() {
     return this.dashboardService.obtenerTendenciaMovimientos();
   }
+
+  @Get('lista-completa')
+  obtenerListaCompleta() {
+    return this.dashboardService.obtenerListaCompleta();
+  }
 }
