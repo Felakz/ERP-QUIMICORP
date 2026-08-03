@@ -21,8 +21,10 @@ import {
   FileText,
   Sliders,
   Clock,
+  LogOut,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { useAuth } from '@/lib/AuthContext';
 
 interface NavItem {
   href: string;
@@ -81,6 +83,7 @@ const NAV_GROUPS: NavGroup[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   const [period, setPeriod] = React.useState<'Semana' | 'Mes' | 'Trimestre'>('Semana');
   const [timeString, setTimeString] = React.useState('');
 
@@ -106,13 +109,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   const getHeaderInfo = () => {
+    const isAdmin = user?.role === 'ADMINISTRACION';
+
     switch (pathname) {
+      case '/dashboard/administracion':
+        return { title: 'Dashboard Administración', moduleName: 'Área de Administración' };
       case '/dashboard/pedidos-admin':
-        return { title: 'Pedidos Entrantes', moduleName: 'Pedidos de Administración' };
+        return {
+          title: isAdmin ? 'Pedidos Comerciales' : 'Pedidos Entrantes en Planta',
+          moduleName: isAdmin ? 'Área de Administración' : 'Producción & Planta',
+        };
       case '/dashboard/inventario':
-        return { title: 'Inventarios & Stock', moduleName: 'Producción & Planta' };
+        return {
+          title: 'Inventario & Stock',
+          moduleName: isAdmin ? 'Área de Administración' : 'Producción & Planta',
+        };
       case '/dashboard/formulas':
-        return { title: 'Fórmulas ', moduleName: 'Producción & Planta' };
+        return {
+          title: 'Catálogo de Fórmulas Maestras',
+          moduleName: isAdmin ? 'Área de Administración' : 'Producción & Planta',
+        };
       case '/dashboard/qa':
       case '/dashboard/produccion-qa':
         return { title: 'Control de Producción & QA', moduleName: 'Producción & Planta' };
@@ -171,7 +187,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Navigation Groups */}
           <nav className="space-y-5 px-3 py-5 overflow-y-auto max-h-[calc(100vh-8rem)]">
-            {NAV_GROUPS.map((group) => (
+            {(user?.role === 'ADMINISTRACION'
+              ? [
+                  {
+                    title: 'ÁREA DE ADMINISTRACIÓN',
+                    items: [
+                      { href: '/dashboard/administracion', label: 'Dashboard Admin', icon: LayoutDashboard },
+                      { href: '/dashboard/formulas', label: 'Catálogo de Fórmulas', icon: Beaker },
+                      { href: '/dashboard/inventario', label: 'Inventario & Stock', icon: Package },
+                      { href: '/dashboard/pedidos-admin', label: 'Pedidos Comerciales', icon: Inbox, badge: '3' },
+                    ],
+                  },
+                ]
+              : NAV_GROUPS
+            ).map((group) => (
               <div key={group.title}>
                 <p
                   className={`px-3 text-[10px] font-bold tracking-widest uppercase mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'
@@ -222,30 +251,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* User Footer Profile */}
-        <div
-          className={`border-t p-4 ${isDark ? 'border-[#1A2232]' : 'border-slate-100'
-            }`}
-        >
-          <div
-            className={`flex items-center gap-3 rounded-xl p-2.5 border ${isDark
-              ? 'bg-[#0F141C] border-[#1A2232]'
-              : 'bg-slate-50 border-slate-200'
-              }`}
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400 font-bold text-xs border border-cyan-500/30">
-              SP
+        <div className={`border-t p-4 ${isDark ? 'border-[#1A2232]' : 'border-slate-100'}`}>
+          <div className={`flex items-center justify-between gap-3 rounded-xl p-2.5 border ${isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-slate-50 border-slate-200'}`}>
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#00F2C3]/20 text-[#00F2C3] font-bold text-xs border border-[#00F2C3]/30">
+                {user?.nombre ? user.nombre.substring(0, 2).toUpperCase() : 'QP'}
+              </div>
+              <div className="overflow-hidden text-left">
+                <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                  {user?.nombre || 'Ing. Mateo Rivas'}
+                </p>
+                <p className="text-[9px] text-[#00F2C3] font-mono font-bold truncate uppercase">
+                  {user?.role ? user.role.replace(/_/g, ' ') : 'PRODUCCIÓN & ALMACÉN'}
+                </p>
+              </div>
             </div>
-            <div className="overflow-hidden">
-              <p
-                className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-900'
-                  }`}
-              >
-                Supervisor Planta
-              </p>
-              <p className="text-[10px] text-cyan-400 font-mono font-bold truncate uppercase">
-                PRODUCCIÓN & QA
-              </p>
-            </div>
+
+            <button
+              onClick={logout}
+              title="Cerrar Sesión"
+              className={`p-2 rounded-lg border transition-all ${isDark
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+                : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                }`}
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>
@@ -277,13 +308,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className={`hidden md:flex items-center gap-4 ml-6 border-l pl-6 text-[11px] ${isDark ? 'border-[#1A2232]' : 'border-slate-200'
                 }`}
             >
-              <span className="flex items-center gap-1.5 font-bold text-emerald-500">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                PLC ONLINE
-              </span>
-              <span className="flex items-center gap-1.5 font-bold text-amber-500">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                REACTOR A2
+              <span className="flex items-center gap-1.5 font-bold text-emerald-400 font-sans">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                SINK ACTIVO (Admin-Planta)
               </span>
             </div>
           </div>
@@ -341,16 +368,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </>
             )}
 
-            {/* Notification Bell */}
-            <button
-              className={`relative rounded-lg p-2 border transition-colors ${isDark
-                ? 'bg-[#0F141C] text-slate-400 hover:text-slate-200 border-[#1A2232]'
-                : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-300'
-                }`}
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rose-500" />
-            </button>
+            {/* Notification Bell con WebSockets & Desplegable de Notificaciones */}
+            <NotificationCenter isDark={isDark} />
           </div>
         </header>
 
@@ -362,6 +381,160 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+    </div>
+  );
+}
+
+interface NotificationItem {
+  id: string;
+  titulo: string;
+  mensaje: string;
+  hora: string;
+  tipo: 'CRITICAL' | 'INFO';
+  leida: boolean;
+}
+
+function NotificationCenter({ isDark }: { isDark: boolean }) {
+  const [openDropdown, setOpenDropdown] = React.useState(false);
+  const [toastAlert, setToastAlert] = React.useState<NotificationItem | null>(null);
+  const [notifications, setNotifications] = React.useState<NotificationItem[]>([
+    {
+      id: '1',
+      titulo: '⚠️ Stock Crítico Registrado',
+      mensaje: 'Ácido Benzoico (0.7 GR) ha alcanzado el límite mínimo en almacén.',
+      hora: 'Hace 5 min',
+      tipo: 'CRITICAL',
+      leida: false,
+    },
+    {
+      id: '2',
+      titulo: '🧪 Lote Aprobado por QA',
+      mensaje: 'Lote #LOT-2026-0841 liberado y enviado a Etiquetas & Despacho.',
+      hora: 'Hace 12 min',
+      tipo: 'INFO',
+      leida: true,
+    },
+  ]);
+
+  React.useEffect(() => {
+    let socket: any = null;
+    try {
+      const { io } = require('socket.io-client');
+      socket = io('http://localhost:3001');
+
+      socket.on('inventario:alerta_stock_critico', (data: any) => {
+        const nuevaNotif: NotificationItem = {
+          id: String(Date.now()),
+          titulo: '🚨 Alerta de Stock Crítico',
+          mensaje: data.mensaje || `${data.nombre} cayó a level crítico (${data.stockReal} ${data.unidad})`,
+          hora: new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+          tipo: 'CRITICAL',
+          leida: false,
+        };
+
+        setNotifications((prev) => [nuevaNotif, ...prev]);
+        setToastAlert(nuevaNotif);
+        setTimeout(() => setToastAlert(null), 6000);
+      });
+
+      socket.on('lote:estado_actualizado', (data: any) => {
+        const nuevaNotif: NotificationItem = {
+          id: String(Date.now()),
+          titulo: `⚡ Lote ${data.codigoLote} Actualizado`,
+          mensaje: `Estado: ${data.nuevoEstado} — Paso: ${data.pasoProceso}`,
+          hora: new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+          tipo: 'INFO',
+          leida: false,
+        };
+        setNotifications((prev) => [nuevaNotif, ...prev]);
+      });
+    } catch (e) {
+      console.log('Error conectando socket en layout:', e);
+    }
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, []);
+
+  const noLeidas = notifications.filter((n) => !n.leida).length;
+
+  const handleMarcarTodasLeidas = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, leida: true })));
+  };
+
+  return (
+    <div className="relative font-mono">
+      {/* Botón Campanita */}
+      <button
+        onClick={() => setOpenDropdown(!openDropdown)}
+        className={`relative rounded-lg p-2 border transition-all ${isDark
+          ? 'bg-[#0F141C] text-slate-400 hover:text-slate-200 border-[#1A2232]'
+          : 'bg-slate-100 text-slate-600 hover:text-slate-900 border-slate-300'
+          }`}
+        title="Centro de Notificaciones en Tiempo Real (WebSockets)"
+      >
+        <Bell className="h-4 w-4" />
+        {noLeidas > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white shadow animate-bounce">
+            {noLeidas}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown Flotante */}
+      {openDropdown && (
+        <div className={`absolute right-0 mt-2 w-80 rounded-2xl border p-4 shadow-2xl z-50 animate-in fade-in duration-150 ${isDark ? 'bg-[#0F141C] border-[#1A2232] text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+          }`}>
+          <div className="flex items-center justify-between border-b pb-2 mb-3 border-slate-700/40">
+            <h4 className="text-xs font-bold font-sans flex items-center gap-1.5">
+              <span>🔔 Notificaciones en Vivo</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-mono">WEBSOCKETS</span>
+            </h4>
+            {noLeidas > 0 && (
+              <button
+                onClick={handleMarcarTodasLeidas}
+                className="text-[10px] text-cyan-400 hover:underline font-sans font-bold"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+            {notifications.length === 0 ? (
+              <p className="text-xs text-slate-500 text-center py-4 font-sans">Sin notificaciones pendientes.</p>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  className={`p-2.5 rounded-xl border text-xs transition-all ${n.tipo === 'CRITICAL'
+                    ? isDark ? 'bg-rose-950/20 border-rose-500/30 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-900'
+                    : isDark ? 'bg-[#151D2A] border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
+                >
+                  <div className="flex items-center justify-between font-bold">
+                    <span className="text-[11px] font-sans">{n.titulo}</span>
+                    <span className="text-[9px] text-slate-400 font-mono">{n.hora}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-sans mt-1">{n.mensaje}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification Flotante al recibir evento crítico */}
+      {toastAlert && (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-xl p-4 bg-rose-600 text-white shadow-2xl border border-rose-400 flex items-start gap-3 animate-in slide-in-from-bottom-5 duration-300 font-sans">
+          <Bell className="w-5 h-5 animate-bounce shrink-0 mt-0.5" />
+          <div>
+            <h5 className="font-bold text-xs">{toastAlert.titulo}</h5>
+            <p className="text-[11px] text-rose-100 mt-0.5">{toastAlert.mensaje}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -37,7 +37,7 @@ export class KardexController {
     @Query('tipoOperacion') tipoOperacion?: string,
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
-    @Query('take', new DefaultValuePipe(100), ParseIntPipe) take?: number,
+    @Query('take', new DefaultValuePipe(200), ParseIntPipe) take?: number,
     @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip?: number,
   ) {
     return this.kardexService.listarCategorizado({
@@ -51,6 +51,27 @@ export class KardexController {
     });
   }
 
+  /**
+   * GET /kardex/agrupado?categoria=PRODUCTO_TERMINADO&search=...
+   * Devuelve los movimientos agrupados por producto, igual que el Excel.
+   */
+  @Get('agrupado')
+  listarAgrupado(
+    @Query('categoria') categoria?: CategoriaKardex,
+    @Query('search') search?: string,
+    @Query('tipoOperacion') tipoOperacion?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return this.kardexService.listarAgrupado({
+      categoria,
+      search,
+      tipoOperacion,
+      desde,
+      hasta,
+    });
+  }
+
   @Get('insumo/:insumoId')
   listarPorInsumo(
     @Param('insumoId', ParseUUIDPipe) insumoId: string,
@@ -58,5 +79,10 @@ export class KardexController {
     @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
   ) {
     return this.kardexService.listarPorInsumo(insumoId, take, skip);
+  }
+
+  @Get('bom')
+  obtenerBom(@Query('nombre') nombre: string) {
+    return this.kardexService.obtenerBomProducto(nombre);
   }
 }

@@ -110,13 +110,31 @@ enum AccionPermiso {
   DELETE
 }
 
-enum NombreRol {
+enum Role {
   GERENCIA
-  SUPERVISOR_QA
-  ALMACENERO
-  OPERARIO
-  VENTAS
-  ADMIN_SISTEMA
+  ADMINISTRACION
+  FINANZAS
+  VENTAS_ATENCION_DIGITAL
+  ECOMMERCE_MARKETING
+  PRODUCCION_ALMACEN
+  COMPRAS_PROVEEDORES
+  RECURSOS_HUMANOS
+  SISTEMAS_TI
+  DISENO_MULTIMEDIA
+  ARCHIVO_HISTORICO
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  nombre    String
+  password  String
+  role      Role     @default(PRODUCCION_ALMACEN)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
 }
 
 // ============================================================================
@@ -325,7 +343,7 @@ model KardexMovimiento {
 
 model Rol {
   id       String       @id @default(uuid())
-  nombre   NombreRol    @unique
+  nombre   String       @unique
   permisos RolPermiso[]
   usuarios Usuario[]
 

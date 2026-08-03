@@ -17,6 +17,10 @@ import {
   RefreshCw,
   Sparkles,
   Info,
+  Beaker,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 
@@ -46,17 +50,195 @@ interface KardexMovimientoUI {
   saldoFinal: number;
 }
 
+interface InsumoDetalleBOM {
+  id: string;
+  insumoId: string;
+  porcentaje: number;
+  pesoMasaTeorico: number;
+  insumo: {
+    nombre: string;
+    unidadMedida: string;
+    costoUnitario?: number;
+    familia?: { nombre: string };
+  };
+}
+
+interface FormulaBOM {
+  id: string;
+  codigoFormula: string;
+  nombreProducto: string;
+  densidadTeorica: number;
+  estado: string;
+  detalles: InsumoDetalleBOM[];
+}
+
+function BOMModal({
+  productoNombre,
+  isOpen,
+  onClose,
+  isDark,
+}: {
+  productoNombre: string;
+  isOpen: boolean;
+  onClose: () => void;
+  isDark: boolean;
+}) {
+  const [bom, setBom] = useState<FormulaBOM | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isOpen || !productoNombre) return;
+    let isMounted = true;
+    setLoading(true);
+    fetch(`http://localhost:3001/api/v1/kardex/bom?nombre=${encodeURIComponent(productoNombre)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted) {
+          setBom(data || null);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, productoNombre]);
+
+  if (!isOpen) return null;
+
+  const sumaPorcentajes = bom?.detalles?.reduce((acc, d) => acc + Number(d.porcentaje || 0), 0) || 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div
+        className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-4 font-sans ${
+          isDark ? 'bg-[#0F141C] border-purple-500/30 text-white' : 'bg-white border-purple-200 text-slate-900'
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-purple-500/20 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+              <Beaker className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <span>Fórmula BOM de Insumos</span>
+                <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  {bom?.codigoFormula || 'FÓRMULA'}
+                </span>
+              </h3>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Composición de materias primas para <span className="font-semibold text-purple-400">{productoNombre}</span>
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`p-1.5 rounded-lg border transition-all ${
+              isDark ? 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-100'
+            }`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs font-mono text-purple-400">
+            <RefreshCw className="w-6 h-6 animate-spin" />
+            <span>Consultando Fórmula Maestra en PostgreSQL...</span>
+          </div>
+        ) : !bom || !bom.detalles || bom.detalles.length === 0 ? (
+          <div className="py-10 text-center space-y-1">
+            <p className="text-sm font-bold text-slate-400">No hay fórmula maestra asignada</p>
+            <p className="text-xs text-slate-500 font-mono">
+              No se encontró una fórmula activa configurada para este producto en la base de datos.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3 font-mono">
+            <div className={`p-3 rounded-xl border text-xs flex flex-wrap justify-between gap-2 ${
+              isDark ? 'bg-purple-950/20 border-purple-500/20 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-900'
+            }`}>
+              <span>Densidad Teórica: <strong>{Number(bom.densidadTeorica || 1).toFixed(3)} g/mL</strong></span>
+              <span>Estado: <strong className="text-emerald-400">{bom.estado}</strong></span>
+              <span>Componentes: <strong>{bom.detalles.length} Insumos</strong></span>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-purple-500/20">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className={isDark ? 'bg-[#151D2A] text-slate-400' : 'bg-slate-100 text-slate-600'}>
+                    <th className="py-2.5 px-3">INSUMO / MATERIA PRIMA</th>
+                    <th className="py-2.5 px-3">FAMILIA</th>
+                    <th className="py-2.5 px-3 text-center">UNIDAD</th>
+                    <th className="py-2.5 px-3 text-right">% COMPOSICIÓN</th>
+                    <th className="py-2.5 px-3 text-right">MASA TEÓRICA</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+                  {bom.detalles.map((d) => (
+                    <tr key={d.id} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+                      <td className={`py-2.5 px-3 font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                        {d.insumo?.nombre || 'Insumo'}
+                      </td>
+                      <td className="py-2.5 px-3 text-[11px] text-slate-400">
+                        {d.insumo?.familia?.nombre || 'GENERAL'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-slate-400">
+                        {d.insumo?.unidadMedida || 'KG'}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-purple-400">
+                        {Number(d.porcentaje).toFixed(2)} %
+                      </td>
+                      <td className={`py-2.5 px-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {Number(d.pesoMasaTeorico).toFixed(3)} {d.insumo?.unidadMedida || 'KG'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className={`font-bold border-t ${isDark ? 'bg-[#151D2A] text-purple-300' : 'bg-purple-50 text-purple-950'}`}>
+                    <td colSpan={3} className="py-2.5 px-3 text-right uppercase text-[10px]">
+                      Suma Total Composición:
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-emerald-400 font-black">
+                      {sumaPorcentajes.toFixed(2)} %
+                    </td>
+                    <td className="py-2.5 px-3 text-right">100.00 %</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-lg shadow-purple-600/20"
+          >
+            Cerrar Modal
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function KardexPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [activeTab, setActiveTab] = useState<CategoriaKardexTab>('MATERIA_PRIMA');
+  const [activeTab, setActiveTab] = useState<CategoriaKardexTab>('PRODUCTO_TERMINADO');
   const [searchQuery, setSearchQuery] = useState('');
   const [tipoOperacionFiltro, setTipoOperacionFiltro] = useState<'TODAS' | 'ENTRADAS' | 'SALIDAS'>('TODAS');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
   const [movimientos, setMovimientos] = useState<KardexMovimientoUI[]>([]);
   const [loading, setLoading] = useState(false);
+  const [bomModalProducto, setBomModalProducto] = useState<string | null>(null);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
@@ -82,20 +264,6 @@ export default function KardexPage() {
       }
     } catch (error) {
       console.log('Error fetching kardex endpoint:', error);
-    }
-
-    // Unir con los movimientos locales agregados dinámicamente al finalizar lote
-    try {
-      const rawCustom = localStorage.getItem('quimicorp_kardex_custom');
-      if (rawCustom) {
-        const customMovs: KardexMovimientoUI[] = JSON.parse(rawCustom);
-        if (Array.isArray(customMovs)) {
-          const filtrados = customMovs.filter((m) => m.categoriaKardex === activeTab);
-          apiData = [...filtrados, ...apiData];
-        }
-      }
-    } catch (e) {
-      console.log('Error merging local kardex:', e);
     }
 
     setMovimientos(apiData);
@@ -154,6 +322,13 @@ export default function KardexPage() {
     },
   ];
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 60;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, tipoOperacionFiltro, fechaDesde, fechaHasta]);
+
   const filteredMovimientos = movimientos.filter((m) => {
     if (activeTab && m.categoriaKardex !== activeTab) return false;
     if (searchQuery) {
@@ -170,136 +345,75 @@ export default function KardexPage() {
     return true;
   });
 
+  const totalPages = Math.ceil(filteredMovimientos.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedMovimientos = filteredMovimientos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   const totalEntradas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadEntrada || 0), 0);
   const totalSalidas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadSalida || 0), 0);
 
+  const totalItemsUnicos = new Set(filteredMovimientos.map((m) => m.productoNombre)).size;
+  const saldoMap = new Map<string, number>();
+  filteredMovimientos.forEach((m) => {
+    saldoMap.set(m.productoNombre, Number(m.saldoFinal || 0));
+  });
+  const totalSaldoAcumulado = Array.from(saldoMap.values()).reduce((acc, v) => acc + v, 0);
+
   return (
-    <div className="space-y-6 font-mono min-h-screen">
-      {/* Header Titular Módulo Kardex */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-[#00F2C3]">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className={`text-lg font-bold font-sans flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <span>Kardex de Inventario Inmutable</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
-                  isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                }`}>
-                  SINCRONIZADO CON EXCEL PLANTA
-                </span>
-              </h2>
-              <p className={`text-xs font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                Formato oficial Quimicorp: Registro de Stock Inicial, Entradas, Salidas y Saldos por Categorías.
-              </p>
-            </div>
+    <div className="space-y-4 font-mono min-h-screen">
+      {/* 0. Tarjetas KPI de Métricas por Categoría */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* TOTAL REGISTROS */}
+        <div className={`rounded-xl p-4 border transition-all ${cardBg}`}>
+          <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>
+            REGISTROS EN {activeTab.replace('_', ' ')}
+          </span>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl font-black text-cyan-400">{totalItemsUnicos}</span>
+            <span className="text-xs text-slate-400 font-sans">
+              Ítems ({filteredMovimientos.length} movs)
+            </span>
           </div>
         </div>
 
-        <button
-          onClick={() => alert('Exportando reporte oficial Excel / PDF del Kardex Quimicorp...')}
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#00F2C3] to-teal-500 px-4 py-2 text-xs font-bold text-slate-950 hover:opacity-90 transition-all font-sans shadow-lg shadow-cyan-500/10"
-        >
-          <Download className="w-4 h-4" />
-          <span>Exportar a Excel / PDF</span>
-        </button>
-      </div>
-
-      {/* 1. Pestañas por Categoría (Tabs) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        {categoriesConfig.map((cat) => {
-          const isActive = activeTab === cat.id;
-          const Icon = cat.icon;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setActiveTab(cat.id)}
-              className={`p-3.5 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between space-y-2 ${
-                isActive
-                  ? isDark
-                    ? 'bg-[#151D2A] border-[#00F2C3] shadow-lg shadow-cyan-500/10'
-                    : 'bg-cyan-50 border-cyan-400 shadow-md'
-                  : isDark
-                  ? 'bg-[#0F141C] border-[#1A2232] hover:bg-[#151D2A]/60'
-                  : 'bg-white border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <Icon
-                  className={`w-4 h-4 ${
-                    isActive ? 'text-[#00F2C3]' : 'text-slate-400'
-                  }`}
-                />
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${cat.badgeColor}`}>
-                  {cat.id.replace('_', ' ')}
-                </span>
-              </div>
-
-              <div>
-                <div
-                  className={`text-xs font-bold font-sans ${
-                    isActive
-                      ? isDark
-                        ? 'text-white'
-                        : 'text-cyan-900'
-                      : isDark
-                      ? 'text-slate-300'
-                      : 'text-slate-700'
-                  }`}
-                >
-                  {cat.label}
-                </div>
-                <p className="text-[9px] text-slate-400 font-sans line-clamp-1 mt-0.5">
-                  {cat.description}
-                </p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className={`rounded-xl p-4 border ${cardBg}`}>
+        {/* ENTRADAS / COMPRAS */}
+        <div className={`rounded-xl p-4 border transition-all ${cardBg}`}>
           <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>
-            TOTAL ENTRADAS / COMPRAS ({activeTab.replace('_', ' ')})
+            ENTRADAS / STOCK INICIAL
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl font-black text-emerald-400">
+            <span className="text-2xl font-black text-emerald-400">
               +{totalEntradas.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
             </span>
-            <ArrowUpRight className="h-4 w-4 text-emerald-400" />
           </div>
         </div>
 
-        <div className={`rounded-xl p-4 border ${cardBg}`}>
+        {/* SALIDAS / CONSUMO */}
+        <div className={`rounded-xl p-4 border transition-all ${cardBg}`}>
           <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>
-            TOTAL SALIDAS / CONSUMO ({activeTab.replace('_', ' ')})
+            SALIDAS / CONSUMO PLANTA
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl font-black text-rose-400">
+            <span className="text-2xl font-black text-rose-400">
               -{totalSalidas.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
             </span>
-            <ArrowDownRight className="h-4 w-4 text-rose-400" />
           </div>
         </div>
 
-        <div className={`rounded-xl p-4 border ${cardBg}`}>
+        {/* SALDO TOTAL EN STOCK */}
+        <div className={`rounded-xl p-4 border transition-all ${cardBg}`}>
           <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>
-            REGISTROS AUDITABLES EXCEL
+            STOCK ACUMULADO DISPONIBLE
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-xl font-black text-cyan-400">
-              {filteredMovimientos.length}
+            <span className="text-2xl font-black text-[#00F2C3]">
+              {totalSaldoAcumulado.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
             </span>
-            <span className="text-xs text-slate-400 font-sans">Sincronizados en BD</span>
           </div>
         </div>
       </div>
 
-      {/* 2. Barra de Filtros Superior */}
+      {/* 1. Barra de Filtros Minimalista & Categorías */}
       <div className={`rounded-xl p-4 border space-y-3 ${cardBg}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Buscador General */}
@@ -361,9 +475,32 @@ export default function KardexPage() {
             ))}
           </div>
         </div>
+
+        {/* Categorías Pills */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/40">
+          <span className="text-xs text-slate-400 font-sans mr-1">Categoría:</span>
+          {categoriesConfig.map((cat) => {
+            const isActive = activeTab === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveTab(cat.id)}
+                className={`px-3 py-1 rounded-full text-xs font-bold font-sans transition-all border ${
+                  isActive
+                    ? 'bg-[#00F2C3]/10 border-[#00F2C3] text-[#00F2C3] shadow-sm'
+                    : isDark
+                    ? 'bg-[#151D2A] border-[#1A2232] text-slate-400 hover:text-white'
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* 3. Tabla Principal de Movimientos (Coincidencia Exacta Excel) */}
+      {/* 2. Tabla Principal de Movimientos (Coincidencia Exacta Screenshot) */}
       <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -386,14 +523,14 @@ export default function KardexPage() {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>
-              {filteredMovimientos.length === 0 ? (
+              {paginatedMovimientos.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-8 text-center text-slate-400 font-sans">
                     No se encontraron movimientos registrados para {activeTab.replace('_', ' ')}.
                   </td>
                 </tr>
               ) : (
-                filteredMovimientos.map((m) => {
+                paginatedMovimientos.map((m) => {
                   const isStockInicial = m.tipoOperacion === 'STOCK_INICIAL' || m.tipoDoc === 'INV';
                   const esEntrada = Number(m.cantidadEntrada) > 0 || isStockInicial;
                   const fechaFormatted = new Date(m.fecha).toLocaleDateString('es-PE', {
@@ -416,14 +553,14 @@ export default function KardexPage() {
                       }`}
                     >
                       {/* Fecha */}
-                      <td className="py-3.5 px-3 font-mono text-[11px] text-slate-400">
+                      <td className="py-3.5 px-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">
                         {fechaFormatted}
                       </td>
 
                       {/* Detalle Comprobante */}
                       <td className="py-3.5 px-3">
                         <div className="font-mono text-xs font-bold text-cyan-400">
-                          {m.tipoDoc} {m.serie ? `${m.serie}-` : ''}{m.numero}
+                          {m.tipoDoc ? `${m.tipoDoc} ` : ''}{m.serie ? `${m.serie}-` : ''}{m.numero || 'INVENTARIO'}
                         </div>
                         {m.otp && (
                           <div className="text-[10px] text-slate-400 font-sans">
@@ -433,18 +570,18 @@ export default function KardexPage() {
                       </td>
 
                       {/* Tipo Operación */}
-                      <td className="py-3.5 px-3 font-mono">
+                      <td className="py-3.5 px-3 font-mono whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
                             isStockInicial
-                              ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                               : esEntrada
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
                           }`}
                         >
                           {isStockInicial
-                            ? 'STOCK INICIAL PLANTA'
+                            ? 'ENTRADA COMPRA'
                             : m.tipoOperacion.replace(/_/g, ' ')}
                         </span>
                       </td>
@@ -452,27 +589,43 @@ export default function KardexPage() {
                       {/* Familia & Categoría */}
                       <td className="py-3.5 px-3">
                         <div className="font-sans text-xs font-semibold text-slate-300">
-                          {m.familia || 'GENERAL'}
+                          {m.familia || 'Materia Prima Real'}
                         </div>
                         <div className="text-[10px] text-slate-400 font-sans">
-                          {m.categoriaNombre || m.categoriaKardex}
+                          {m.categoriaNombre || 'Control Físico Planta'}
                         </div>
                       </td>
 
                       {/* Producto / Insumo */}
                       <td className="py-3.5 px-3">
-                        <div className={`font-sans text-xs font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                          {m.productoNombre}
+                        <div className="flex items-center gap-2">
+                          <span className={`font-sans text-xs font-bold uppercase tracking-wide ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                            {m.productoNombre}
+                          </span>
+                          {m.categoriaKardex === 'PRODUCTO_TERMINADO' && (
+                            <button
+                              onClick={() => setBomModalProducto(m.productoNombre)}
+                              title="Ver Fórmula BOM de Insumos"
+                              className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold transition-all flex items-center gap-1 ${
+                                isDark
+                                  ? 'bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20'
+                                  : 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
+                              }`}
+                            >
+                              <Beaker className="w-3 h-3 text-purple-400" />
+                              <span>BOM</span>
+                            </button>
+                          )}
                         </div>
                       </td>
 
                       {/* Proveedor / Cliente */}
-                      <td className={`py-3.5 px-3 font-sans text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <td className={`py-3.5 px-3 font-sans text-xs uppercase ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                         {m.proveedorCliente || 'PROVEEDOR QUIMICORP'}
                       </td>
 
                       {/* Unidad Medida */}
-                      <td className="py-3.5 px-3 text-center font-mono text-slate-400">
+                      <td className="py-3.5 px-3 text-center font-mono text-slate-400 font-bold">
                         {m.unidadMedida}
                       </td>
 
@@ -509,7 +662,61 @@ export default function KardexPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Control de Paginación de 60 en 60 */}
+        <div className={`p-4 border-t flex flex-wrap items-center justify-between gap-3 text-xs font-mono ${isDark ? 'border-[#1A2232] bg-[#0D121B]' : 'border-slate-200 bg-slate-50'}`}>
+          <div className="text-slate-400 font-sans">
+            Mostrando registros <strong className={isDark ? 'text-white' : 'text-slate-900'}>{filteredMovimientos.length === 0 ? 0 : startIndex + 1}</strong> al{' '}
+            <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+              {Math.min(startIndex + ITEMS_PER_PAGE, filteredMovimientos.length)}
+            </strong>{' '}
+            de <strong className="text-[#00F2C3]">{filteredMovimientos.length}</strong> movimientos en total
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1.5 rounded-lg border font-bold font-sans transition-all flex items-center gap-1.5 ${
+                currentPage === 1
+                  ? 'opacity-30 cursor-not-allowed border-slate-700 text-slate-500'
+                  : isDark
+                  ? 'bg-[#151D2A] border-[#1A2232] text-slate-300 hover:text-white hover:border-[#00F2C3]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Anterior</span>
+            </button>
+
+            <span className="px-3.5 py-1.5 rounded-lg border border-slate-700 font-bold bg-[#151D2A] text-[#00F2C3]">
+              Página {currentPage} de {totalPages}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1.5 rounded-lg border font-bold font-sans transition-all flex items-center gap-1.5 ${
+                currentPage === totalPages
+                  ? 'opacity-30 cursor-not-allowed border-slate-700 text-slate-500'
+                  : isDark
+                  ? 'bg-[#151D2A] border-[#1A2232] text-slate-300 hover:text-white hover:border-[#00F2C3]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <span>Siguiente</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
+
+      <BOMModal
+        productoNombre={bomModalProducto || ''}
+        isOpen={!!bomModalProducto}
+        onClose={() => setBomModalProducto(null)}
+        isDark={isDark}
+      />
     </div>
   );
 }

@@ -37,6 +37,26 @@ export class ProduccionGateway {
     }
   }
 
+  /**
+   * Emite una alerta de stock crítico en tiempo real a todos los clientes.
+   */
+  emitirAlertaStockCritico(payload: { codigo: string; nombre: string; stockReal: number; unidad: string; mensaje: string }) {
+    if (this.server) {
+      this.server.emit('inventario:alerta_stock_critico', payload);
+      console.log(`🚨 WebSocket emitido [inventario:alerta_stock_critico]: ${payload.nombre} (${payload.stockReal} ${payload.unidad})`);
+    }
+  }
+
+  /**
+   * Emite una señal de actualización general de inventario a todos los clientes.
+   */
+  emitirActualizacionInventario() {
+    if (this.server) {
+      this.server.emit('inventario:actualizado', { timestamp: new Date().toISOString() });
+      console.log(`📡 WebSocket emitido [inventario:actualizado]`);
+    }
+  }
+
   @SubscribeMessage('ping_produccion')
   handlePing(@MessageBody() data: any) {
     return { event: 'pong_produccion', data: 'Conexión activa con Producción & QA Gateway' };

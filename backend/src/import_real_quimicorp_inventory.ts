@@ -231,26 +231,6 @@ async function main() {
             estado: EstadoGenerico.ACTIVO,
           },
         });
-
-        await prisma.kardexMovimiento.create({
-          data: {
-            categoriaKardex: CategoriaKardex.ENVASE,
-            productoNombre: nombre,
-            familia: 'Envases y Recipientes',
-            categoriaNombre: 'Envases Almacén',
-            proveedorCliente: 'Proveedor Envases SAC',
-            unidadMedida: 'UNID',
-            tipoDoc: 'INVENTARIO',
-            serie: 'ENV2026',
-            numero: `INV-${codigo}`,
-            tipoOperacion: TipoMovimiento.ENTRADA_COMPRA,
-            cantidadEntrada: cant,
-            cantidadSalida: 0,
-            saldoFinal: cant,
-            insumoId: insumo.id,
-            usuarioId: adminUserId,
-          },
-        });
       }
     }
 
@@ -274,7 +254,7 @@ async function main() {
         const codigo = `PT-REAL-${String(contador).padStart(4, '0')}`;
         contador++;
 
-        const insumo = await prisma.insumo.upsert({
+        await prisma.insumo.upsert({
           where: { codigo },
           update: { nombre: prodNombre, stockTeorico: pesoVal, stockReal: pesoVal },
           create: {
@@ -287,26 +267,6 @@ async function main() {
             stockMinimo: 10,
             costoUnitario: 45.0,
             estado: EstadoGenerico.ACTIVO,
-          },
-        });
-
-        await prisma.kardexMovimiento.create({
-          data: {
-            categoriaKardex: CategoriaKardex.PRODUCTO_TERMINADO,
-            productoNombre: `${prodNombre} (${color} / ${fragancia})`,
-            familia: 'Producto Terminado Aprobado',
-            categoriaNombre: 'Stock Físico Almacén PT',
-            proveedorCliente: cliente,
-            unidadMedida: 'KG',
-            tipoDoc: 'OP',
-            serie: 'LOT-2026',
-            numero: `PT-${codigo}`,
-            tipoOperacion: TipoMovimiento.ENTRADA_PRODUCCION,
-            cantidadEntrada: pesoVal,
-            cantidadSalida: 0,
-            saldoFinal: pesoVal,
-            insumoId: insumo.id,
-            usuarioId: adminUserId,
           },
         });
       }

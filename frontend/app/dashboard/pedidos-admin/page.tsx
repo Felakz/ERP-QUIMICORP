@@ -25,7 +25,10 @@ import {
   RefreshCw,
   Zap,
 } from 'lucide-react';
+import { io } from 'socket.io-client';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '@/lib/ThemeContext';
+import { useAuth } from '@/lib/AuthContext';
 
 export interface InsumoValidacion {
   codigo: string;
@@ -76,6 +79,9 @@ export interface KpiMetrics {
 
 export default function PedidosAdminPage() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const router = useRouter();
+  const isAdmin = user?.role === 'ADMINISTRACION';
   const isDark = theme === 'dark';
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -92,9 +98,9 @@ export default function PedidosAdminPage() {
   const [loading, setLoading] = useState<boolean>(true);
 
   // Modales
-  const [selectedPedidoStockModal, setSelectedPedidoStockModal] = useState<PedidoComercialUI | null>(null);
   const [selectedPedidoDevolucionModal, setSelectedPedidoDevolucionModal] = useState<PedidoComercialUI | null>(null);
-  const [motivoDevolucionInput, setMotivoDevolucionInput] = useState<string>('');
+  const [motivoDevolucionInput, setMotivoDevolucionInput] = useState('');
+  const [selectedPedidoStockModal, setSelectedPedidoStockModal] = useState<PedidoComercialUI | null>(null);
 
   // 1. Cargar Datos del Backend
   const cargarDatos = async () => {
@@ -129,28 +135,72 @@ export default function PedidosAdminPage() {
     cargarDatos();
   }, [searchTerm, filterEstado, filterPrioridad]);
 
-  // 2. Acciones del Supervisor
+  useEffect(() => {
+    cargarDatos();
+
+    // Polling automático cada 3s para reflejar cambios de estado de Planta en tiempo real sin F5
+    const pollInterval = setInterval(() => {
+      cargarDatos();
+    }, 3000);
+
+    const socket = io('http://localhost:3001', {
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('order:created_to_plant', () => cargarDatos());
+    socket.on('order:status_updated', () => cargarDatos());
+    socket.on('order:accepted_by_plant', () => cargarDatos());
+    socket.on('order:devolucion', () => cargarDatos());
+
+    return () => {
+      clearInterval(pollInterval);
+      socket.disconnect();
+    };
+  }, []);
+
+  // 2. Acciones del Supervisor de Planta
   const handleAprobarPedido = async (pedido: PedidoComercialUI) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/v1/pedidos-admin/${pedido.id}/aprobar`, {
+      // Registrar el nuevo lote de producción en el flujo de Control de Producción & QA
+      const rawCustom = localStorage.getItem('quimicorp_produccion_lotes_custom');
+      const prevLotes = rawCustom ? JSON.parse(rawCustom) : [];
+
+      const nuevoLotePlanta = {
+        id: pedido.id,
+        codigoQA: `QA-${pedido.codigoOrden.replace('#', '')}`,
+        nombreProducto: pedido.productoNombre,
+        codigoLote: `LOTE-${pedido.codigoOrden.replace('#', '')}`,
+        clienteNombre: pedido.clienteNombre,
+        rendimiento: '99.5%',
+        mermaPercentage: '0.5%',
+        operarios: [],
+        fechaEnvio: new Date().toISOString().split('T')[0],
+        pasoProceso: 'PENDIENTE_ASIGNACION',
+        estado: 'PENDIENTE',
+        observacionesQA: pedido.notasAdmin || 'Orden aprobada y transferida desde Pedidos Entrantes.',
+        formula: [
+          { sku: 'QC-001', componente: 'Agua Desionizada', porcentaje: 85.0, pesoTeorico: 850 },
+          { sku: 'QC-011', componente: 'Insumo Activo Principal', porcentaje: 15.0, pesoTeorico: 150 },
+        ],
+      };
+
+      const updatedLotes = [nuevoLotePlanta, ...prevLotes];
+      localStorage.setItem('quimicorp_produccion_lotes_custom', JSON.stringify(updatedLotes));
+
+      // Actualizar estado en DB
+      await fetch(`http://localhost:3001/api/v1/pedidos-admin/${pedido.id}/aprobar`, {
         method: 'POST',
       });
-      if (res.ok) {
-        alert(
-          `🚀 ¡ORDEN ${pedido.codigoOrden} APROBADA Y MANDADA A PRODUCCIÓN!\n\n` +
-          `- Cliente: ${pedido.clienteNombre}\n` +
-          `- Producto: ${pedido.productoNombre} (${pedido.cantidadSolicitada} ${pedido.unidadMedida})\n` +
-          `- Lote Generado: LOTE-${pedido.codigoOrden.replace(/\D/g, '') || '9044'}\n` +
-          `- Notificación emitida por WebSockets a Control de Producción & QA.`
-        );
-        cargarDatos();
-      }
+
+      // Redirigir directamente al panel de Control de Producción & QA
+      router.push('/dashboard/produccion-qa');
     } catch (e) {
       console.log('Error aprobando pedido:', e);
-      // Fallback local
+      // Fallback local y redirección
       setPedidos((prev) =>
         prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'APROBADO' } : p))
       );
+      router.push('/dashboard/produccion-qa');
     }
   };
 
@@ -206,27 +256,23 @@ export default function PedidosAdminPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs">
-          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded font-bold ${
-            isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
-          }`}>
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded font-bold ${isDark ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+            }`}>
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            PLC ONLINE
+
           </span>
 
-          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded font-bold ${
-            isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-100 text-amber-950 border border-amber-300'
-          }`}>
+          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded font-bold ${isDark ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-100 text-amber-950 border border-amber-300'
+            }`}>
             <span className="h-2 w-2 rounded-full bg-amber-500" />
-            REACTOR A2
           </span>
 
           <span className={`px-3 py-1 rounded text-[11px] font-bold ${badgeBoxBg}`}>
             Lun, 03 ago. 2026 &nbsp;09:45 a. m.
           </span>
 
-          <span className={`flex items-center gap-1.5 px-3 py-1 rounded font-bold uppercase tracking-wider text-[11px] ${
-            isDark ? 'bg-teal-500/10 text-[#00F2C3] border border-teal-500/30' : 'bg-teal-100 text-teal-950 border border-teal-300'
-          }`}>
+          <span className={`flex items-center gap-1.5 px-3 py-1 rounded font-bold uppercase tracking-wider text-[11px] ${isDark ? 'bg-teal-500/10 text-[#00F2C3] border border-teal-500/30' : 'bg-teal-100 text-teal-950 border border-teal-300'
+            }`}>
             <Zap className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
             SEMI-APROBACIÓN ACTIVO
           </span>
@@ -288,9 +334,8 @@ export default function PedidosAdminPage() {
         </div>
 
         {/* KPI 5: VALOR DEL DÍA */}
-        <div className={`rounded-xl p-4 border space-y-1 ${cardBg} ${
-          isDark ? 'border-teal-500/30 bg-teal-500/5' : 'border-teal-300 bg-teal-50'
-        }`}>
+        <div className={`rounded-xl p-4 border space-y-1 ${cardBg} ${isDark ? 'border-teal-500/30 bg-teal-500/5' : 'border-teal-300 bg-teal-50'
+          }`}>
           <span className={`text-[10px] font-bold uppercase tracking-widest block ${isDark ? 'text-teal-400' : 'text-teal-900'}`}>
             VALOR DEL DÍA
           </span>
@@ -333,15 +378,14 @@ export default function PedidosAdminPage() {
               <button
                 key={st}
                 onClick={() => setFilterEstado(st)}
-                className={`px-3 py-1 rounded-lg border text-xs font-bold transition-all ${
-                  isSelected
+                className={`px-3 py-1 rounded-lg border text-xs font-bold transition-all ${isSelected
                     ? isDark
                       ? 'bg-teal-500/20 text-[#00F2C3] border-teal-500/40'
                       : 'bg-teal-600 text-white border-teal-700 shadow-md font-extrabold'
                     : isDark
                       ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
                       : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200 font-semibold'
-                }`}
+                  }`}
               >
                 {labelMap[st]}
               </button>
@@ -358,15 +402,14 @@ export default function PedidosAdminPage() {
               <button
                 key={pr}
                 onClick={() => setFilterPrioridad(pr)}
-                className={`px-2.5 py-1 rounded border text-[11px] font-bold transition-all ${
-                  isSelected
+                className={`px-2.5 py-1 rounded border text-[11px] font-bold transition-all ${isSelected
                     ? isDark
                       ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
                       : 'bg-cyan-700 text-white border-cyan-800 shadow-md font-extrabold'
                     : isDark
                       ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
                       : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200 font-semibold'
-                }`}
+                  }`}
               >
                 {pr === 'TODAS' ? 'Todas' : `• ${pr}`}
               </button>
@@ -410,21 +453,19 @@ export default function PedidosAdminPage() {
             return (
               <div
                 key={ped.id}
-                className={`rounded-xl border transition-all p-5 space-y-4 ${cardBg} ${
-                  isNuevo
+                className={`rounded-xl border transition-all p-5 space-y-4 ${cardBg} ${isNuevo
                     ? isDark ? 'border-amber-500/30' : 'border-amber-400 shadow-md'
                     : isAprobado
-                    ? isDark ? 'border-emerald-500/30' : 'border-emerald-400 shadow-md'
-                    : isDark ? 'border-rose-500/30' : 'border-rose-400 shadow-md'
-                }`}
+                      ? isDark ? 'border-emerald-500/30' : 'border-emerald-400 shadow-md'
+                      : isDark ? 'border-rose-500/30' : 'border-rose-400 shadow-md'
+                  }`}
               >
                 {/* ── HEADER SUPERIOR DE LA CARD ── */}
                 <div className={`flex flex-wrap items-center justify-between gap-3 border-b pb-3 ${isDark ? 'border-slate-800/80' : 'border-slate-300'}`}>
                   <div className="flex flex-wrap items-center gap-2">
                     {/* N° Orden */}
-                    <span className={`text-xs font-black font-mono px-2.5 py-0.5 rounded border ${
-                      isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' : 'bg-cyan-100 text-cyan-950 border-cyan-300 font-bold'
-                    }`}>
+                    <span className={`text-xs font-black font-mono px-2.5 py-0.5 rounded border ${isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' : 'bg-cyan-100 text-cyan-950 border-cyan-300 font-bold'
+                      }`}>
                       {ped.codigoOrden}
                     </span>
 
@@ -437,24 +478,22 @@ export default function PedidosAdminPage() {
 
                     {/* Prioridad Badge */}
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase font-mono ${
-                        ped.prioridad === 'URGENTE'
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase font-mono ${ped.prioridad === 'URGENTE'
                           ? isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse' : 'bg-rose-100 text-rose-950 border-rose-300 font-extrabold animate-pulse'
                           : isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-200 text-slate-900 border-slate-300 font-bold'
-                      }`}
+                        }`}
                     >
                       • {ped.prioridad}
                     </span>
 
                     {/* Estado Badge */}
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase font-mono ${
-                        isNuevo
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase font-mono ${isNuevo
                           ? isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-950 border-amber-300 font-bold'
                           : isAprobado
-                          ? isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-950 border-emerald-300 font-bold'
-                          : isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-rose-100 text-rose-950 border-rose-300 font-bold'
-                      }`}
+                            ? isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-950 border-emerald-300 font-bold'
+                            : isDark ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-rose-100 text-rose-950 border-rose-300 font-bold'
+                        }`}
                     >
                       {ped.estado}
                     </span>
@@ -592,15 +631,14 @@ export default function PedidosAdminPage() {
                         {stockInfo.detalles.map((ins, idx) => (
                           <span
                             key={idx}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${
-                              ins.suficiente
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono border ${ins.suficiente
                                 ? isDark
                                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                                   : 'bg-emerald-100 text-emerald-950 border-emerald-400 font-bold'
                                 : isDark
                                   ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                                   : 'bg-rose-100 text-rose-950 border-rose-400 font-bold'
-                            }`}
+                              }`}
                             title={`${ins.nombre}: Req. ${ins.requerido} / Disp. ${ins.disponible}`}
                           >
                             {ins.codigo}
@@ -609,81 +647,95 @@ export default function PedidosAdminPage() {
                       </div>
                     </div>
 
-                    {/* NOTAS DE ADMINISTRACIÓN */}
-                    {ped.notasAdmin && (
-                      <div className={`p-2.5 rounded border text-[11px] font-sans space-y-0.5 ${
-                        isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-900 shadow-inner font-medium'
-                      }`}>
-                        <span className={`text-[9px] font-bold uppercase block font-mono ${isDark ? 'text-slate-500' : 'text-slate-700'}`}>
-                          NOTAS DE ADMIN.
-                        </span>
-                        <p className="leading-relaxed">{ped.notasAdmin}</p>
-                      </div>
-                    )}
+                    {/* NOTAS DE ADMINISTRACIÓN (Limpio, sin mostrar JSON) */}
+                    {ped.notasAdmin &&
+                      !ped.notasAdmin.trim().startsWith('[') &&
+                      !ped.notasAdmin.trim().startsWith('{') &&
+                      ped.notasAdmin.trim() !== 'Sin observaciones adicionales.' && (
+                        <div className={`p-2.5 rounded-xl border text-[11px] font-sans space-y-0.5 ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-900 font-medium'
+                          }`}>
+                          <span className={`text-[9px] font-bold uppercase block font-mono ${isDark ? 'text-slate-500' : 'text-slate-700'}`}>
+                            💬 OBSERVACIONES DEL PEDIDO
+                          </span>
+                          <p className="leading-relaxed font-semibold">{ped.notasAdmin}</p>
+                        </div>
+                      )}
                   </div>
                 </div>
 
-                {/* ── BOTONES DE ACCIÓN DE LA CARD ── */}
-                {isNuevo && (
-                  <div className={`flex flex-wrap items-center justify-end gap-3 pt-3 border-t ${isDark ? 'border-slate-800/80' : 'border-slate-300'}`}>
-                    <button
-                      onClick={() => {
-                        setSelectedPedidoDevolucionModal(ped);
-                        setMotivoDevolucionInput('');
-                      }}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all font-sans flex items-center gap-1.5 ${
-                        isDark
-                          ? 'bg-rose-950/40 text-rose-400 border border-rose-500/30 hover:bg-rose-900/50'
-                          : 'bg-rose-100 text-rose-950 border border-rose-300 hover:bg-rose-200 font-bold'
-                      }`}
-                    >
-                      <span>↩️ Devolver a Admin</span>
-                    </button>
-
-                    {tieneFaltantes ? (
-                      <button
-                        onClick={() => setSelectedPedidoStockModal(ped)}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all font-sans shadow-lg flex items-center gap-2 ${
-                          isDark
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
-                            : 'bg-amber-100 text-amber-950 border border-amber-300 hover:bg-amber-200 font-bold'
-                        }`}
-                      >
-                        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                        <span>⚠️ Stock Insuficiente — Revisar</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleAprobarPedido(ped)}
-                        className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all font-sans shadow-lg flex items-center gap-2 ${
-                          isDark
-                            ? 'bg-gradient-to-r from-[#00F2C3] to-teal-500 text-slate-950 hover:opacity-95 shadow-cyan-500/20'
-                            : 'bg-teal-600 text-white hover:bg-teal-700 shadow-md font-extrabold'
-                        }`}
-                      >
-                        <Send className="w-4 h-4" />
-                        <span>🚀 Aprobar & Mandar a Producción</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {isAprobado && (
-                  <div className={`p-3 rounded-lg border text-xs font-sans flex items-center justify-between ${
-                    isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-950 font-bold'
+                {/* ── SEPARACIÓN DE VISTA DE TARJETA: ADMINISTRACIÓN VS PLANTA ── */}
+                {isAdmin ? (
+                  /* VISTA DE ADMINISTRACIÓN: SOLO ESTATUS DEL PEDIDO (SIN BOTONES OPERATIVOS DE PLANTA) */
+                  <div className={`mt-3 p-3 rounded-xl border text-xs font-sans flex flex-wrap items-center justify-between gap-2 ${
+                    isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-100 border-slate-300'
                   }`}>
-                    <span className="flex items-center gap-2 font-bold">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      Orden Aprobada y Transferida a Control de Producción & QA.
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-[#00F2C3]" />
+                      <span className="text-slate-300">
+                        Estado Actual en Planta:{' '}
+                        <strong className="text-cyan-400 font-mono">
+                          {ped.estado === 'NUEVO'
+                            ? '⏳ PENDIENTE DE REVISIÓN EN PLANTA'
+                            : ped.estado === 'APROBADO' || ped.estado === 'EN_PRODUCCION'
+                            ? '⚡ EN PRODUCCIÓN & QA'
+                            : ped.estado}
+                        </strong>
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {ped.estado === 'NUEVO'
+                        ? 'Esperando que el Supervisor de Planta acepte la orden'
+                        : 'Orden aceptada por el Supervisor de Planta'}
                     </span>
-                    <a
-                      href="/dashboard/produccion-qa"
-                      className="px-3 py-1 rounded bg-teal-600 text-white font-bold hover:bg-teal-700 transition-all flex items-center gap-1 shadow-sm"
-                    >
-                      <span>Ir a Planta QA</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </a>
                   </div>
+                ) : (
+                  /* VISTA DE PLANTA: BOTONES DE APROBACIÓN PARA EL SUPERVISOR DE PLANTA */
+                  <>
+                    {isNuevo && (
+                      <div className={`flex flex-wrap items-center justify-end gap-3 pt-3 mt-3 border-t ${isDark ? 'border-slate-800/80' : 'border-slate-300'}`}>
+                        <button
+                          onClick={() => {
+                            setSelectedPedidoDevolucionModal(ped);
+                            setMotivoDevolucionInput('');
+                          }}
+                          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all font-sans flex items-center gap-1.5 ${isDark
+                              ? 'bg-rose-950/40 text-rose-400 border border-rose-500/30 hover:bg-rose-900/50'
+                              : 'bg-rose-100 text-rose-950 border border-rose-300 hover:bg-rose-200 font-bold'
+                            }`}
+                        >
+                          <span>❌ Rechazar / Solicitar Ajuste</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleAprobarPedido(ped)}
+                          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all font-sans shadow-lg flex items-center gap-2 ${isDark
+                              ? 'bg-gradient-to-r from-[#00F2C3] to-emerald-500 text-slate-950 hover:opacity-95 shadow-emerald-500/20'
+                              : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-md font-extrabold'
+                            }`}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>✅ Aceptar & Programar Producción</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {isAprobado && (
+                      <div className={`mt-3 p-3 rounded-lg border text-xs font-sans flex items-center justify-between ${isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-950 font-bold'
+                        }`}>
+                        <span className="flex items-center gap-2 font-bold">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          Orden Aprobada y En Programación de Reactores.
+                        </span>
+                        <a
+                          href="/dashboard/produccion-qa"
+                          className="px-3 py-1 rounded bg-teal-600 text-white font-bold hover:bg-teal-700 transition-all flex items-center gap-1 shadow-sm"
+                        >
+                          <span>Ver en Reactores & QA</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -739,15 +791,13 @@ export default function PedidosAdminPage() {
                       </td>
                       <td className="p-2.5 text-center">
                         {ins.suficiente ? (
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                            }`}>
                             OK
                           </span>
                         ) : (
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            isDark ? 'bg-rose-500/20 text-rose-300' : 'bg-rose-100 text-rose-950 border border-rose-300 font-extrabold'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isDark ? 'bg-rose-500/20 text-rose-300' : 'bg-rose-100 text-rose-950 border border-rose-300 font-extrabold'
+                            }`}>
                             INSUFICIENTE
                           </span>
                         )}
@@ -764,20 +814,18 @@ export default function PedidosAdminPage() {
                   setSelectedPedidoDevolucionModal(selectedPedidoStockModal);
                   setSelectedPedidoStockModal(null);
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  isDark
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${isDark
                     ? 'border border-rose-500/30 text-rose-400 hover:bg-rose-900/30'
                     : 'bg-rose-100 text-rose-950 border border-rose-300 hover:bg-rose-200 font-extrabold'
-                }`}
+                  }`}
               >
                 ↩️ Devolver a Ventas por Stock
               </button>
 
               <button
                 onClick={() => setSelectedPedidoStockModal(null)}
-                className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${
-                  isDark ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-slate-200 text-slate-900 hover:bg-slate-300 border border-slate-300'
-                }`}
+                className={`px-5 py-2 rounded-xl text-xs font-bold transition-all ${isDark ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-slate-200 text-slate-900 hover:bg-slate-300 border border-slate-300'
+                  }`}
               >
                 Cerrar
               </button>
@@ -810,9 +858,8 @@ export default function PedidosAdminPage() {
             <div className="flex items-center gap-3 pt-2">
               <button
                 onClick={() => setSelectedPedidoDevolucionModal(null)}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                  isDark ? 'border border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-200 text-slate-900 border border-slate-300 hover:bg-slate-300'
-                }`}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${isDark ? 'border border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-200 text-slate-900 border border-slate-300 hover:bg-slate-300'
+                  }`}
               >
                 Cancelar
               </button>

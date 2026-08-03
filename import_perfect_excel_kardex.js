@@ -60,21 +60,17 @@ async function importPerfectExcelKardex() {
 
         let catEnum = 'INSUMO';
         const sheetLower = sheetName.toLowerCase();
-        const famLower = famName.toLowerCase();
-        const catLower = catName.toLowerCase();
 
-        if (sheetLower.includes('envase') || catLower.includes('envase') || famLower.includes('envase')) {
-          catEnum = 'ENVASE';
-        } else if (sheetLower.includes('embalaje') || catLower.includes('embalaje') || famLower.includes('embalaje')) {
+        if (sheetLower.includes('embalaje')) {
           catEnum = 'EMBALAJE';
-        } else if (
-          famLower.includes('aceite') ||
-          famLower.includes('ácido') ||
-          famLower.includes('acido') ||
-          famLower.includes('solvente') ||
-          catLower.includes('materia prima')
-        ) {
+        } else if (sheetLower.includes('envase')) {
+          catEnum = 'ENVASE';
+        } else if (sheetLower.includes('prod') || sheetLower.includes('terminado')) {
+          catEnum = 'PRODUCTO_TERMINADO';
+        } else if (sheetLower.includes('materia')) {
           catEnum = 'MATERIA_PRIMA';
+        } else if (sheetLower.includes('insumo')) {
+          catEnum = 'INSUMO';
         } else {
           catEnum = 'INSUMO';
         }
@@ -176,47 +172,6 @@ async function importPerfectExcelKardex() {
           countTotal++;
         }
       }
-    }
-  }
-
-  // 2. Import Productos Terminados desde INVENTARIO QUIMICORP FINAL 2026.xlsx
-  const wbInv = XLSX.readFile('INVENTARIO QUIMICORP FINAL 2026.xlsx');
-  if (wbInv.SheetNames.includes('PRODUCTOS TERMINADOS STOCK')) {
-    const sheet = wbInv.Sheets['PRODUCTOS TERMINADOS STOCK'];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-    for (let r = 2; r < rows.length; r++) {
-      const row = rows[r];
-      if (!row || !row[0]) continue;
-
-      const prodName = String(row[0]).trim();
-      if (prodName.toLowerCase().includes('productos') || prodName.toLowerCase().includes('stock')) continue;
-
-      const cliente = row[1] ? String(row[1]).trim() : 'Stock Alquimia / Quimicorp';
-      const color = row[2] ? String(row[2]).trim() : 'Estándar';
-      const pesoStr = String(row[3] || '20 KG').replace(/[^0-9.]/g, '');
-      const peso = parseFloat(pesoStr) || 20;
-
-      await prisma.kardexMovimiento.create({
-        data: {
-          categoriaKardex: 'PRODUCTO_TERMINADO',
-          productoNombre: prodName,
-          familia: 'Productos Terminados Alquimia',
-          categoriaNombre: `Color: ${color}`,
-          proveedorCliente: cliente,
-          unidadMedida: String(row[3]).toLowerCase().includes('lt') ? 'L' : 'KG',
-          fecha: new Date('2026-08-01T10:00:00Z'),
-          tipoDoc: 'OP',
-          serie: 'LOTE',
-          numero: `PT-2026-${String(r).padStart(4, '0')}`,
-          otp: `OTP-PT-${String(r).padStart(3, '0')}`,
-          tipoOperacion: 'ENTRADA_PRODUCCION',
-          cantidadEntrada: peso,
-          cantidadSalida: 0,
-          saldoFinal: peso,
-        },
-      });
-      countTotal++;
     }
   }
 

@@ -43,6 +43,38 @@ export class PedidosAdminService {
     };
   }
 
+  // 1.5 Crear nuevo pedido comercial aprobado desde Administración
+  async crearPedido(dto: any) {
+    const db = this.prisma as any;
+    const codigoOrden = dto.code || `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+
+    const nuevoPedido = await db.pedidoComercial.create({
+      data: {
+        codigoOrden,
+        clienteNombre: dto.cliente || 'GEYMA S.A.C.',
+        clienteRuc: dto.ruc || '20614697321',
+        contactoNombre: dto.contacto || 'Carlos Mendoza',
+        contactoTelefono: dto.telefono || '+51 998 234 567',
+        direccionDespacho: dto.direccion || 'Av. Industrial 342, Ate, Lima',
+        condicionPago: dto.condicionPago || 'Crédito 30 Días',
+        productoNombre: dto.producto || 'FM-0001 - GEL ANTIDOLOR',
+        cantidadSolicitada: parseFloat(dto.cantidad) || 29.0,
+        unidadMedida: 'KG',
+        prioridad: dto.prioridad || 'URGENTE',
+        montoTotal: parseFloat(dto.precioTotal) || 14717.5,
+        fechaPrometida: dto.fechaPrometida ? new Date(dto.fechaPrometida) : new Date(Date.now() + 7 * 86400000),
+        estado: 'NUEVO',
+        notasAdmin: JSON.stringify(dto.recetaCalculada || []),
+      },
+    });
+
+    if (this.produccionGateway && this.produccionGateway.server) {
+      this.produccionGateway.server.emit('order:created_to_plant', nuevoPedido);
+    }
+
+    return nuevoPedido;
+  }
+
   // 2. Listar pedidos con búsqueda, filtros y cálculo automático de stock en Kardex
   async listar(search?: string, estado?: string, prioridad?: string) {
     const whereCondition: any = {};

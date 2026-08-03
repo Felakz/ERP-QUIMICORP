@@ -19,6 +19,11 @@ export class PedidosAdminController {
     return this.pedidosAdminService.listar(search, estado, prioridad);
   }
 
+  @Post()
+  crearPedido(@Body() dto: any) {
+    return this.pedidosAdminService.crearPedido(dto);
+  }
+
   @Get(':id/desglose-stock')
   obtenerDesgloseStock(@Param('id') id: string) {
     return this.pedidosAdminService.obtenerDesgloseStock(id);

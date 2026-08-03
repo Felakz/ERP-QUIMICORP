@@ -100,8 +100,7 @@ export class KardexService {
   }
 
   /**
-   * Consulta el Kardex Categorizado de Inventario según la categoría (PRODUCTO_TERMINADO, MATERIA_PRIMA, INSUMO, ENVASE, EMBALAJE),
-   * filtros de búsqueda, fechas y tipo de operación.
+   * Lista movimientos planos con filtros (para búsquedas puntuales).
    */
   async listarCategorizado(params: {
     categoria?: CategoriaKardex;
@@ -112,7 +111,7 @@ export class KardexService {
     take?: number;
     skip?: number;
   }) {
-    const { categoria, search, tipoOperacion, desde, hasta, take = 100, skip = 0 } = params;
+    const { categoria, search, tipoOperacion, desde, hasta, take = 200, skip = 0 } = params;
 
     const whereCondition: Prisma.KardexMovimientoWhereInput = {
       AND: [
@@ -143,6 +142,127 @@ export class KardexService {
       take,
       skip,
       include: { insumo: true },
+    });
+  }
+
+  /**
+   * Devuelve movimientos agrupados por productoNombre, igual que el Excel:
+   * cabecera del producto (familia, proveedor, stockInicial, saldoFinal)
+   * + array de movimientos cronológicos.
+   */
+  async listarAgrupado(params: {
+    categoria?: CategoriaKardex;
+    search?: string;
+    tipoOperacion?: string;
+    desde?: string;
+    hasta?: string;
+  }) {
+    const { categoria, search, tipoOperacion, desde, hasta } = params;
+
+    const whereCondition: Prisma.KardexMovimientoWhereInput = {
+      AND: [
+        categoria ? { categoriaKardex: categoria } : {},
+        search
+          ? {
+              OR: [
+                { productoNombre: { contains: search, mode: 'insensitive' } },
+                { proveedorCliente: { contains: search, mode: 'insensitive' } },
+                { familia: { contains: search, mode: 'insensitive' } },
+              ],
+            }
+          : {},
+        tipoOperacion && tipoOperacion !== 'TODAS'
+          ? tipoOperacion === 'ENTRADAS'
+            ? { cantidadEntrada: { gt: 0 } }
+            : { cantidadSalida: { gt: 0 } }
+          : {},
+        desde ? { fecha: { gte: new Date(desde) } } : {},
+        hasta ? { fecha: { lte: new Date(hasta) } } : {},
+      ],
+    };
+
+    // Ordenar: producto asc + fecha asc (para que el primer mov. sea el más antiguo)
+    const movimientos = await this.prisma.kardexMovimiento.findMany({
+      where: whereCondition,
+      orderBy: [{ productoNombre: 'asc' }, { fecha: 'asc' }],
+      include: {
+        insumo: { select: { costoUnitario: true, codigo: true, nombre: true } },
+      },
+    });
+
+    // Agrupar por categoriaKardex + productoNombre
+    const grupos = new Map<
+      string,
+      {
+        productoNombre: string;
+        familia: string;
+        categoriaNombre: string;
+        proveedorCliente: string;
+        unidadMedida: string;
+        categoriaKardex: string;
+        stockInicial: number;
+        saldoFinal: number;
+        totalEntradas: number;
+        totalSalidas: number;
+        costoUnitario: number;
+        movimientos: typeof movimientos;
+      }
+    >();
+
+    for (const mov of movimientos) {
+      const key = `${mov.categoriaKardex}::${mov.productoNombre}`;
+      if (!grupos.has(key)) {
+        // El stock inicial se deduce del primer movimiento (más antiguo)
+        const primerSaldo = Number(mov.saldoFinal);
+        const primerEntrada = Number(mov.cantidadEntrada);
+        const primerSalida = Number(mov.cantidadSalida);
+        const stockInicial = primerSaldo - primerEntrada + primerSalida;
+
+        grupos.set(key, {
+          productoNombre: mov.productoNombre,
+          familia: mov.familia || '',
+          categoriaNombre: mov.categoriaNombre || '',
+          proveedorCliente: mov.proveedorCliente || '',
+          unidadMedida: mov.unidadMedida,
+          categoriaKardex: mov.categoriaKardex,
+          stockInicial,
+          saldoFinal: 0,
+          totalEntradas: 0,
+          totalSalidas: 0,
+          costoUnitario: mov.insumo?.costoUnitario ? Number(mov.insumo.costoUnitario) : 0,
+          movimientos: [],
+        });
+      }
+      const grupo = grupos.get(key)!;
+      grupo.movimientos.push(mov);
+      grupo.totalEntradas += Number(mov.cantidadEntrada);
+      grupo.totalSalidas += Number(mov.cantidadSalida);
+      // El último movimiento (más reciente) tiene el saldo actual
+      grupo.saldoFinal = Number(mov.saldoFinal);
+    }
+
+    return Array.from(grupos.values());
+  }
+
+  async obtenerBomProducto(nombreProducto: string) {
+    if (!nombreProducto) return null;
+    return this.prisma.formulaMaster.findFirst({
+      where: {
+        nombreProducto: { contains: nombreProducto, mode: 'insensitive' },
+        estado: { not: 'INACTIVA' },
+      },
+      include: {
+        detalles: {
+          include: {
+            insumo: {
+              include: {
+                familia: true,
+              },
+            },
+          },
+          orderBy: { porcentaje: 'desc' },
+        },
+      },
     });
   }
 }

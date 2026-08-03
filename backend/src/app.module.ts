@@ -8,12 +8,14 @@ import { ProduccionModule } from './produccion/produccion.module';
 import { FormulasModule } from './formulas/formulas.module';
 import { SubAlmacenModule } from './sub-almacen/sub-almacen.module';
 import { PedidosAdminModule } from './pedidos-admin/pedidos-admin.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     // Rate-limiting básico (Sprint 1); en Sprint 5 se respalda con Upstash Redis
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     PrismaModule,
+    AuthModule,
     KardexModule,
     InventarioModule,
     ProduccionModule,

@@ -166,35 +166,54 @@ export class DashboardInventarioService {
       },
     });
 
-    return {
-      totalMateriales: insumos.length,
-      disponibilidadTotalKg: insumos.reduce((acc, i) => acc + Number(i.stockReal), 0).toFixed(2),
-      insumos: insumos.map((i) => {
-        const stockReal = Number(i.stockReal);
-        const stockMinimo = Number(i.stockMinimo);
-        let estado: 'OK' | 'LOW STOCK' | 'CRITICAL' = 'OK';
+    let stockCriticoCount = 0;
+    let stockBajoCount = 0;
+    const insumosCriticosDetalle: any[] = [];
 
-        if (stockReal <= 0 || stockReal <= stockMinimo * 0.5) {
-          estado = 'CRITICAL';
-        } else if (stockReal <= stockMinimo) {
-          estado = 'LOW STOCK';
-        }
+    const insumosFormatted = insumos.map((i) => {
+      const stockReal = Number(i.stockReal);
+      const stockMinimo = Number(i.stockMinimo);
+      let estado: 'OK' | 'LOW STOCK' | 'CRITICAL' = 'OK';
 
-        const stockPercentage = stockMinimo > 0 ? Math.min(Math.round((stockReal / (stockMinimo * 3)) * 100), 100) : 85;
-
-        return {
-          id: i.id,
+      if (stockReal <= 0 || stockReal <= stockMinimo * 0.5) {
+        estado = 'CRITICAL';
+        stockCriticoCount++;
+        insumosCriticosDetalle.push({
           sku: i.codigo,
           nombre: i.nombre,
-          familia: i.familia.nombre.toUpperCase(),
-          stockPercentage,
           stockReal,
           stockMinimo,
           unidad: i.unidadMedida,
-          ubicacion: 'Almacén Principal Quimicorp',
-          estado,
-        };
-      }),
+          porcentaje: stockMinimo > 0 ? Math.round((stockReal / stockMinimo) * 100) : 5,
+        });
+      } else if (stockReal <= stockMinimo) {
+        estado = 'LOW STOCK';
+        stockBajoCount++;
+      }
+
+      const stockPercentage = stockMinimo > 0 ? Math.min(Math.round((stockReal / (stockMinimo * 3)) * 100), 100) : 85;
+
+      return {
+        id: i.id,
+        sku: i.codigo,
+        nombre: i.nombre,
+        familia: i.familia.nombre.toUpperCase(),
+        stockPercentage,
+        stockReal,
+        stockMinimo,
+        unidad: i.unidadMedida,
+        ubicacion: 'Almacén Principal Quimicorp',
+        estado,
+      };
+    });
+
+    return {
+      totalMateriales: insumos.length,
+      disponibilidadTotalKg: insumos.reduce((acc, i) => acc + Number(i.stockReal), 0).toFixed(2),
+      stockCriticoCount,
+      stockBajoCount,
+      insumosCriticosDetalle,
+      insumos: insumosFormatted,
       subAlmacen: subAlmacenSobrantes.map((s) => ({
         id: s.id,
         codigo: `RES-${s.id.slice(0, 4)}`,
