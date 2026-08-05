@@ -583,6 +583,7 @@ model AuditLog {
 
 enum EstadoPedidoComercial {
   NUEVO
+  PENDIENTE_REVISION
   VALIDANDO
   APROBADO
   EN_PRODUCCION

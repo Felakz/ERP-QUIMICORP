@@ -63,7 +63,7 @@ export interface PedidoComercialUI {
   montoTotal: number;
   fechaPrometida: string;
   prioridad: 'URGENTE' | 'NORMAL' | 'PROGRAMADO';
-  estado: 'NUEVO' | 'VALIDANDO' | 'APROBADO' | 'EN_PRODUCCION' | 'DEVUELTO';
+  estado: 'NUEVO' | 'PENDIENTE_REVISION' | 'VALIDANDO' | 'APROBADO' | 'EN_PRODUCCION' | 'DEVUELTO';
   notasAdmin?: string;
   motivoDevolucion?: string;
   stockValidacion?: StockValidacionInfo;
@@ -88,6 +88,7 @@ export default function PedidosAdminPage() {
   const [filterEstado, setFilterEstado] = useState<string>('TODOS');
   const [filterPrioridad, setFilterPrioridad] = useState<string>('TODAS');
   const [pedidos, setPedidos] = useState<PedidoComercialUI[]>([]);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [kpis, setKpis] = useState<KpiMetrics>({
     pedidosHoy: 4,
     nuevos: 2,
@@ -129,7 +130,9 @@ export default function PedidosAdminPage() {
       });
       if (resPedidos.ok) {
         const dataPedidos = await resPedidos.json();
-        setPedidos(dataPedidos);
+        if (Array.isArray(dataPedidos)) {
+          setPedidos(dataPedidos);
+        }
       }
     } catch (e) {
       console.log('Error fetching backend pedidos:', e);
@@ -145,11 +148,6 @@ export default function PedidosAdminPage() {
   useEffect(() => {
     cargarDatos();
 
-    // Polling automático cada 3s para reflejar cambios de estado de Planta en tiempo real sin F5
-    const pollInterval = setInterval(() => {
-      cargarDatos();
-    }, 3000);
-
     const socket = io('http://localhost:3001', {
       transports: ['websocket', 'polling'],
     });
@@ -160,7 +158,6 @@ export default function PedidosAdminPage() {
     socket.on('order:devolucion', () => cargarDatos());
 
     return () => {
-      clearInterval(pollInterval);
       socket.disconnect();
     };
   }, []);
@@ -203,15 +200,21 @@ export default function PedidosAdminPage() {
         headers: authHeader,
       });
 
-      // Redirigir directamente al panel de Control de Producción & QA
-      router.push('/dashboard/produccion-qa');
-    } catch (e) {
-      console.log('Error aprobando pedido:', e);
-      // Fallback local y redirección
+      // Permanecer en la vista actual y notificar
       setPedidos((prev) =>
         prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'APROBADO' } : p))
       );
-      router.push('/dashboard/produccion-qa');
+      setToastMessage(`✅ Orden ${pedido.codigoOrden} aprobada y programada en producción con éxito.`);
+      setTimeout(() => setToastMessage(null), 4000);
+      cargarDatos();
+    } catch (e) {
+      console.log('Error aprobando pedido:', e);
+      // Fallback local sin redirección
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'APROBADO' } : p))
+      );
+      setToastMessage(`✅ Orden ${pedido.codigoOrden} aprobada.`);
+      setTimeout(() => setToastMessage(null), 4000);
     }
   };
 
@@ -261,6 +264,14 @@ export default function PedidosAdminPage() {
 
   return (
     <div className={`space-y-6 font-mono min-h-screen p-2 ${bgScreen}`}>
+      {/* Toast de Notificación Flotante */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 p-4 rounded-xl bg-emerald-600 text-white font-sans text-xs font-bold shadow-2xl flex items-center gap-2 border border-emerald-400 animate-bounce">
+          <CheckCircle2 className="w-5 h-5 text-white" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* ── BARRA SUPERIOR DE ESTADO PLC & PLANTA ── */}
       <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDark ? 'border-[#1A2232]' : 'border-slate-300'}`}>
         <div className="flex items-center gap-3">

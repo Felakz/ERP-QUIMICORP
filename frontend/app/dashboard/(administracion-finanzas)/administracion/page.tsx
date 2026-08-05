@@ -30,16 +30,21 @@ export default function AdministracionPage() {
     fetch('http://localhost:3001/api/v1/pedidos-admin', {
       headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
     })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setPedidosRecientes(data))
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setPedidosRecientes(data);
+        }
+      })
       .catch((e) => console.log('Error fetching admin orders:', e))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     cargarDatos();
-    const interval = setInterval(cargarDatos, 3000);
-    return () => clearInterval(interval);
   }, []);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';

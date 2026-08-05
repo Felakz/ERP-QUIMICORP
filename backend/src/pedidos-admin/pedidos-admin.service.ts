@@ -18,12 +18,13 @@ export class PedidosAdminService {
     const finHoy = new Date();
     finHoy.setHours(23, 59, 59, 999);
 
-    const [pedidosHoyCount, nuevosCount, aprobadosCount, enProduccionCount, agregadosHoy] =
+    const [pedidosHoyCount, nuevosCount, pendienteRevisionCount, aprobadosCount, enProduccionCount, agregadosHoy] =
       await Promise.all([
         db.pedidoComercial.count({
           where: { createdAt: { gte: inicioHoy, lte: finHoy } },
         }),
         db.pedidoComercial.count({ where: { estado: 'NUEVO' } }),
+        db.pedidoComercial.count({ where: { estado: 'PENDIENTE_REVISION' } }),
         db.pedidoComercial.count({ where: { estado: 'APROBADO' } }),
         db.pedidoComercial.count({ where: { estado: 'EN_PRODUCCION' } }),
         db.pedidoComercial.aggregate({
@@ -37,13 +38,14 @@ export class PedidosAdminService {
     return {
       pedidosHoy: pedidosHoyCount || 4,
       nuevos: nuevosCount || 2,
+      pendienteRevision: pendienteRevisionCount || 0,
       aprobados: aprobadosCount || 1,
       enProduccion: enProduccionCount || 1,
       valorDelDia,
     };
   }
 
-  // 1.5 Crear nuevo pedido comercial aprobado desde Administración
+  // 1.5 Crear nuevo pedido comercial registrado en revisión de planta desde Administración y Finanzas / Fórmulas
   async crearPedido(dto: any) {
     const db = this.prisma as any;
     const codigoOrden = dto.code || `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
@@ -63,7 +65,7 @@ export class PedidosAdminService {
         prioridad: dto.prioridad || 'URGENTE',
         montoTotal: parseFloat(dto.precioTotal) || 14717.5,
         fechaPrometida: dto.fechaPrometida ? new Date(dto.fechaPrometida) : new Date(Date.now() + 7 * 86400000),
-        estado: 'NUEVO',
+        estado: 'PENDIENTE_REVISION',
         notasAdmin: JSON.stringify(dto.recetaCalculada || []),
       },
     });
