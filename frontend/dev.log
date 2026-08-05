@@ -29,3 +29,97 @@
  ✓ Compiled /dashboard/biometria in 1073ms (912 modules)
  ○ Compiling /dashboard/kardex ...
  ✓ Compiled /dashboard/etiquetas in 1463ms (937 modules)
+ GET /dashboard/pedidos-admin 200 in 777ms
+ ✓ Compiled in 2.2s (912 modules)
+ ✓ Compiled in 483ms (457 modules)
+ ✓ Compiled in 1604ms (912 modules)
+ ✓ Compiled /dashboard/etiquetas in 406ms (467 modules)
+ GET /dashboard/etiquetas 200 in 693ms
+ ✓ Compiled /dashboard/produccion-qa in 249ms (480 modules)
+ GET /dashboard/formulas 200 in 144ms
+ ✓ Compiled in 861ms (924 modules)
+ ✓ Compiled in 483ms (372 modules)
+ ✓ Compiled in 507ms (372 modules)
+ ○ Compiling /dashboard/administracion ...
+ ✓ Compiled /dashboard/administracion in 774ms (845 modules)
+ ✓ Compiled in 908ms (859 modules)
+ ⨯ Error: Cannot find module './845.js'
+Require stack:
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1517:15)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:55:36
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at Module._load (node:internal/modules/cjs/loader:1294:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1617:12)
+    at mod.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:153:16)
+    at __webpack_require__.f.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:198:28)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:162:22)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\administracion\page.js:1:10308
+    at Object.<anonymous> (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\administracion\page.js:1:10361)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1617:12)
+    at mod.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:153:16)
+    at requirePage (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js:109:84)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js:103:84
+    at async loadComponentsImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js:103:26)
+    at async DevServer.findPageComponentsImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\next-server.js:714:36)
+    at async DevServer.findPageComponents (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\next-dev-server.js:577:20)
+    at async DevServer.renderPageComponent (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\base-server.js:1910:24)
+    at async DevServer.renderToResponseImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\base-server.js:1962:32)
+    at async DevServer.pipeImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\base-server.js:922:25)
+    at async NextNodeServer.handleCatchallRenderRequest (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\next-server.js:272:17)
+    at async DevServer.handleRequestImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\base-server.js:818:17)
+    at async C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\next-dev-server.js:339:20
+    at async Span.traceAsyncFn (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\trace\trace.js:154:20)
+    at async DevServer.handleRequest (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\next-dev-server.js:336:24)
+    at async invokeRender (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-server.js:179:21)
+    at async handleRequest (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-server.js:359:24)
+    at async requestHandlerImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-server.js:383:13)
+    at async Server.requestListener (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\start-server.js:141:13) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\.next\\server\\webpack-runtime.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\.next\\server\\app\\dashboard\\(administracion-finanzas)\\pedidos-admin\\page.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\require.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\load-components.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\build\\utils.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\router-server.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\start-server.js'
+  ],
+  page: '/dashboard/administracion'
+}
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.5s (1075 modules)
+ GET /_next/static/css/app/layout.css?v=1785963601043 404 in 3184ms
+ GET /_next/static/css/app/layout.css?v=1785963604430 404 in 107ms
+ GET /dashboard/administracion 200 in 154ms
+ GET /_next/static/css/app/layout.css?v=1785963605073 404 in 42ms
+ GET /_next/static/chunks/main-app.js?v=1785963605073 404 in 89ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 95ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/administracion/page.js 404 in 61ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 39ms

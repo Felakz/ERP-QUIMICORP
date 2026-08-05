@@ -108,7 +108,7 @@ export default function PedidosAdminPage() {
     try {
       setLoading(true);
       const savedToken = localStorage.getItem('quimicorp_jwt');
-      const authHeader = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
       // KPIs
       const resKpis = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis', {
@@ -166,7 +166,7 @@ export default function PedidosAdminPage() {
   const handleAprobarPedido = async (pedido: PedidoComercialUI) => {
     try {
       const savedToken = localStorage.getItem('quimicorp_jwt');
-      const authHeader = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
       // Registrar el nuevo lote de producción en el flujo de Control de Producción & QA
       const rawCustom = localStorage.getItem('quimicorp_produccion_lotes_custom');
