@@ -55,7 +55,10 @@ export default function InventariosPage() {
   const cargarInventarioReal = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/v1/inventario/dashboard/lista-completa');
+      const savedToken = localStorage.getItem('quimicorp_jwt');
+      const res = await fetch('http://localhost:3001/api/v1/inventario/dashboard/lista-completa', {
+        headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.insumos && Array.isArray(data.insumos)) {

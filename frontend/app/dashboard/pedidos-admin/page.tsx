@@ -106,8 +106,13 @@ export default function PedidosAdminPage() {
   const cargarDatos = async () => {
     try {
       setLoading(true);
+      const savedToken = localStorage.getItem('quimicorp_jwt');
+      const authHeader = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+
       // KPIs
-      const resKpis = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis');
+      const resKpis = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis', {
+        headers: authHeader,
+      });
       if (resKpis.ok) {
         const dataKpis = await resKpis.json();
         setKpis(dataKpis);
@@ -119,7 +124,9 @@ export default function PedidosAdminPage() {
       if (filterEstado !== 'TODOS') params.append('estado', filterEstado);
       if (filterPrioridad !== 'TODAS') params.append('prioridad', filterPrioridad);
 
-      const resPedidos = await fetch(`http://localhost:3001/api/v1/pedidos-admin?${params.toString()}`);
+      const resPedidos = await fetch(`http://localhost:3001/api/v1/pedidos-admin?${params.toString()}`, {
+        headers: authHeader,
+      });
       if (resPedidos.ok) {
         const dataPedidos = await resPedidos.json();
         setPedidos(dataPedidos);
@@ -161,6 +168,9 @@ export default function PedidosAdminPage() {
   // 2. Acciones del Supervisor de Planta
   const handleAprobarPedido = async (pedido: PedidoComercialUI) => {
     try {
+      const savedToken = localStorage.getItem('quimicorp_jwt');
+      const authHeader = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+
       // Registrar el nuevo lote de producción en el flujo de Control de Producción & QA
       const rawCustom = localStorage.getItem('quimicorp_produccion_lotes_custom');
       const prevLotes = rawCustom ? JSON.parse(rawCustom) : [];
@@ -190,6 +200,7 @@ export default function PedidosAdminPage() {
       // Actualizar estado en DB
       await fetch(`http://localhost:3001/api/v1/pedidos-admin/${pedido.id}/aprobar`, {
         method: 'POST',
+        headers: authHeader,
       });
 
       // Redirigir directamente al panel de Control de Producción & QA
@@ -212,9 +223,13 @@ export default function PedidosAdminPage() {
     }
 
     try {
+      const savedToken = localStorage.getItem('quimicorp_jwt');
       await fetch(`http://localhost:3001/api/v1/pedidos-admin/${selectedPedidoDevolucionModal.id}/devolver`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {}),
+        },
         body: JSON.stringify({ motivoDevolucion: motivoDevolucionInput }),
       });
     } catch (e) {

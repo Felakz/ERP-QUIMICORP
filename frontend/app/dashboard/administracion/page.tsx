@@ -26,7 +26,10 @@ export default function AdministracionPage() {
   const [loading, setLoading] = useState(true);
 
   const cargarDatos = () => {
-    fetch('http://localhost:3001/api/v1/pedidos-admin')
+    const savedToken = localStorage.getItem('quimicorp_jwt');
+    fetch('http://localhost:3001/api/v1/pedidos-admin', {
+      headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
+    })
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setPedidosRecientes(data))
       .catch((e) => console.log('Error fetching admin orders:', e))

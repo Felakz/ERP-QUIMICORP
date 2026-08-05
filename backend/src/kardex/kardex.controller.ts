@@ -8,21 +8,28 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
-import { CategoriaKardex } from '@prisma/client';
+import { CategoriaKardex, Role } from '@prisma/client';
 import { KardexService } from './kardex.service';
 import { RegistrarMovimientoDto } from './dto/registrar-movimiento.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('kardex')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class KardexController {
   constructor(private readonly kardexService: KardexService) {}
 
   @Post('movimientos')
+  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES)
   registrarMovimiento(@Body() dto: RegistrarMovimientoDto) {
     return this.kardexService.registrarMovimiento(dto);
   }
 
   @Get('movimientos')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
   listarTodos(
     @Query('take', new DefaultValuePipe(100), ParseIntPipe) take: number,
     @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
@@ -31,6 +38,7 @@ export class KardexController {
   }
 
   @Get('categorizado')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
   listarCategorizado(
     @Query('categoria') categoria?: CategoriaKardex,
     @Query('search') search?: string,
@@ -51,11 +59,8 @@ export class KardexController {
     });
   }
 
-  /**
-   * GET /kardex/agrupado?categoria=PRODUCTO_TERMINADO&search=...
-   * Devuelve los movimientos agrupados por producto, igual que el Excel.
-   */
   @Get('agrupado')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
   listarAgrupado(
     @Query('categoria') categoria?: CategoriaKardex,
     @Query('search') search?: string,
@@ -73,6 +78,7 @@ export class KardexController {
   }
 
   @Get('insumo/:insumoId')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
   listarPorInsumo(
     @Param('insumoId', ParseUUIDPipe) insumoId: string,
     @Query('take', new DefaultValuePipe(50), ParseIntPipe) take: number,
@@ -82,6 +88,7 @@ export class KardexController {
   }
 
   @Get('bom')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.DISENO_MULTIMEDIA)
   obtenerBom(@Query('nombre') nombre: string) {
     return this.kardexService.obtenerBomProducto(nombre);
   }

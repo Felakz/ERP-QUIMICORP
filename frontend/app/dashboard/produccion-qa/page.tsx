@@ -95,7 +95,10 @@ export default function ProduccionQAPage() {
 
   const cargarProgramacionDiaria = async (fecha: string) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/v1/produccion/ordenes/programacion-diaria?fecha=${fecha}`);
+      const savedToken = localStorage.getItem('quimicorp_jwt');
+      const res = await fetch(`http://localhost:3001/api/v1/produccion/ordenes/programacion-diaria?fecha=${fecha}`, {
+        headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setProgramacionData(data);

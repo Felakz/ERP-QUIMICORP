@@ -1,25 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth, UserRole } from '@/lib/AuthContext';
-import { Lock, Mail, Shield, Check, Sparkles, Building2, ChevronRight } from 'lucide-react';
-
-const ROLE_CHIPS: { role: UserRole; label: string; icon: string; color: string }[] = [
-  { role: 'PRODUCCION_ALMACEN', label: 'Producción & Almacén', icon: '🏭', color: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' },
-  { role: 'GERENCIA', label: 'Gerencia', icon: '📊', color: 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10' },
-  { role: 'ADMINISTRACION', label: 'Administración', icon: '📝', color: 'border-blue-500/40 text-blue-400 bg-blue-500/10' },
-  { role: 'FINANZAS', label: 'Finanzas', icon: '💰', color: 'border-purple-500/40 text-purple-400 bg-purple-500/10' },
-  { role: 'VENTAS_ATENCION_DIGITAL', label: 'Ventas & Digital', icon: '🛒', color: 'border-pink-500/40 text-pink-400 bg-pink-500/10' },
-  { role: 'ECOMMERCE_MARKETING', label: 'Ecommerce', icon: '🌐', color: 'border-indigo-500/40 text-indigo-400 bg-indigo-500/10' },
-  { role: 'COMPRAS_PROVEEDORES', label: 'Compras', icon: '📦', color: 'border-amber-500/40 text-amber-400 bg-amber-500/10' },
-  { role: 'RECURSOS_HUMANOS', label: 'Recursos Humanos', icon: '👥', color: 'border-rose-500/40 text-rose-400 bg-rose-500/10' },
-  { role: 'SISTEMAS_TI', label: 'Sistemas TI', icon: '🛡️', color: 'border-teal-500/40 text-teal-400 bg-teal-500/10' },
-  { role: 'DISENO_MULTIMEDIA', label: 'Diseño', icon: '🎨', color: 'border-orange-500/40 text-orange-400 bg-orange-500/10' },
-  { role: 'ARCHIVO_HISTORICO', label: 'Histórico', icon: '📜', color: 'border-slate-500/40 text-slate-400 bg-slate-500/10' },
-];
+import { useAuth } from '@/lib/AuthContext';
+import { Lock, Mail, ChevronRight } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login, setDevRole } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('produccion@quimicorp.pe');
   const [password, setPassword] = useState('Quimicorp2026!');
   const [loading, setLoading] = useState(false);
@@ -88,7 +74,7 @@ export default function LoginPage() {
             </div>
             <h2 className="text-xl font-bold font-sans text-white">Inicio de Sesión Unificado</h2>
             <p className="text-xs font-sans text-slate-400">
-              Ingresa tus credenciales o selecciona un rol de prueba rápida
+              Ingresa tus credenciales institucionales de acceso
             </p>
           </div>
 
@@ -149,29 +135,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Dev Mode Role Chips Selector */}
-          <div className="pt-4 border-t border-slate-800/60 space-y-3">
-            <div className="flex items-center justify-between text-[10px] font-sans">
-              <span className="text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-[#00F2C3]" />
-                <span>Pruebas Rápida por Rol (Dev Mode):</span>
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-              {ROLE_CHIPS.map((c) => (
-                <button
-                  key={c.role}
-                  onClick={() => setDevRole(c.role)}
-                  className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold font-sans transition-all flex items-center gap-1 hover:scale-105 ${c.color}`}
-                >
-                  <span>{c.icon}</span>
-                  <span>{c.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 

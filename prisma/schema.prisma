@@ -130,6 +130,8 @@ model User {
   nombre    String
   password  String
   role      Role     @default(PRODUCCION_ALMACEN)
+  rolId     String?
+  rol       Rol?     @relation("UserRol", fields: [rolId], references: [id])
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -342,10 +344,11 @@ model KardexMovimiento {
 // ============================================================================
 
 model Rol {
-  id       String       @id @default(uuid())
-  nombre   String       @unique
-  permisos RolPermiso[]
-  usuarios Usuario[]
+  id        String       @id @default(uuid())
+  nombre    String       @unique
+  permisos  RolPermiso[]
+  usuarios  Usuario[]
+  usersUser User[]       @relation("UserRol")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

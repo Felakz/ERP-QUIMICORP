@@ -94,6 +94,7 @@ export default function FormulasPage() {
   const handleEnviarABandejaPlanta = async () => {
     setIsSubmitting(true);
     try {
+      const savedToken = localStorage.getItem('quimicorp_jwt');
       const payload = {
         code: `#OP${Math.floor(100 + Math.random() * 900)}_001`,
         cliente: razonSocial,
@@ -113,7 +114,10 @@ export default function FormulasPage() {
 
       const res = await fetch('http://localhost:3001/api/v1/pedidos-admin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(savedToken ? { Authorization: `Bearer ${savedToken}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
 
@@ -124,6 +128,9 @@ export default function FormulasPage() {
         setTimeout(() => {
           router.push('/dashboard/pedidos-admin');
         }, 1500);
+      } else {
+        const errData = await res.json();
+        alert(`Error al enviar pedido a la bandeja: ${errData.message || 'Sin autorización'}`);
       }
     } catch (e) {
       console.error('Error enviando pedido a planta:', e);

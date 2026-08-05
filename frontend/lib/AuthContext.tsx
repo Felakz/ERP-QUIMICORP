@@ -29,7 +29,7 @@ interface AuthContextType {
   loading: boolean;
   login: (token: string, user: UserSession) => void;
   logout: () => void;
-  setDevRole: (role: UserRole) => void;
+  setDevRole: (role: UserRole) => Promise<void>;
 }
 
 const ROLE_HOME_MAP: Record<UserRole, string> = {
@@ -46,13 +46,27 @@ const ROLE_HOME_MAP: Record<UserRole, string> = {
   ARCHIVO_HISTORICO: '/dashboard/historico',
 };
 
+const ROLE_EMAIL_MAP: Record<UserRole, string> = {
+  GERENCIA: 'gerencia@quimicorp.pe',
+  ADMINISTRACION: 'administracion@quimicorp.pe',
+  FINANZAS: 'finanzas@quimicorp.pe',
+  VENTAS_ATENCION_DIGITAL: 'ventas@quimicorp.pe',
+  ECOMMERCE_MARKETING: 'ecommerce@quimicorp.pe',
+  PRODUCCION_ALMACEN: 'produccion@quimicorp.pe',
+  COMPRAS_PROVEEDORES: 'compras@quimicorp.pe',
+  RECURSOS_HUMANOS: 'rrhh@quimicorp.pe',
+  SISTEMAS_TI: 'sistemas@quimicorp.pe',
+  DISENO_MULTIMEDIA: 'diseno@quimicorp.pe',
+  ARCHIVO_HISTORICO: 'historico@quimicorp.pe',
+};
+
 const AuthContext = createContext<AuthContextType>({
   user: null,
   token: null,
   loading: true,
   login: () => {},
   logout: () => {},
-  setDevRole: () => {},
+  setDevRole: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -60,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     const savedToken = localStorage.getItem('quimicorp_jwt');
@@ -68,25 +81,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (savedToken && savedUser) {
       try {
+        const parsedUser = JSON.parse(savedUser);
         setToken(savedToken);
-        setUser(JSON.parse(savedUser));
+        setUser(parsedUser);
         document.cookie = `quimicorp_jwt=${savedToken}; path=/; max-age=86400; SameSite=Lax`;
-        document.cookie = `quimicorp_role=${JSON.parse(savedUser).role}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `quimicorp_role=${parsedUser.role}; path=/; max-age=86400; SameSite=Lax`;
       } catch (e) {
-        console.error('Error parsing stored user:', e);
+        console.error('Error parsing stored user session:', e);
+        setUser(null);
+        setToken(null);
       }
     } else {
-      // Default dev fallback (Producción & Almacén)
-      const defaultUser: UserSession = {
-        id: 'dev-user-01',
-        email: 'produccion@quimicorp.pe',
-        nombre: 'Ing. Mateo Rivas (Jefe Planta)',
-        role: 'PRODUCCION_ALMACEN',
-      };
-      setUser(defaultUser);
-      setToken('dev-token-produccion');
-      document.cookie = `quimicorp_jwt=dev-token; path=/; max-age=86400; SameSite=Lax`;
-      document.cookie = `quimicorp_role=PRODUCCION_ALMACEN; path=/; max-age=86400; SameSite=Lax`;
+      setUser(null);
+      setToken(null);
+      document.cookie = 'quimicorp_jwt=; path=/; max-age=0';
+      document.cookie = 'quimicorp_role=; path=/; max-age=0';
     }
     setLoading(false);
   }, []);
@@ -113,30 +122,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
-  const setDevRole = (newRole: UserRole) => {
-    if (!user) return;
-    const roleNames: Record<UserRole, string> = {
-      GERENCIA: 'Carlos Mendoza (Gerente)',
-      ADMINISTRACION: 'Ana Torres (Admin)',
-      FINANZAS: 'Roberto Silva (Finanzas)',
-      VENTAS_ATENCION_DIGITAL: 'Elena Gómez (Ventas)',
-      ECOMMERCE_MARKETING: 'Diego Castro (Ecommerce)',
-      PRODUCCION_ALMACEN: 'Ing. Mateo Rivas (Jefe Planta)',
-      COMPRAS_PROVEEDORES: 'Laura Paredes (Compras)',
-      RECURSOS_HUMANOS: 'Sofia Morales (RRHH)',
-      SISTEMAS_TI: 'Alex Salazar (Sistemas TI)',
-      DISENO_MULTIMEDIA: 'Valeria Rios (Diseño)',
-      ARCHIVO_HISTORICO: 'Mario Vega (Archivo)',
-    };
+  const setDevRole = async (newRole: UserRole) => {
+    const targetEmail = ROLE_EMAIL_MAP[newRole];
+    if (!targetEmail) return;
 
-    const updatedUser: UserSession = {
-      ...user,
-      role: newRole,
-      nombre: roleNames[newRole] || user.nombre,
-      email: `${newRole.toLowerCase()}@quimicorp.pe`,
-    };
+    try {
+      const res = await fetch('http://localhost:3001/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail, password: 'Quimicorp2026!' }),
+      });
 
-    login('dev-token-' + newRole.toLowerCase(), updatedUser);
+      if (!res.ok) {
+        throw new Error('Error al autenticar en Dev Mode contra BD');
+      }
+
+      const { token: realToken, user: realUser } = await res.json();
+      login(realToken, realUser);
+    } catch (e) {
+      console.error('Error switching dev role via DB auth:', e);
+    }
   };
 
   return (
