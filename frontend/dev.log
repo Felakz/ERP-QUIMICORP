@@ -123,3 +123,632 @@ Require stack:
  GET /_next/static/chunks/app-pages-internals.js 404 in 95ms
  GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/administracion/page.js 404 in 61ms
  GET /_next/static/chunks/app/dashboard/layout.js 404 in 39ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, lstat 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks'
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/ms' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\ms.js', but to 'Error: Can't resolve './vendor-chunks/ms' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/ms (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\ms.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/@socket.io' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\@socket.io.js', but to 'Error: Can't resolve './vendor-chunks/@socket.io' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/@socket.io (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\@socket.io.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/debug' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\debug.js', but to 'Error: Can't resolve './vendor-chunks/debug' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/debug (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\debug.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/xmlhttprequest-ssl' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\xmlhttprequest-ssl.js', but to 'Error: Can't resolve './vendor-chunks/xmlhttprequest-ssl' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/xmlhttprequest-ssl (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\xmlhttprequest-ssl.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/engine.io-parser' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\engine.io-parser.js', but to 'Error: Can't resolve './vendor-chunks/engine.io-parser' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/engine.io-parser (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\engine.io-parser.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving './vendor-chunks/socket.io-parser' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\socket.io-parser.js', but to 'Error: Can't resolve './vendor-chunks/socket.io-parser' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ./vendor-chunks/socket.io-parser (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\vendor-chunks\socket.io-parser.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(administracion-finanzas)\pedidos-admin\page.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+ GET /dashboard/pedidos-admin 200 in 120ms
+ GET /_next/static/chunks/webpack.js?v=1785964887241 404 in 72ms
+ GET /_next/static/css/app/layout.css?v=1785964887241 404 in 92ms
+ GET /_next/static/chunks/main-app.js?v=1785964887241 404 in 107ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 108ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/pedidos-admin/page.js 404 in 109ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 103ms
+ GET /_next/static/chunks/app/layout.js 404 in 99ms
+ GET /dashboard/pedidos-admin 200 in 51ms
+ GET /_next/static/css/app/layout.css?v=1785964888238 404 in 53ms
+ GET /_next/static/chunks/webpack.js?v=1785964888238 404 in 65ms
+ GET /_next/static/chunks/main-app.js?v=1785964888238 404 in 80ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 72ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/pedidos-admin/page.js 404 in 79ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 81ms
+ GET /_next/static/chunks/app/layout.js 404 in 45ms
+ GET /dashboard/pedidos-admin 200 in 76ms
+ GET /_next/static/css/app/layout.css?v=1785964892667 404 in 79ms
+ GET /_next/static/chunks/webpack.js?v=1785964892667 404 in 113ms
+ GET /_next/static/chunks/main-app.js?v=1785964892667 404 in 121ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 114ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 107ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/pedidos-admin/page.js 404 in 107ms
+ GET /_next/static/chunks/app/layout.js 404 in 77ms
+ GET /dashboard/pedidos-admin 200 in 125ms
+ GET /_next/static/css/app/layout.css?v=1785964893604 404 in 194ms
+ GET /_next/static/chunks/webpack.js?v=1785964893604 404 in 214ms
+ GET /_next/static/chunks/main-app.js?v=1785964893604 404 in 219ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 203ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/pedidos-admin/page.js 404 in 183ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 168ms
+ GET /_next/static/chunks/app/layout.js 404 in 44ms
+ GET /dashboard/pedidos-admin 200 in 66ms
+ GET /_next/static/css/app/layout.css?v=1785964894752 404 in 78ms
+ GET /_next/static/chunks/webpack.js?v=1785964894752 404 in 120ms
+ GET /_next/static/chunks/main-app.js?v=1785964894752 404 in 105ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 110ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/pedidos-admin/page.js 404 in 103ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 103ms
+ GET /_next/static/chunks/app/layout.js 404 in 69ms
+ GET /dashboard/pedidos-admin 200 in 75ms
+ GET /_next/static/css/app/layout.css?v=1785964897139 404 in 94ms
+ GET /_next/static/chunks/webpack.js?v=1785964897139 404 in 128ms
+ GET /_next/static/chunks/main-app.js?v=1785964897139 404 in 128ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 107ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/pedidos-admin/page.js 404 in 75ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 72ms
+ GET /_next/static/chunks/app/layout.js 404 in 41ms
+ GET /dashboard/administracion 404 in 38ms
+ GET /dashboard/administracion 404 in 40ms
+ GET /dashboard/administracion 404 in 26ms
+ GET /dashboard/administracion 404 in 22ms
+ GET /dashboard/administracion 404 in 24ms
+ GET /dashboard/administracion 404 in 21ms
+ GET /dashboard/administracion 404 in 16ms
+ GET /dashboard/administracion 200 in 234ms
+ GET /dashboard/administracion 200 in 389ms
+ GET /_next/static/css/app/layout.css?v=1785965404854 404 in 273ms
+ GET /_next/static/chunks/main-app.js?v=1785965404854 404 in 279ms
+ GET /_next/static/chunks/webpack.js?v=1785965404854 404 in 283ms
+ GET /_next/static/chunks/app/dashboard/(administracion-finanzas)/administracion/page.js 404 in 318ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 324ms
+ GET /_next/static/chunks/app/dashboard/layout.js 404 in 162ms
+ GET /_next/static/chunks/app/layout.js 404 in 62ms
+ ○ Compiling /dashboard/etiquetas ...
+ ✓ Compiled /dashboard/etiquetas in 1063ms (1097 modules)
+ GET /dashboard/etiquetas 200 in 1472ms
+ ✓ Compiled in 1195ms (615 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, lstat 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server'
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/dashboard/(produccion-almacen)/etiquetas/page' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(produccion-almacen)\etiquetas\page.js', but to 'Error: Can't resolve '../../../../.next/server/app/dashboard/(produccion-almacen)/etiquetas/page' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/dashboard/(produccion-almacen)/etiquetas/page (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\(produccion-almacen)\etiquetas\page.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/dashboard/pedidos-admin/page' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin\page.js', but to 'Error: Can't resolve '../../../../.next/server/app/dashboard/pedidos-admin/page' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/dashboard/pedidos-admin/page (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin\page.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/dashboard/administracion/page' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\administracion\page.js', but to 'Error: Can't resolve '../../../../.next/server/app/dashboard/administracion/page' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/dashboard/administracion/page (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\administracion\page.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+ GET /dashboard/etiquetas 404 in 21ms
+ GET /dashboard/etiquetas 404 in 28ms
+ GET /dashboard/etiquetas 404 in 13ms
+ GET /dashboard/etiquetas 404 in 18ms
+ GET /dashboard/etiquetas 404 in 19ms
+ GET /dashboard/etiquetas 404 in 20ms
+ GET /dashboard/etiquetas 404 in 19ms
+ ○ Compiling / ...
+ ✓ Compiled / in 612ms (504 modules)
+ GET / 404 in 935ms
+ GET /dashboard/etiquetas 404 in 732ms
+ GET / 404 in 30ms
+ GET / 404 in 13ms
+ GET / 404 in 35ms
+ GET / 404 in 22ms
+ GET / 404 in 17ms
+ GET / 404 in 17ms
+ GET / 404 in 25ms
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "1467246152"
+ ⨯ Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\app\providers.tsx#Providers" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "930032003"
+ ⨯     at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "2853822985"
+ ⨯     at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "2942460265"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\error-boundary.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Object.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "3974934244"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "1467246152"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "1467246152"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\error-boundary.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Object.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "3974934244"
+Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7) {
+  digest: '1467246152'
+}
+ ⨯ Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7) {
+  digest: '1467246152',
+  page: '/'
+}
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\page.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1517:15)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:55:36
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at Module._load (node:internal/modules/cjs/loader:1294:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1617:12)
+    at mod.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:153:16)
+    at __webpack_require__.f.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:198:28)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:162:22)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\pages\_document.js:1:335
+    at Object.<anonymous> (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\pages\_document.js:1:376)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1617:12)
+    at mod.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:153:16)
+    at requirePage (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js:109:84)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\.next\\server\\webpack-runtime.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\.next\\server\\app\\page.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\require.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\load-components.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\build\\utils.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\router-server.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\start-server.js'
+  ]
+}
+ GET / 500 in 2996ms
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "1467246152"
+ ⨯ Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\app\providers.tsx#Providers" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "930032003"
+ ⨯     at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "2853822985"
+ ⨯     at stringify (<anonymous>)
+    at stringify (<anonymous>)
+digest: "2942460265"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\error-boundary.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Object.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "3974934244"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "1467246152"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "1467246152"
+ ⨯ Internal error: Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\error-boundary.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Object.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7)
+digest: "3974934244"
+Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7) {
+  digest: '1467246152'
+}
+ ⨯ Error: Could not find the module "C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\client\components\app-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268131
+    at eD (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:268326)
+    at eL (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:273210)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267040
+    at Array.toJSON (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:267504)
+    at stringify (<anonymous>)
+    at eJ (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:275872)
+    at eV (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:276390)
+    at Timeout._onTimeout (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\next-server\app-page.runtime.dev.js:35:266177)
+    at listOnTimeout (node:internal/timers:635:17)
+    at process.processTimers (node:internal/timers:571:7) {
+  digest: '1467246152',
+  page: '/'
+}
+ ⨯ Error: Cannot find module './682.js'
+Require stack:
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\page.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\hot-middleware.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\dev\hot-reloader-webpack.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\router-server.js
+- C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\lib\start-server.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1517:15)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:55:36
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at Module._load (node:internal/modules/cjs/loader:1294:5)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1617:12)
+    at mod.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:153:16)
+    at __webpack_require__.f.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:198:28)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:111:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:110:67)
+    at Array.map (<anonymous>)
+    at __webpack_require__.X (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\webpack-runtime.js:162:22)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\pages\_document.js:1:335
+    at Object.<anonymous> (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\pages\_document.js:1:376)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1617:12)
+    at mod.require (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:153:16)
+    at requirePage (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js:109:84)
+    at C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js:72:65
+    at async Promise.all (index 0)
+    at async loadComponentsImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js:71:33)
+    at async DevServer.findPageComponentsImpl (C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\next-server.js:714:36) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\.next\\server\\webpack-runtime.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\.next\\server\\app\\page.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\require.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\load-components.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\build\\utils.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\dev\\hot-middleware.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\dev\\hot-reloader-webpack.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\router-utils\\setup-dev-bundler.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\router-server.js',
+    'C:\\Users\\Lenovo\\Documents\\GitHub\\ERP-QUIMICORP\\frontend\\node_modules\\next\\dist\\server\\lib\\start-server.js'
+  ]
+}
+ GET / 500 in 91ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, lstat 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin'
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/dashboard/pedidos-admin/page' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin\page.js', but to 'Error: Can't resolve '../../../../.next/server/app/dashboard/pedidos-admin/page' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/dashboard/pedidos-admin/page (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin\page.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack-config.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack-config.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/dashboard/administracion/page' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\administracion\page.js', but to 'Error: Can't resolve '../../../../.next/server/app/dashboard/administracion/page' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/dashboard/administracion/page (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\administracion\page.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack-config.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack-config.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-swc-loader.js
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, lstat 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin'
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/dashboard/pedidos-admin/page' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin\page.js', but to 'Error: Can't resolve '../../../../.next/server/app/dashboard/pedidos-admin/page' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/dashboard/pedidos-admin/page (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\pedidos-admin\page.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\swc\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\swc\index.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-barrel-loader.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-barrel-loader.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-barrel-loader.js
+<w> [webpack.cache.PackFileCacheStrategy/webpack.FileSystemInfo] Resolving '../../../../.next/server/app/dashboard/administracion/page' in C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server for build dependencies doesn't lead to expected result 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\administracion\page.js', but to 'Error: Can't resolve '../../../../.next/server/app/dashboard/administracion/page' in 'C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server'' instead. Resolving dependencies are ignored for this path.
+<w>  at resolve commonjs file ../../../../.next/server/app/dashboard/administracion/page (expected C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\.next\server\app\dashboard\administracion\page.js)
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\require.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\server\load-components.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\utils.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-route-loader\index.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\loader-runner\LoaderRunner.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\bundle5.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\compiled\webpack\webpack.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\plugins\define-env-plugin.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\swc\index.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\swc\index.js
+<w>  at file dependencies C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-barrel-loader.js
+<w>  at file C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-barrel-loader.js
+<w>  at resolve commonjs C:\Users\Lenovo\Documents\GitHub\ERP-QUIMICORP\frontend\node_modules\next\dist\build\webpack\loaders\next-barrel-loader.js
