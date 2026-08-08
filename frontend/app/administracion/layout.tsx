@@ -3,40 +3,34 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Inbox,
-  Beaker,
-  FileText,
-  DollarSign,
-  TrendingUp,
-  LogOut,
-  Sun,
-  Moon,
-  Receipt,
-  Users,
-} from 'lucide-react';
+import { LogOut, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
-
-const ADMIN_SECTIONS = [
-  {
-    title: 'GESTIÓN COMERCIAL & FINANZAS',
-    items: [
-      { href: '/administracion/dashboard', label: 'Dashboard Comercial', icon: LayoutDashboard },
-      { href: '/administracion/pedidos', label: 'Pedidos Comerciales', icon: Inbox, badge: '3' },
-      { href: '/administracion/formulas', label: 'Catálogo de Fórmulas & Precios', icon: Beaker },
-    ],
-  },
-];
+import { adminSidebarItems } from '@/components/sidebar';
 
 export default function AdministracionLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { logout } = useAuth();
   const [timeString, setTimeString] = useState('');
+  const [pedidoCount, setPedidoCount] = useState(0);
 
   const isDark = theme === 'dark';
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis');
+        if (res.ok) {
+          const data = await res.json();
+          setPedidoCount(data.pedidosPendientes || 0);
+        }
+      } catch {}
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -91,19 +85,22 @@ export default function AdministracionLayout({ children }: { children: React.Rea
 
           {/* Menú de Admin */}
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 font-sans">
-            {ADMIN_SECTIONS.map((section) => (
-              <div key={section.title} className="space-y-1">
+            {adminSidebarItems.map((section) => (
+              <div key={section.category} className="space-y-1">
                 <p
                   className={`px-3 text-[10px] font-bold tracking-widest uppercase mb-1.5 ${
                     isDark ? 'text-slate-500' : 'text-slate-400'
                   }`}
                 >
-                  {section.title}
+                  {section.category}
                 </p>
                 <div className="space-y-0.5">
                   {section.items.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
+                    const isPedidosComerciales = item.href === '/administracion/pedidos';
+                    const hasBadge = isPedidosComerciales ? pedidoCount > 0 : !!item.badge;
+                    const badgeDisplay = isPedidosComerciales ? pedidoCount : item.badge;
 
                     return (
                       <Link
@@ -131,9 +128,9 @@ export default function AdministracionLayout({ children }: { children: React.Rea
                           />
                           <span className="truncate">{item.label}</span>
                         </div>
-                        {item.badge && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-white shadow-sm">
-                            {item.badge}
+                        {hasBadge && (
+                          <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-white shadow-sm">
+                            {badgeDisplay}
                           </span>
                         )}
                       </Link>
@@ -199,7 +196,17 @@ export default function AdministracionLayout({ children }: { children: React.Rea
               {pathname.includes('pedidos')
                 ? 'Pedidos Comerciales & Facturación'
                 : pathname.includes('formulas')
-                ? 'Catálogo de Fórmulas & Precios'
+                ? 'Catálogo & Cotizador'
+                : pathname.includes('clientes')
+                ? 'Cartera de Clientes'
+                : pathname.includes('facturacion')
+                ? 'Documentos & Facturas'
+                : pathname.includes('cobranzas')
+                ? 'Cuentas por Cobrar'
+                : pathname.includes('inventario')
+                ? 'Stock Comercial'
+                : pathname.includes('alertas-stock')
+                ? 'Alertas de Materia Prima'
                 : 'Dashboard Comercial'}
             </span>
           </div>
