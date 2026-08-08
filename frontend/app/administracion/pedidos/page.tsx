@@ -204,7 +204,7 @@ export default function AdministracionPedidosComercialesPage() {
       {/* Banner Principal */}
       <div className={`rounded-2xl p-5 border flex flex-wrap items-center justify-between gap-4 transition-all shadow-sm ${cardBg}`}>
         <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400">
+          <div className={`p-3 rounded-2xl border ${isDark ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
             <Inbox className="w-6 h-6" />
           </div>
           <div>
@@ -212,11 +212,13 @@ export default function AdministracionPedidosComercialesPage() {
               <h1 className={`text-lg font-black font-sans tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 Creación & Gestión de Pedidos Comerciales
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold font-mono bg-blue-500/10 border border-blue-500/30 text-blue-400 uppercase">
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold font-mono uppercase ${
+                isDark ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400' : 'bg-blue-100 border border-blue-300 text-blue-800'
+              }`}>
                 PORTAL ADMINISTRACIÓN
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-sans mt-0.5">
+            <p className={`text-xs font-sans mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               Crea nuevas órdenes de venta, calcula precios con IGV y envíalas directamente a los reactores de Planta.
             </p>
           </div>
@@ -226,16 +228,16 @@ export default function AdministracionPedidosComercialesPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Formulario de Emisión de Pedido Comercial */}
         <div className={`lg:col-span-5 rounded-2xl p-5 border space-y-4 shadow-sm ${cardBg}`}>
-          <div className="flex items-center gap-2 border-b pb-3 border-slate-800/40">
-            <Plus className="w-4 h-4 text-blue-400" />
-            <h2 className="text-xs font-bold font-sans uppercase tracking-wider text-slate-200">
+          <div className={`flex items-center gap-2 border-b pb-3 ${isDark ? 'border-slate-800/60' : 'border-slate-100'}`}>
+            <Plus className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-700'}`} />
+            <h2 className={`text-xs font-bold font-sans uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
               Formulario de Pedido Comercial
             </h2>
           </div>
 
           <form onSubmit={handleCrearPedido} className="space-y-3.5 text-xs font-sans">
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+              <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                 Cliente / Razón Social
               </label>
               <input
@@ -244,13 +246,13 @@ export default function AdministracionPedidosComercialesPage() {
                 value={cliente}
                 onChange={(e) => setCliente(e.target.value)}
                 placeholder="Nombre de la empresa o cliente"
-                className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-all ${inputBg}`}
+                className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-all font-medium ${inputBg}`}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">RUC</label>
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>RUC</label>
                 <input
                   type="text"
                   required
@@ -261,7 +263,7 @@ export default function AdministracionPedidosComercialesPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Teléfono</label>
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Teléfono</label>
                 <input
                   type="text"
                   value={telefono}
@@ -272,7 +274,7 @@ export default function AdministracionPedidosComercialesPage() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+              <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                 Dirección de Entrega
               </label>
               <input
@@ -284,7 +286,7 @@ export default function AdministracionPedidosComercialesPage() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+              <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                 Producto / Fórmula Maestra
               </label>
               <select
@@ -293,7 +295,7 @@ export default function AdministracionPedidosComercialesPage() {
                 className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none font-bold ${inputBg}`}
               >
                 {FORMULAS_DISPONIBLES.map((f) => (
-                  <option key={f.id} value={f.nombre} className="bg-[#151D2A] text-slate-200">
+                  <option key={f.id} value={f.nombre} className={isDark ? 'bg-[#151D2A] text-slate-200' : 'bg-white text-slate-900'}>
                     {f.nombre} ({f.unidad}) - S/ {f.precioSugerido.toFixed(2)}
                   </option>
                 ))}
@@ -302,7 +304,7 @@ export default function AdministracionPedidosComercialesPage() {
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                   Cantidad Solicitada
                 </label>
                 <input
@@ -316,7 +318,7 @@ export default function AdministracionPedidosComercialesPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                   Precio Unitario (S/)
                 </label>
                 <input
@@ -331,29 +333,31 @@ export default function AdministracionPedidosComercialesPage() {
             </div>
 
             {/* Total Resumen */}
-            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-blue-400">Total Facturado:</span>
-              <span className="text-base font-black text-blue-400 font-mono">
+            <div className={`p-3.5 rounded-xl border flex items-center justify-between shadow-sm ${
+              isDark ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' : 'bg-blue-50 border-blue-200 text-blue-900'
+            }`}>
+              <span className={`text-[10px] uppercase font-bold ${isDark ? 'text-blue-400' : 'text-blue-800'}`}>Total Facturado:</span>
+              <span className={`text-base font-black font-mono ${isDark ? 'text-blue-400' : 'text-blue-900'}`}>
                 S/ {totalCalculado.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Prioridad</label>
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Prioridad</label>
                 <select
                   value={prioridad}
                   onChange={(e) => setPrioridad(e.target.value as any)}
-                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${inputBg}`}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none font-bold ${inputBg}`}
                 >
-                  <option value="URGENTE" className="bg-[#151D2A]">URGENTE</option>
-                  <option value="NORMAL" className="bg-[#151D2A]">NORMAL</option>
-                  <option value="PROGRAMADO" className="bg-[#151D2A]">PROGRAMADO</option>
+                  <option value="URGENTE" className={isDark ? 'bg-[#151D2A] text-slate-200' : 'bg-white text-slate-900'}>URGENTE</option>
+                  <option value="NORMAL" className={isDark ? 'bg-[#151D2A] text-slate-200' : 'bg-white text-slate-900'}>NORMAL</option>
+                  <option value="PROGRAMADO" className={isDark ? 'bg-[#151D2A] text-slate-200' : 'bg-white text-slate-900'}>PROGRAMADO</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
                   Fecha Prometida
                 </label>
                 <input
@@ -378,17 +382,21 @@ export default function AdministracionPedidosComercialesPage() {
 
         {/* Tabla de Pedidos Registrados en Administración */}
         <div className={`lg:col-span-7 rounded-2xl p-5 border space-y-4 shadow-sm ${cardBg}`}>
-          <div className="flex items-center justify-between border-b pb-3 border-slate-800/40">
-            <h2 className="text-xs font-bold font-sans uppercase tracking-wider text-slate-200">
+          <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800/60' : 'border-slate-100'}`}>
+            <h2 className={`text-xs font-bold font-sans uppercase tracking-wider ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
               Pedidos Comerciales Emitidos ({pedidos.length})
             </h2>
-            <span className="text-[10px] text-slate-400 font-mono">Sincronizado con Base de Datos</span>
+            <span className={`text-[10px] font-mono font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Sincronizado con Base de Datos
+            </span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-800/40 text-[10px] uppercase text-slate-400">
+                <tr className={`border-b text-[10px] uppercase font-bold ${
+                  isDark ? 'border-slate-800/60 text-slate-400' : 'border-slate-200 text-slate-700 bg-slate-50'
+                }`}>
                   <th className="py-2.5 px-2">CÓDIGO</th>
                   <th className="py-2.5 px-2">CLIENTE</th>
                   <th className="py-2.5 px-2">PRODUCTO</th>
@@ -397,20 +405,38 @@ export default function AdministracionPedidosComercialesPage() {
                   <th className="py-2.5 px-2 text-center">ESTADO PLANTA</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/40 font-mono text-[11px]">
+              <tbody className={`divide-y font-mono text-[11px] ${
+                isDark ? 'divide-slate-800/60' : 'divide-slate-100'
+              }`}>
                 {pedidos.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-800/20">
-                    <td className="py-3 px-2 font-bold text-blue-400">{p.codigoOrden}</td>
-                    <td className="py-3 px-2 font-sans font-medium text-slate-200">{p.cliente}</td>
-                    <td className="py-3 px-2 text-slate-300">{p.producto}</td>
-                    <td className="py-3 px-2 text-right font-bold text-cyan-400">
+                  <tr key={p.id} className={`transition-colors ${
+                    isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
+                  }`}>
+                    <td className={`py-3 px-2 font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                      {p.codigoOrden}
+                    </td>
+                    <td className={`py-3 px-2 font-sans font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                      {p.cliente}
+                    </td>
+                    <td className={`py-3 px-2 font-sans ${isDark ? 'text-slate-300' : 'text-slate-900 font-medium'}`}>
+                      {p.producto}
+                    </td>
+                    <td className={`py-3 px-2 text-right font-bold ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
                       {p.cantidad.toLocaleString()} {p.unidad}
                     </td>
-                    <td className="py-3 px-2 text-right font-bold text-emerald-400">
+                    <td className={`py-3 px-2 text-right font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                       S/ {p.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-3 px-2 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                        p.estado === 'APROBADO'
+                          ? isDark
+                            ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                            : 'bg-emerald-100 border border-emerald-300 text-emerald-800 font-black'
+                          : isDark
+                          ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
+                          : 'bg-blue-100 border border-blue-300 text-blue-800 font-black'
+                      }`}>
                         {p.estado}
                       </span>
                     </td>

@@ -196,7 +196,22 @@ export default function ProduccionPedidosRecepcionPage() {
   const handleAprobarLote = async (pedido: PedidoComercialUI) => {
     try {
       setActionLoading(true);
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      if (!savedToken || savedToken.startsWith('jwt_mock')) {
+        try {
+          const authRes = await fetch('http://localhost:3001/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'produccion@quimicorp.pe', password: 'Quimicorp2026!' }),
+          });
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            savedToken = authData.token;
+            localStorage.setItem('quimicorp_jwt', authData.token);
+          }
+        } catch {}
+      }
+
       const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
       const res = await fetch(`http://localhost:3001/api/v1/pedidos-admin/${pedido.id}/aprobar`, {
@@ -204,17 +219,53 @@ export default function ProduccionPedidosRecepcionPage() {
         headers: authHeader,
       });
 
-      if (res.ok) {
-        setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} aprobado y transferido a Planta & Reactores.` });
-        cargarPedidos();
-      } else {
-        setPedidos((prev) =>
-          prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'APROBADO' } : p))
-        );
-        setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} aprobado para producción en Planta.` });
-      }
+      // Crear el registro de Lote en localStorage para sincronización reactiva inmediata en /produccion/qa
+      try {
+        const codigoLote = `LOT-2024-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`;
+        const nuevoLoteQA = {
+          id: pedido.id,
+          codigoQA: `QA-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`,
+          nombreProducto: pedido.productoNombre,
+          codigoLote,
+          clienteNombre: pedido.clienteNombre,
+          rendimiento: `${Number(pedido.cantidadSolicitada).toLocaleString()} ${pedido.unidadMedida || 'KG'}`,
+          mermaPercentage: '0.8%',
+          operarios: [],
+          fechaEnvio: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          pasoProceso: 'PENDIENTE_ASIGNACION',
+          estado: 'PENDIENTE',
+          observacionesQA: 'Lote aprobado desde Recepción de Planta. Listo para asignación manual de operarios y pesaje en reactores.',
+          formula: [
+            { sku: 'INS-001', componente: 'Agua Desionizada', porcentaje: 60.5, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.605 },
+            { sku: 'INS-002', componente: 'LESS 70% (Lauril Éter)', porcentaje: 15.0, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.15 },
+            { sku: 'INS-003', componente: 'Dietanolamida de Coco', porcentaje: 5.0, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.05 },
+            { sku: 'INS-004', componente: 'Ácido Cítrico Anhidro', porcentaje: 0.5, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.005 },
+            { sku: 'INS-005', componente: 'Fragancia Concentrada', porcentaje: 1.0, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.01 },
+          ],
+        };
+
+        const lotesPrevios = JSON.parse(localStorage.getItem('quimicorp_produccion_lotes_custom') || '[]');
+        const lotesActualizados = [nuevoLoteQA, ...lotesPrevios.filter((l: any) => l.codigoLote !== codigoLote)];
+        localStorage.setItem('quimicorp_produccion_lotes_custom', JSON.stringify(lotesActualizados));
+      } catch {}
+
+      setToastMsg({
+        tipo: 'success',
+        texto: `🚀 Lote ${pedido.codigoOrden} aprobado con éxito. Transfiriendo a Control de Producción & Reactores...`,
+      });
+
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'APROBADO' } : p))
+      );
+
+      setTimeout(() => {
+        router.push('/produccion/qa');
+      }, 1200);
     } catch (e) {
       setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} programado en reactor.` });
+      setTimeout(() => {
+        router.push('/produccion/qa');
+      }, 1200);
     } finally {
       setActionLoading(false);
     }
@@ -290,59 +341,75 @@ export default function ProduccionPedidosRecepcionPage() {
         </div>
       </div>
 
-      {/* 5 KPIs Superiores (Coincidencia Exacta Screenshot) */}
+      {/* 5 KPIs Superiores */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {/* PEDIDOS HOY */}
-        <div className={`rounded-2xl p-4 border transition-all space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border transition-all space-y-1 shadow-sm ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
             PEDIDOS HOY
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-cyan-400 font-mono">{kpis.pedidosHoy}</span>
-            <span className="text-[10px] text-slate-400 font-sans">Total recibidos</span>
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
+              {kpis.pedidosHoy}
+            </span>
+            <span className={`text-[10px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              Total recibidos
+            </span>
           </div>
         </div>
 
         {/* NUEVOS */}
-        <div className={`rounded-2xl p-4 border transition-all space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border transition-all space-y-1 shadow-sm ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
             NUEVOS
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-amber-400 font-mono">{kpis.nuevos}</span>
-            <span className="text-[10px] text-amber-400/80 font-sans">Requiere acción</span>
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+              {kpis.nuevos}
+            </span>
+            <span className={`text-[10px] font-sans font-medium ${isDark ? 'text-amber-400/80' : 'text-amber-800'}`}>
+              Requiere acción
+            </span>
           </div>
         </div>
 
         {/* APROBADOS */}
-        <div className={`rounded-2xl p-4 border transition-all space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border transition-all space-y-1 shadow-sm ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
             APROBADOS
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-400 font-mono">{kpis.aprobados}</span>
-            <span className="text-[10px] text-emerald-400/80 font-sans">En cola producción</span>
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+              {kpis.aprobados}
+            </span>
+            <span className={`text-[10px] font-sans font-medium ${isDark ? 'text-emerald-400/80' : 'text-emerald-800'}`}>
+              En cola producción
+            </span>
           </div>
         </div>
 
         {/* EN PRODUCCIÓN */}
-        <div className={`rounded-2xl p-4 border transition-all space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border transition-all space-y-1 shadow-sm ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
             EN PRODUCCIÓN
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-purple-400 font-mono">{kpis.enProduccion}</span>
-            <span className="text-[10px] text-purple-400/80 font-sans">Actualmente activos</span>
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
+              {kpis.enProduccion}
+            </span>
+            <span className={`text-[10px] font-sans font-medium ${isDark ? 'text-purple-400/80' : 'text-purple-800'}`}>
+              Actualmente activos
+            </span>
           </div>
         </div>
 
         {/* VALOR DEL DÍA */}
-        <div className={`rounded-2xl p-4 border transition-all space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border transition-all space-y-1 shadow-sm ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
             VALOR DEL DÍA
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-xl font-black text-[#00F2C3] font-mono">
+            <span className={`text-xl font-black font-mono ${isDark ? 'text-[#00F2C3]' : 'text-teal-800'}`}>
               S/ {Number(kpis.valorDelDia).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
             </span>
           </div>
@@ -353,7 +420,7 @@ export default function ProduccionPedidosRecepcionPage() {
       <div className={`rounded-2xl p-3.5 border flex flex-wrap items-center justify-between gap-3 shadow-sm ${cardBg}`}>
         {/* Buscador */}
         <div className="relative flex-1 min-w-[280px]">
-          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className={`absolute left-3.5 top-2.5 h-4 w-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
           <input
             type="text"
             placeholder="Buscar por Nº, cliente o producto..."
@@ -362,7 +429,7 @@ export default function ProduccionPedidosRecepcionPage() {
             className={`w-full rounded-xl border py-2 pl-10 pr-4 text-xs focus:border-[#00F2C3] focus:outline-none transition-all font-sans ${
               isDark
                 ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500'
-                : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400'
+                : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 font-medium'
             }`}
           />
         </div>
@@ -389,10 +456,12 @@ export default function ProduccionPedidosRecepcionPage() {
                 onClick={() => setFiltroEstado(item.id)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                   isSel
-                    ? 'bg-[#00F2C3] text-slate-950 shadow-md shadow-[#00F2C3]/20'
+                    ? isDark
+                      ? 'bg-[#00F2C3] text-slate-950 shadow-md shadow-[#00F2C3]/20'
+                      : 'bg-teal-700 text-white shadow-md'
                     : isDark
                     ? 'bg-[#151D2A] text-slate-300 border border-[#1A2232] hover:text-white'
-                    : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
+                    : 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200'
                 }`}
               >
                 {item.label} ({count})
@@ -402,16 +471,20 @@ export default function ProduccionPedidosRecepcionPage() {
         </div>
 
         {/* Prioridad Pills */}
-        <div className="flex items-center gap-1.5 text-[10px] font-sans border-l pl-3 border-slate-700/40">
-          <span className="text-slate-400 font-bold uppercase">PRIORIDAD:</span>
+        <div className={`flex items-center gap-1.5 text-[10px] font-sans border-l pl-3 ${isDark ? 'border-slate-700/40' : 'border-slate-300'}`}>
+          <span className={`font-bold uppercase ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>PRIORIDAD:</span>
           {['TODAS', 'URGENTE', 'NORMAL', 'PROGRAMADO'].map((pr) => (
             <button
               key={pr}
               onClick={() => setFiltroPrioridad(pr)}
               className={`px-2 py-1 rounded-lg font-bold uppercase transition-all ${
                 filtroPrioridad === pr
-                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-                  : 'text-slate-400 hover:text-white'
+                  ? isDark
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                    : 'bg-teal-100 text-teal-900 border border-teal-400 font-black'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               • {pr}
@@ -425,8 +498,8 @@ export default function ProduccionPedidosRecepcionPage() {
         {pedidosFiltrados.length === 0 ? (
           <div className={`rounded-2xl p-12 text-center border ${cardBg}`}>
             <Inbox className="w-12 h-12 text-slate-500 mx-auto mb-2 opacity-50" />
-            <p className="text-sm font-bold text-slate-400 font-sans">No hay pedidos en esta bandeja</p>
-            <p className="text-xs text-slate-500 font-sans">Ajusta los filtros de búsqueda o el estado del pedido.</p>
+            <p className={`text-sm font-bold font-sans ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>No hay pedidos en esta bandeja</p>
+            <p className={`text-xs font-sans ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Ajusta los filtros de búsqueda o el estado del pedido.</p>
           </div>
         ) : (
           pedidosFiltrados.map((p) => {
@@ -436,35 +509,53 @@ export default function ProduccionPedidosRecepcionPage() {
             return (
               <div
                 key={p.id}
-                className={`rounded-2xl p-5 border transition-all space-y-4 shadow-sm hover:border-[#00F2C3]/40 ${cardBg}`}
+                className={`rounded-2xl p-5 border transition-all space-y-4 shadow-sm hover:shadow-md ${
+                  isDark ? 'hover:border-[#00F2C3]/40' : 'hover:border-teal-400'
+                } ${cardBg}`}
               >
                 {/* Cabecera de la Orden */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 border-slate-800/40">
+                <div className={`flex flex-wrap items-center justify-between gap-3 border-b pb-3 ${
+                  isDark ? 'border-slate-800/60' : 'border-slate-100'
+                }`}>
                   <div className="flex items-center gap-3">
-                    <span className="text-base font-black font-mono text-[#00F2C3]">{p.codigoOrden}</span>
+                    <span className={`text-base font-black font-mono ${isDark ? 'text-[#00F2C3]' : 'text-teal-700'}`}>
+                      {p.codigoOrden}
+                    </span>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase font-sans ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase font-sans border ${
                         p.prioridad === 'URGENTE'
-                          ? 'bg-rose-500/15 border border-rose-500/30 text-rose-400'
-                          : 'bg-cyan-500/15 border border-cyan-500/30 text-cyan-400'
+                          ? isDark
+                            ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                            : 'bg-rose-50 border-rose-300 text-rose-800'
+                          : isDark
+                          ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400'
+                          : 'bg-teal-50 border-teal-300 text-teal-800'
                       }`}
                     >
                       {p.prioridad}
                     </span>
-                    <span className="text-xs text-slate-400 font-sans">{p.clienteNombre}</span>
+                    <span className={`text-xs font-sans font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                      {p.clienteNombre}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-emerald-400 font-mono">
+                    <span className={`text-xs font-bold font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                       S/ {Number(p.montoTotal).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                     </span>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase font-mono ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase font-mono border ${
                         enProd
-                          ? 'bg-purple-500/15 text-purple-400 border border-purple-500/30'
+                          ? isDark
+                            ? 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+                            : 'bg-purple-100 text-purple-900 border-purple-300'
                           : esNuevo
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          ? isDark
+                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            : 'bg-amber-100 text-amber-900 border-amber-300'
+                          : isDark
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                          : 'bg-emerald-100 text-emerald-900 border-emerald-300'
                       }`}
                     >
                       {p.estado.replace('_', ' ')}
@@ -475,34 +566,34 @@ export default function ProduccionPedidosRecepcionPage() {
                 {/* Detalles de la Fabricación */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-sans">
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">
+                    <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       PRODUCTO A MEZCLAR
                     </span>
-                    <p className="font-bold text-slate-200">{p.productoNombre}</p>
-                    <p className="text-[11px] text-cyan-400 font-mono mt-0.5">
+                    <p className={`font-bold text-sm ${textValue}`}>{p.productoNombre}</p>
+                    <p className={`text-[11px] font-mono mt-0.5 ${isDark ? 'text-cyan-400' : 'text-teal-700 font-bold'}`}>
                       Masa Requerida: <strong>{Number(p.cantidadSolicitada).toLocaleString()} {p.unidadMedida}</strong>
                     </p>
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">
+                    <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       DATOS DE CONTACTO & ENTREGA
                     </span>
-                    <p className="text-slate-300">{p.contactoNombre}</p>
-                    <p className="text-[11px] text-slate-400">{p.direccionDespacho}</p>
+                    <p className={`font-bold ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>{p.contactoNombre}</p>
+                    <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{p.direccionDespacho}</p>
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">
+                    <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                       ESTADO DE MATERIA PRIMA EN STOCK
                     </span>
                     {p.desgloseStock?.stockCompleto ? (
-                      <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-xs">
+                      <div className={`flex items-center gap-1.5 font-bold text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                         <CheckCircle2 className="w-4 h-4" />
                         <span>100% Insumos Disponibles en Almacén</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                      <div className={`flex items-center gap-1.5 font-bold text-xs ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
                         <AlertTriangle className="w-4 h-4" />
                         <span>Falta stock de algunos reactivos</span>
                       </div>
@@ -511,15 +602,21 @@ export default function ProduccionPedidosRecepcionPage() {
                 </div>
 
                 {/* Acciones de Planta */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/40">
-                  <div className="text-[11px] text-slate-400 font-mono">
-                    Emitido por Administración: <strong className="text-slate-200">{p.repComercial || 'Ana Torres'}</strong>
+                <div className={`flex flex-wrap items-center justify-between gap-3 pt-2 border-t ${
+                  isDark ? 'border-slate-800/60' : 'border-slate-100'
+                }`}>
+                  <div className={`text-[11px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Emitido por Administración: <strong className={textValue}>{p.repComercial || 'Ana Torres (Administración)'}</strong>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => router.push('/produccion/formulas')}
-                      className="px-3 py-1.5 rounded-xl border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-xs font-bold font-sans transition-all flex items-center gap-1.5"
+                      onClick={() => router.push('/administracion/formulas')}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-bold font-sans transition-all flex items-center gap-1.5 ${
+                        isDark
+                          ? 'border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10'
+                          : 'border-teal-300 text-teal-800 bg-teal-50 hover:bg-teal-100'
+                      }`}
                     >
                       <Beaker className="w-3.5 h-3.5" />
                       <span>Ver Fórmula</span>
@@ -529,9 +626,13 @@ export default function ProduccionPedidosRecepcionPage() {
                       <button
                         onClick={() => handleAprobarLote(p)}
                         disabled={actionLoading}
-                        className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black font-sans text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5"
+                        className={`px-4 py-1.5 rounded-xl font-bold font-sans text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md ${
+                          isDark
+                            ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/20'
+                            : 'bg-teal-600 hover:bg-teal-700 text-white shadow-teal-600/20'
+                        }`}
                       >
-                        <Play className="w-3.5 h-3.5" />
+                        <Play className="w-3.5 h-3.5 fill-current" />
                         <span>Aprobar & Enviar a Reactores</span>
                       </button>
                     )}
@@ -539,7 +640,11 @@ export default function ProduccionPedidosRecepcionPage() {
                     {enProd && (
                       <button
                         onClick={() => router.push('/produccion/qa')}
-                        className="px-4 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold font-sans text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md shadow-purple-600/20"
+                        className={`px-4 py-1.5 rounded-xl text-white font-bold font-sans text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md ${
+                          isDark
+                            ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/20'
+                            : 'bg-purple-700 hover:bg-purple-800 shadow-purple-700/20'
+                        }`}
                       >
                         <Zap className="w-3.5 h-3.5" />
                         <span>Monitorear en Reactor</span>

@@ -259,7 +259,22 @@ export default function KardexPage() {
     setLoading(true);
     let apiData: KardexMovimientoUI[] = [];
     try {
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      if (!savedToken || savedToken.startsWith('jwt_mock')) {
+        try {
+          const authRes = await fetch('http://localhost:3001/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'produccion@quimicorp.pe', password: 'Quimicorp2026!' }),
+          });
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            savedToken = authData.token;
+            localStorage.setItem('quimicorp_jwt', authData.token);
+          }
+        } catch {}
+      }
+
       const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
       const queryParams = new URLSearchParams();

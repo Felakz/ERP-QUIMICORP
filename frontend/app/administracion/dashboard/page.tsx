@@ -73,7 +73,7 @@ export default function AdministracionPage() {
 
         <div className="flex items-center gap-3 font-sans">
           <Link
-            href="/dashboard/formulas"
+            href="/administracion/formulas"
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2C3] to-cyan-500 text-slate-950 font-bold text-xs tracking-wider uppercase hover:opacity-90 transition-all shadow-lg shadow-[#00F2C3]/20 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -88,20 +88,20 @@ export default function AdministracionPage() {
           <span className={`text-[10px] font-bold tracking-widest uppercase block ${textTitle}`}>
             PEDIDOS COMERCIALES ACTIVOS
           </span>
-          <div className="text-2xl font-black text-[#00F2C3] font-mono">
-            {pedidosRecientes.length || 4} <span className="text-xs font-normal text-slate-400">Órdenes</span>
+          <div className={`text-2xl font-black font-mono ${isDark ? 'text-[#00F2C3]' : 'text-teal-700'}`}>
+            {pedidosRecientes.length || 4} <span className={`text-xs font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Órdenes</span>
           </div>
-          <p className="text-[11px] text-slate-400 font-sans">En proceso de revisión y despacho a planta</p>
+          <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>En proceso de revisión y despacho a planta</p>
         </div>
 
         <div className={`rounded-xl p-5 border space-y-2 ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase block ${textTitle}`}>
             FÓRMULAS MAESTRAS VINCULADAS
           </span>
-          <div className="text-2xl font-black text-cyan-400 font-mono">
-            {FORMULAS_MAESTRAS_REALES.length} <span className="text-xs font-normal text-slate-400">Registradas</span>
+          <div className={`text-2xl font-black font-mono ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
+            {FORMULAS_MAESTRAS_REALES.length} <span className={`text-xs font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Registradas</span>
           </div>
-          <p className="text-[11px] text-slate-400 font-sans">Listas para escalar pedidos por Lote / KG</p>
+          <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Listas para escalar pedidos por Lote / KG</p>
         </div>
 
         <div className={`rounded-xl p-5 border space-y-2 ${cardBg}`}>
@@ -110,58 +110,58 @@ export default function AdministracionPage() {
           </span>
           <div className="flex items-center gap-2 pt-1 font-sans">
             <span className="h-3 w-3 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-xs font-bold text-emerald-400 font-mono">CONEXIÓN DIRECTA A PLANTA</span>
+            <span className={`text-xs font-bold font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>CONEXIÓN DIRECTA A PLANTA</span>
           </div>
-          <p className="text-[11px] text-slate-400 font-sans">Sincronización mediante WebSockets activa</p>
+          <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sincronización mediante WebSockets activa</p>
         </div>
       </div>
 
       {/* Accesos Directos a las 3 Secciones de Administración */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
-          href="/dashboard/formulas"
+          href="/administracion/formulas"
           className={`p-5 rounded-2xl border transition-all hover:border-[#00F2C3] group ${cardBg}`}
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+            <div className={`p-3 rounded-xl border ${isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
               <Beaker className="w-6 h-6" />
             </div>
-            <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-[#00F2C3] transition-colors" />
+            <ArrowRight className={`w-5 h-5 transition-colors ${isDark ? 'text-slate-500 group-hover:text-[#00F2C3]' : 'text-slate-400 group-hover:text-teal-700'}`} />
           </div>
           <h3 className={`text-sm font-bold font-sans ${textValue}`}>📋 Catálogo de Fórmulas</h3>
-          <p className="text-xs text-slate-400 font-sans mt-1">
+          <p className={`text-xs font-sans mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             Explora las Fórmulas Maestras y genera nuevos Pedidos Comerciales calculados.
           </p>
         </Link>
 
         <Link
-          href="/dashboard/inventario"
+          href="/produccion/stock"
           className={`p-5 rounded-2xl border transition-all hover:border-[#00F2C3] group ${cardBg}`}
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            <div className={`p-3 rounded-xl border ${isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
               <Package className="w-6 h-6" />
             </div>
-            <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-[#00F2C3] transition-colors" />
+            <ArrowRight className={`w-5 h-5 transition-colors ${isDark ? 'text-slate-500 group-hover:text-[#00F2C3]' : 'text-slate-400 group-hover:text-teal-700'}`} />
           </div>
           <h3 className={`text-sm font-bold font-sans ${textValue}`}>📦 Inventario & Stock</h3>
-          <p className="text-xs text-slate-400 font-sans mt-1">
+          <p className={`text-xs font-sans mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             Consulta el stock disponible de materias primas y productos terminados.
           </p>
         </Link>
 
         <Link
-          href="/dashboard/pedidos-admin"
+          href="/administracion/pedidos"
           className={`p-5 rounded-2xl border transition-all hover:border-[#00F2C3] group ${cardBg}`}
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30">
+            <div className={`p-3 rounded-xl border ${isDark ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
               <FileText className="w-6 h-6" />
             </div>
-            <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-[#00F2C3] transition-colors" />
+            <ArrowRight className={`w-5 h-5 transition-colors ${isDark ? 'text-slate-500 group-hover:text-[#00F2C3]' : 'text-slate-400 group-hover:text-teal-700'}`} />
           </div>
           <h3 className={`text-sm font-bold font-sans ${textValue}`}>📑 Pedidos Comerciales</h3>
-          <p className="text-xs text-slate-400 font-sans mt-1">
+          <p className={`text-xs font-sans mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
             Visualiza el estado de las órdenes enviadas a la Bandeja de Entrada de Planta.
           </p>
         </Link>
@@ -169,11 +169,11 @@ export default function AdministracionPage() {
 
       {/* Lista de Pedidos Recientes Enviados a Planta */}
       <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
-        <div className="flex items-center justify-between border-b pb-3 border-slate-800/80">
+        <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800/80' : 'border-slate-100'}`}>
           <h3 className={`text-xs font-bold tracking-widest uppercase ${textTitle}`}>
             ÚLTIMOS PEDIDOS ENVIADOS A BANDEJA DE PRODUCCIÓN
           </h3>
-          <Link href="/dashboard/pedidos-admin" className="text-xs text-cyan-400 hover:underline font-sans font-bold">
+          <Link href="/administracion/pedidos" className={`text-xs hover:underline font-sans font-bold ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
             Ver Todos →
           </Link>
         </div>
@@ -188,24 +188,28 @@ export default function AdministracionPage() {
             {pedidosRecientes.slice(0, 3).map((ped) => (
               <div
                 key={ped.id}
-                className="p-4 rounded-xl border border-slate-800/80 bg-[#151D2A] flex flex-wrap items-center justify-between gap-4 font-mono text-xs"
+                className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-4 font-mono text-xs ${
+                  isDark ? 'border-slate-800/80 bg-[#151D2A]' : 'border-slate-200 bg-slate-50'
+                }`}
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-cyan-400">{ped.codigoOrden}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span className={`font-bold ${isDark ? 'text-cyan-400' : 'text-blue-700'}`}>{ped.codigoOrden}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                      isDark ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-amber-100 text-amber-900 border border-amber-300'
+                    }`}>
                       {ped.estado || 'PENDIENTE_REVISION_PLANTA'}
                     </span>
                   </div>
-                  <h4 className="font-bold font-sans text-slate-100 mt-1">{ped.productoNombre}</h4>
-                  <p className="text-[11px] text-slate-400 font-sans">Cliente: {ped.clienteNombre}</p>
+                  <h4 className={`font-bold font-sans mt-1 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ped.productoNombre}</h4>
+                  <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Cliente: {ped.clienteNombre}</p>
                 </div>
 
                 <div className="text-right font-sans">
-                  <div className="text-sm font-bold text-emerald-400 font-mono">
+                  <div className={`text-sm font-bold font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
                     S/ {Number(ped.montoTotal).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                   </div>
-                  <span className="text-[10px] text-slate-400 block font-mono">{ped.cantidadSolicitada} {ped.unidadMedida}</span>
+                  <span className={`text-[10px] block font-mono ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>{ped.cantidadSolicitada} {ped.unidadMedida}</span>
                 </div>
               </div>
             ))}
