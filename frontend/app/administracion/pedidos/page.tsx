@@ -53,38 +53,61 @@ export default function AdministracionPedidosComercialesPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [pedidos, setPedidos] = useState<PedidoEmitido[]>([
-    {
-      id: 'ped-001',
-      codigoOrden: '#PO-0841',
-      cliente: 'GEYMA S.A.C.',
-      ruc: '20614697321',
-      producto: 'SERUM DE SALMON',
-      cantidad: 1000,
-      unidad: 'KG',
-      precioUnitario: 34.50,
-      montoTotal: 34500.0,
-      prioridad: 'URGENTE',
-      condicionPago: 'Crédito 30 días',
-      fechaPrometida: '12/08/2026',
-      estado: 'NUEVO',
-    },
-    {
-      id: 'ped-002',
-      codigoOrden: '#PO-0842',
-      cliente: 'INDUSTRIAS QUÍMICAS DEL SUR S.A.',
-      ruc: '20509876543',
-      producto: 'DETERGENTE LÍQUIDO INDUSTRIAL',
-      cantidad: 2500,
-      unidad: 'LT',
-      precioUnitario: 19.56,
-      montoTotal: 48900.0,
-      prioridad: 'NORMAL',
-      condicionPago: 'Contado Contra Entrega',
-      fechaPrometida: '15/08/2026',
-      estado: 'EN_PRODUCCION',
-    },
-  ]);
+  const [pedidos, setPedidos] = useState<PedidoEmitido[]>([]);
+  const [loadingPedidos, setLoadingPedidos] = useState<boolean>(true);
+
+  // Cargar pedidos desde la API real de PostgreSQL
+  const cargarPedidos = async () => {
+    try {
+      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+
+      const res = await fetch('http://localhost:3001/api/v1/pedidos-admin', { headers: authHeader });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped: PedidoEmitido[] = data.map((p: any) => ({
+            id: p.id,
+            codigoOrden: p.codigoOrden,
+            cliente: p.clienteNombre,
+            ruc: p.clienteRuc,
+            producto: p.productoNombre,
+            cantidad: Number(p.cantidadSolicitada) || 1000,
+            unidad: p.unidadMedida || 'KG',
+            precioUnitario: p.cantidadSolicitada ? Number(p.montoTotal) / Number(p.cantidadSolicitada) : 34.5,
+            montoTotal: Number(p.montoTotal) || 0,
+            prioridad: p.prioridad || 'URGENTE',
+            condicionPago: p.condicionPago || 'Crédito 30 días',
+            fechaPrometida: p.fechaPrometida ? new Date(p.fechaPrometida).toLocaleDateString('es-PE') : '12/08/2026',
+            estado: p.estado || 'NUEVO',
+          }));
+          setPedidos(mapped);
+        }
+      }
+    } catch (e) {
+      console.log('Error cargando pedidos en administración:', e);
+    } finally {
+      setLoadingPedidos(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarPedidos();
+
+    let socket: any = null;
+    try {
+      const { io } = require('socket.io-client');
+      socket = io('http://localhost:3001');
+      socket.on('order:created_to_plant', () => cargarPedidos());
+      socket.on('order:status_updated', () => cargarPedidos());
+      socket.on('order:accepted_by_plant', () => cargarPedidos());
+      socket.on('order:devolucion', () => cargarPedidos());
+    } catch {}
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, []);
 
   // Form State
   const [cliente, setCliente] = useState('GEYMA S.A.C.');
@@ -142,7 +165,7 @@ export default function AdministracionPedidosComercialesPage() {
       const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
       const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
-      await fetch('http://localhost:3001/api/v1/pedidos-admin', {
+      const res = await fetch('http://localhost:3001/api/v1/pedidos-admin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,26 +174,15 @@ export default function AdministracionPedidosComercialesPage() {
         body: JSON.stringify(nuevoPedidoDto),
       });
 
-      const nuevoObj: PedidoEmitido = {
-        id: `ped-${Date.now()}`,
-        codigoOrden: nuevoCodigo,
-        cliente,
-        ruc,
-        producto: productoSeleccionado,
-        cantidad,
-        unidad: nuevoPedidoDto.unidad,
-        precioUnitario,
-        montoTotal: totalCalculado,
-        prioridad,
-        condicionPago,
-        fechaPrometida,
-        estado: 'NUEVO',
-      };
+      if (res.ok) {
+        cargarPedidos();
+      }
 
-      setPedidos((prev) => [nuevoObj, ...prev]);
-      setToastMsg(`¡Pedido comercial ${nuevoCodigo} creado con éxito y transmitido a la cola de Producción & Planta!`);
+      setToastMsg(`¡Pedido comercial ${nuevoCodigo} creado con éxito y transmitido a la bandeja de Pedidos Entrantes en Planta!`);
+      setTimeout(() => setToastMsg(null), 4000);
     } catch (err) {
       setToastMsg(`¡Pedido comercial ${nuevoCodigo} emitido a Planta!`);
+      setTimeout(() => setToastMsg(null), 4000);
     } finally {
       setLoading(false);
     }

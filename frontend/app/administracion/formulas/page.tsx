@@ -140,23 +140,23 @@ export default function FormulasPage() {
       if (res.ok) {
         setIsValidatingStockModal(false);
         setIsCreatingOrder(false);
-        setToastMessage(`🚀 Pedido #${payload.code} enviado con éxito a la Bandeja de Planta`);
+        setToastMessage(`🚀 Pedido #${payload.code} registrado con éxito y enviado a la Bandeja de Planta`);
         setTimeout(() => {
-          router.push('/produccion/pedidos');
+          router.push('/administracion/pedidos');
         }, 1500);
       } else {
         setIsValidatingStockModal(false);
         setIsCreatingOrder(false);
         setToastMessage(`🚀 Pedido #${payload.code} registrado y transmitido a Planta.`);
         setTimeout(() => {
-          router.push('/produccion/pedidos');
+          router.push('/administracion/pedidos');
         }, 1500);
       }
     } catch (e) {
       console.error('Error enviando pedido a planta:', e);
       setIsValidatingStockModal(false);
       setIsCreatingOrder(false);
-      router.push('/produccion/pedidos');
+      router.push('/administracion/pedidos');
     } finally {
       setIsSubmitting(false);
     }
