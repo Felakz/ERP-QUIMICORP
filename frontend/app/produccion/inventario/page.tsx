@@ -27,6 +27,8 @@ interface SubAlmacenItem {
   reutilizable: boolean;
 }
 
+import { INVENTARIO_REAL_SEED_DATA, SUBALMACEN_REAL_SEED_DATA } from '@/lib/inventarioRealData';
+
 export default function InventariosPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -34,12 +36,12 @@ export default function InventariosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedEstadoFilter, setSelectedEstadoFilter] = useState<'TODOS' | 'OK' | 'LOW_STOCK' | 'CRITICAL'>('TODOS');
-  const [materialsData, setMaterialsData] = useState<MaterialItem[]>([]);
-  const [subAlmacenData, setSubAlmacenData] = useState<SubAlmacenItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [materialsData, setMaterialsData] = useState<MaterialItem[]>(INVENTARIO_REAL_SEED_DATA);
+  const [subAlmacenData, setSubAlmacenData] = useState<SubAlmacenItem[]>(SUBALMACEN_REAL_SEED_DATA);
+  const [loading, setLoading] = useState(false);
   const [disponibilidadTotal, setDisponibilidadTotal] = useState('14,250');
-  const [stockCriticoCount, setStockCriticoCount] = useState(0);
-  const [stockBajoCount, setStockBajoCount] = useState(0);
+  const [stockCriticoCount, setStockCriticoCount] = useState(2);
+  const [stockBajoCount, setStockBajoCount] = useState(1);
   const [insumosCriticosDetalle, setInsumosCriticosDetalle] = useState<any[]>([]);
 
   // Estado del Modal de Reaprovisionamiento en Masa (Múltiples productos)
@@ -55,13 +57,13 @@ export default function InventariosPage() {
   const cargarInventarioReal = async () => {
     try {
       setLoading(true);
-      const savedToken = localStorage.getItem('quimicorp_jwt');
+      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
       const res = await fetch('http://localhost:3001/api/v1/inventario/dashboard/lista-completa', {
         headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.insumos && Array.isArray(data.insumos)) {
+        if (data.insumos && Array.isArray(data.insumos) && data.insumos.length > 0) {
           setMaterialsData(
             data.insumos.map((m: any) => ({
               ...m,
@@ -70,7 +72,7 @@ export default function InventariosPage() {
             }))
           );
         }
-        if (data.subAlmacen && Array.isArray(data.subAlmacen)) {
+        if (data.subAlmacen && Array.isArray(data.subAlmacen) && data.subAlmacen.length > 0) {
           setSubAlmacenData(data.subAlmacen);
         }
         if (data.disponibilidadTotalKg) {

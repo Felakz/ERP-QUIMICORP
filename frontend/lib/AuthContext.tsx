@@ -33,17 +33,17 @@ interface AuthContextType {
 }
 
 const ROLE_HOME_MAP: Record<UserRole, string> = {
-  PRODUCCION_ALMACEN: '/dashboard/produccion-qa',
-  GERENCIA: '/dashboard/gerencia',
-  ADMINISTRACION: '/dashboard/administracion',
-  FINANZAS: '/dashboard/finanzas',
-  VENTAS_ATENCION_DIGITAL: '/dashboard/ventas',
-  ECOMMERCE_MARKETING: '/dashboard/ecommerce',
-  COMPRAS_PROVEEDORES: '/dashboard/compras',
-  RECURSOS_HUMANOS: '/dashboard/biometria',
-  SISTEMAS_TI: '/dashboard/seguridad',
-  DISENO_MULTIMEDIA: '/dashboard/diseno',
-  ARCHIVO_HISTORICO: '/dashboard/historico',
+  PRODUCCION_ALMACEN: '/produccion/kardex',
+  GERENCIA: '/gerencia/dashboard',
+  ADMINISTRACION: '/administracion/dashboard',
+  FINANZAS: '/administracion/dashboard',
+  VENTAS_ATENCION_DIGITAL: '/ventas/dashboard',
+  ECOMMERCE_MARKETING: '/ventas/dashboard',
+  COMPRAS_PROVEEDORES: '/compras/dashboard',
+  RECURSOS_HUMANOS: '/produccion/biometria',
+  SISTEMAS_TI: '/produccion/seguridad',
+  DISENO_MULTIMEDIA: '/produccion/etiquetas',
+  ARCHIVO_HISTORICO: '/produccion/kardex',
 };
 
 const ROLE_EMAIL_MAP: Record<UserRole, string> = {

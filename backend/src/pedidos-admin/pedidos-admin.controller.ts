@@ -29,7 +29,7 @@ export class PedidosAdminController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.VENTAS_ATENCION_DIGITAL)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
   crearPedido(@Body() dto: any) {
     return this.pedidosAdminService.crearPedido(dto);
   }

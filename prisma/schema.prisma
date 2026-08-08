@@ -6,17 +6,13 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../backend/node_modules/.prisma/client"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = "postgresql://quimicorp:quimicorp_dev_password@localhost:5432/quimicorp_erp?schema=public"
 }
-
-// ============================================================================
-// ENUMS GLOBALES
-// ============================================================================
 
 enum UnidadMedida {
   KG
