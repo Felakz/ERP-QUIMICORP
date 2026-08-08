@@ -43,7 +43,7 @@ const PRODUCCION_PLANTA_SECTIONS: NavSection[] = [
   {
     title: 'PEDIDOS DE ADMINISTRACIÓN',
     items: [
-      { href: '/produccion/pedidos', label: 'Pedidos Entrantes', icon: Inbox, badge: '3' },
+      { href: '/produccion/pedidos', label: 'Pedidos Entrantes', icon: Inbox },
     ],
   },
   {
@@ -75,14 +75,70 @@ const PRODUCCION_PLANTA_SECTIONS: NavSection[] = [
   },
 ];
 
+// Generador de sonido industrial mediante Web Audio API (cero dependencias externas)
+function playNotificationChime() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+
+    // Tono armónico 1: D5 (587.33 Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+    gain1.gain.setValueAtTime(0, ctx.currentTime);
+    gain1.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.04);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.35);
+
+    // Tono armónico 2: A5 (880.00 Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880.0, ctx.currentTime + 0.12);
+    gain2.gain.setValueAtTime(0, ctx.currentTime + 0.12);
+    gain2.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 0.16);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.12);
+    osc2.stop(ctx.currentTime + 0.7);
+  } catch (e) {
+    console.log('Audio notification chime not supported or muted:', e);
+  }
+}
+
 export default function ProduccionLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { logout } = useAuth();
   const [timeString, setTimeString] = useState('');
-  const [pedidoCount, setPedidoCount] = useState(3);
+  const [pedidoCount, setPedidoCount] = useState<number>(0);
+  const [isAlerting, setIsAlerting] = useState<boolean>(false);
+  const [bannerAlert, setBannerAlert] = useState<{ id: string; codigo: string; cliente: string; producto: string } | null>(null);
 
   const isDark = theme === 'dark';
+
+  const cargarBadgeCount = async () => {
+    try {
+      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      const res = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis', {
+        headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
+      });
+      if (res.ok) {
+        const kpis = await res.json();
+        const nuevos = Number(kpis.nuevos) || 0;
+        setPedidoCount(nuevos);
+        if (nuevos === 0) {
+          setIsAlerting(false);
+        }
+      }
+    } catch {}
+  };
 
   useEffect(() => {
     const updateTime = () => {
@@ -103,17 +159,45 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
     return () => clearInterval(interval);
   }, []);
 
-  // WebSockets para actualizar el contador de pedidos entrantes en tiempo real
+  // WebSockets para actualizar el contador y emitir sonido en tiempo real
   useEffect(() => {
+    cargarBadgeCount();
+
+    let socket: any = null;
     try {
-      const socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
-      socket.on('order:created_to_plant', () => {
+      socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
+      socket.on('order:created_to_plant', (payload: any) => {
+        playNotificationChime();
+        setIsAlerting(true);
         setPedidoCount((prev) => prev + 1);
+        if (payload) {
+          setBannerAlert({
+            id: payload.id || '',
+            codigo: payload.codigoOrden || 'PO-NUEVO',
+            cliente: payload.clienteNombre || 'Cliente Comercial',
+            producto: payload.productoNombre || 'Fórmula Industrial',
+          });
+        }
+        cargarBadgeCount();
       });
-      return () => {
-        socket.disconnect();
-      };
+
+      socket.on('order:status_updated', () => cargarBadgeCount());
+      socket.on('order:accepted_by_plant', () => {
+        setIsAlerting(false);
+        cargarBadgeCount();
+      });
+      socket.on('lote:estado_actualizado', () => cargarBadgeCount());
     } catch {}
+
+    const handleStorage = () => cargarBadgeCount();
+    window.addEventListener('storage', handleStorage);
+    const intervalKpis = setInterval(cargarBadgeCount, 3000);
+
+    return () => {
+      if (socket) socket.disconnect();
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(intervalKpis);
+    };
   }, []);
 
   return (
@@ -122,6 +206,39 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
         isDark ? 'bg-[#090C10] text-slate-100' : 'bg-slate-50 text-slate-900'
       }`}
     >
+      {/* Toast Flotante con Alerta Sonora */}
+      {bannerAlert && (
+        <div className="fixed top-4 right-4 z-50 p-4 rounded-2xl bg-gradient-to-r from-[#00F2C3] to-teal-400 text-slate-950 shadow-2xl border border-teal-300 animate-bounce flex items-center gap-3 font-sans">
+          <div className="p-2 rounded-xl bg-slate-950 text-[#00F2C3]">
+            <Inbox className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-wider">
+              🛎️ ¡Nuevo Pedido Comercial ({bannerAlert.codigo})!
+            </h4>
+            <p className="text-[11px] font-medium text-slate-900">
+              {bannerAlert.cliente} — {bannerAlert.producto}
+            </p>
+          </div>
+          <Link
+            href="/produccion/pedidos"
+            onClick={() => {
+              setBannerAlert(null);
+              setIsAlerting(false);
+            }}
+            className="px-3 py-1.5 rounded-lg bg-slate-950 text-white text-xs font-bold hover:bg-slate-800 transition-all ml-2 shadow-md"
+          >
+            Ver en Planta
+          </Link>
+          <button
+            onClick={() => setBannerAlert(null)}
+            className="text-slate-900 hover:text-black font-bold text-xs p-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Sidebar Fijo de Producción & Planta */}
       <aside
         className={`w-64 shrink-0 flex flex-col justify-between border-r transition-colors duration-200 ${
@@ -163,14 +280,25 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
                   {section.items.map((item) => {
                     const isActive = pathname === item.href;
                     const Icon = item.icon;
-                    const badgeValue = item.href === '/produccion/pedidos' ? pedidoCount : item.badge;
+                    const isPedidosEntrantes = item.href === '/produccion/pedidos';
+                    const hasBadge = isPedidosEntrantes ? pedidoCount > 0 : !!item.badge;
+                    const badgeCountDisplay = isPedidosEntrantes ? pedidoCount : item.badge;
+                    const shouldPulse = isPedidosEntrantes && (isAlerting || pedidoCount > 0);
 
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
+                        onClick={() => {
+                          if (isPedidosEntrantes) {
+                            setIsAlerting(false);
+                            setBannerAlert(null);
+                          }
+                        }}
                         className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 group ${
-                          isActive
+                          shouldPulse
+                            ? 'bg-amber-400/20 text-amber-300 border border-amber-400/50 shadow-md animate-pulse ring-2 ring-amber-400/40'
+                            : isActive
                             ? isDark
                               ? 'bg-[#00F2C3]/15 text-[#00F2C3] border border-[#00F2C3]/30 font-bold shadow-sm shadow-[#00F2C3]/10'
                               : 'bg-cyan-50 text-cyan-700 border border-cyan-200 font-bold shadow-sm'
@@ -182,7 +310,9 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
                         <div className="flex items-center gap-3">
                           <Icon
                             className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${
-                              isActive
+                              shouldPulse
+                                ? 'text-amber-300 animate-bounce'
+                                : isActive
                                 ? isDark
                                   ? 'text-[#00F2C3]'
                                   : 'text-cyan-600'
@@ -191,9 +321,15 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
                           />
                           <span className="truncate">{item.label}</span>
                         </div>
-                        {badgeValue !== undefined && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#00F2C3] text-[10px] font-black text-[#090C10] shadow-sm">
-                            {badgeValue}
+                        {hasBadge && (
+                          <span
+                            className={`flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full text-[10px] font-black shadow-sm ${
+                              shouldPulse
+                                ? 'bg-amber-400 text-slate-950 animate-ping ring-2 ring-amber-300'
+                                : 'bg-[#00F2C3] text-[#090C10]'
+                            }`}
+                          >
+                            {badgeCountDisplay}
                           </span>
                         )}
                       </Link>

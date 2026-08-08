@@ -461,11 +461,10 @@ export class ProduccionService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Si aún no hay ordenesProduccion creadas, sembrar o consultar pedidos comerciales aprobados
+    // Si aún no hay ordenesProduccion creadas, consultar pedidos comerciales aprobados
     if (ordenesRes.length === 0) {
       const pedidosAprobados = await this.prisma.pedidoComercial.findMany({
-        where: { OR: [{ estado: 'APROBADO' }, { estado: 'EN_PRODUCCION' }, { estado: 'NUEVO' }] },
-        take: 10,
+        where: { OR: [{ estado: 'APROBADO' }, { estado: 'EN_PRODUCCION' }] },
         orderBy: { createdAt: 'desc' },
       });
 
@@ -482,7 +481,7 @@ export class ProduccionService {
             colorEspecificado: 'TRANSPARENTE',
             fraganciaEspecificada: 'LAVANDA / MENTOL',
             cantidad: cant,
-            unidadMedida: 'KG',
+            unidadMedida: p.unidadMedida || 'KG',
             estado: (p.estado === 'APROBADO' ? 'EN PROCESO' : 'PENDIENTE') as 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE',
             operarios: 'Carlos Quispe, Ana Flores',
             prioridad: p.prioridad || 'URGENTE',
@@ -500,6 +499,18 @@ export class ProduccionService {
             totalPendientes: mapped.filter((m) => m.estado === 'PENDIENTE').length,
           },
           ordenes: mapped,
+        };
+      } else {
+        return {
+          fecha: inicioDia.toISOString().split('T')[0],
+          resumen: {
+            totalOrdenes: 0,
+            totalKgProgramados: '0.00',
+            totalTerminados: 0,
+            totalEnProceso: 0,
+            totalPendientes: 0,
+          },
+          ordenes: [],
         };
       }
     }

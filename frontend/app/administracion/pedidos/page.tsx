@@ -97,15 +97,63 @@ export default function AdministracionPedidosComercialesPage() {
     let socket: any = null;
     try {
       const { io } = require('socket.io-client');
-      socket = io('http://localhost:3001');
-      socket.on('order:created_to_plant', () => cargarPedidos());
-      socket.on('order:status_updated', () => cargarPedidos());
-      socket.on('order:accepted_by_plant', () => cargarPedidos());
+      socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
+
+      socket.on('order:created_to_plant', (payload: any) => {
+        cargarPedidos();
+      });
+
+      socket.on('order:status_updated', (payload: any) => {
+        if (payload && (payload.ordenId || payload.codigoOrden)) {
+          setPedidos((prev) =>
+            prev.map((p) =>
+              p.id === payload.ordenId || p.codigoOrden === payload.codigoOrden
+                ? { ...p, estado: payload.estado || 'APROBADO' }
+                : p
+            )
+          );
+        }
+        cargarPedidos();
+      });
+
+      socket.on('order:accepted_by_plant', (payload: any) => {
+        if (payload && (payload.ordenId || payload.codigoOrden)) {
+          setPedidos((prev) =>
+            prev.map((p) =>
+              p.id === payload.ordenId || p.codigoOrden === payload.codigoOrden
+                ? { ...p, estado: payload.estado || 'APROBADO' }
+                : p
+            )
+          );
+        }
+        cargarPedidos();
+      });
+
+      socket.on('lote:estado_actualizado', (payload: any) => {
+        if (payload && (payload.ordenId || payload.codigoLote)) {
+          setPedidos((prev) =>
+            prev.map((p) =>
+              p.id === payload.ordenId || payload.codigoLote.includes(p.codigoOrden.replace(/\D/g, ''))
+                ? { ...p, estado: (payload.nuevoEstado || 'APROBADO') as any }
+                : p
+            )
+          );
+        }
+        cargarPedidos();
+      });
+
       socket.on('order:devolucion', () => cargarPedidos());
     } catch {}
 
+    const handleStorageSync = () => cargarPedidos();
+    window.addEventListener('storage', handleStorageSync);
+
+    const interval = setInterval(cargarPedidos, 2500);
+
     return () => {
       if (socket) socket.disconnect();
+      window.removeEventListener('storage', handleStorageSync);
+      clearInterval(interval);
     };
   }, []);
 
@@ -408,40 +456,54 @@ export default function AdministracionPedidosComercialesPage() {
               <tbody className={`divide-y font-mono text-[11px] ${
                 isDark ? 'divide-slate-800/60' : 'divide-slate-100'
               }`}>
-                {pedidos.map((p) => (
-                  <tr key={p.id} className={`transition-colors ${
-                    isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
-                  }`}>
-                    <td className={`py-3 px-2 font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
-                      {p.codigoOrden}
-                    </td>
-                    <td className={`py-3 px-2 font-sans font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                      {p.cliente}
-                    </td>
-                    <td className={`py-3 px-2 font-sans ${isDark ? 'text-slate-300' : 'text-slate-900 font-medium'}`}>
-                      {p.producto}
-                    </td>
-                    <td className={`py-3 px-2 text-right font-bold ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
-                      {p.cantidad.toLocaleString()} {p.unidad}
-                    </td>
-                    <td className={`py-3 px-2 text-right font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                      S/ {p.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="py-3 px-2 text-center">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                        p.estado === 'APROBADO'
-                          ? isDark
-                            ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                            : 'bg-emerald-100 border border-emerald-300 text-emerald-800 font-black'
-                          : isDark
-                          ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
-                          : 'bg-blue-100 border border-blue-300 text-blue-800 font-black'
-                      }`}>
-                        {p.estado}
-                      </span>
+                {pedidos.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center font-sans">
+                      <Inbox className="w-10 h-10 mx-auto mb-2 text-slate-400 opacity-60" />
+                      <p className={`text-xs font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        No hay pedidos comerciales emitidos aún
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Diligencia el formulario de la izquierda para emitir el primer pedido y enviarlo a Planta.
+                      </p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  pedidos.map((p) => (
+                    <tr key={p.id} className={`transition-colors ${
+                      isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'
+                    }`}>
+                      <td className={`py-3 px-2 font-bold ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                        {p.codigoOrden}
+                      </td>
+                      <td className={`py-3 px-2 font-sans font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                        {p.cliente}
+                      </td>
+                      <td className={`py-3 px-2 font-sans ${isDark ? 'text-slate-300' : 'text-slate-900 font-medium'}`}>
+                        {p.producto}
+                      </td>
+                      <td className={`py-3 px-2 text-right font-bold ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
+                        {p.cantidad.toLocaleString()} {p.unidad}
+                      </td>
+                      <td className={`py-3 px-2 text-right font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                        S/ {p.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                          p.estado === 'APROBADO'
+                            ? isDark
+                              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
+                              : 'bg-emerald-100 border border-emerald-300 text-emerald-800 font-black'
+                            : isDark
+                            ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
+                            : 'bg-blue-100 border border-blue-300 text-blue-800 font-black'
+                        }`}>
+                          {p.estado}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

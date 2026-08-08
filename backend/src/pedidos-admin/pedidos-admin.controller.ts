@@ -57,4 +57,11 @@ export class PedidosAdminController {
   ) {
     return this.pedidosAdminService.devolverPedido(id, motivoDevolucion || 'Sin motivo especificado.');
   }
+
+  @Post('limpiar-datos')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  limpiarDatos() {
+    return this.pedidosAdminService.limpiarDatos();
+  }
 }

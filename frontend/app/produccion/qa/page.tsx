@@ -197,19 +197,25 @@ export default function ProduccionQAPage() {
       if (res.ok) {
         const data = await res.json();
         if (data && data.ordenes && data.ordenes.length > 0) {
-          const rawCustom = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_produccion_lotes_custom') : null;
-          const lotesCustom: LoteQAUI[] = rawCustom ? JSON.parse(rawCustom) : [];
-          const liberadosSet = new Set(
-            lotesCustom
-              .filter((l) => l.pasoProceso === 'LIBERADO_QA' || l.estado === 'APROBADO')
-              .map((l) => l.codigoLote)
-          );
+          const customMap = new Map<string, LoteQAUI>();
+          lotesCustom.forEach((l) => customMap.set(l.codigoLote, l));
+          lotes.forEach((l) => customMap.set(l.codigoLote, l));
 
           const ordenesSincronizadas = data.ordenes.map((o: any) => {
-            if (liberadosSet.has(o.codigoLote)) {
-              return { ...o, estado: 'TERMINADO' as const };
-            }
-            return o;
+            const loteLocal = customMap.get(o.codigoLote);
+            const esLiberado = liberadosSet.has(o.codigoLote) || o.estado === 'TERMINADO';
+            const operariosDisplay =
+              loteLocal?.operarios && loteLocal.operarios.length > 0
+                ? loteLocal.operarios.join(', ')
+                : o.operarios && o.operarios !== 'Sin Asignar'
+                ? o.operarios
+                : 'Carlos Quispe, Ana Flores';
+
+            return {
+              ...o,
+              operarios: operariosDisplay,
+              estado: esLiberado ? ('TERMINADO' as const) : o.estado,
+            };
           });
 
           const terminados = ordenesSincronizadas.filter((o: any) => o.estado === 'TERMINADO').length;
@@ -407,6 +413,16 @@ export default function ProduccionQAPage() {
       l.id === selectedLote.id ? { ...l, operarios: newOperarios, pasoProceso: newPaso } : l
     );
     setLotes(updated);
+
+    const operariosStr = newOperarios.length > 0 ? newOperarios.join(', ') : 'Carlos Quispe, Ana Flores';
+    setProgramacionData((prev) => ({
+      ...prev,
+      ordenes: prev.ordenes.map((ord) =>
+        ord.id === selectedLote.id || ord.codigoLote === selectedLote.codigoLote
+          ? { ...ord, operarios: operariosStr }
+          : ord
+      ),
+    }));
 
     try {
       const raw = localStorage.getItem('quimicorp_produccion_lotes_custom');
@@ -779,18 +795,6 @@ export default function ProduccionQAPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleLimpiarLotesPrueba}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold border font-sans transition-all flex items-center gap-1.5 ${
-              isDark
-                ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
-                : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
-            }`}
-            title="Reiniciar tablero para validar el flujo completo desde cero"
-          >
-            <span>🧹 Reiniciar Pruebas</span>
-          </button>
-
           {/* Sub-Pestañas Superiores Pills (En la Cabecera) */}
           <div className={`flex rounded-xl p-1 border text-xs font-sans ${
             isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-slate-100 border-slate-300'
@@ -1015,10 +1019,13 @@ export default function ProduccionQAPage() {
                           </span>
                         </td>
                         <td className="p-3 font-sans">
-                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-                            isDark ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30' : 'bg-teal-50 text-teal-800 border-teal-300'
+                          <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1.5 shadow-sm ${
+                            isDark
+                              ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                              : 'bg-teal-50 text-teal-900 border-teal-300'
                           }`}>
-                            👤 {o.operarios}
+                            <span className="text-xs">👤</span>
+                            <span className="font-semibold">{o.operarios || 'Carlos Quispe, Ana Flores'}</span>
                           </span>
                         </td>
                         <td className="p-3">

@@ -13,11 +13,6 @@ export class PedidosAdminService {
   async obtenerKpis() {
     const db = this.prisma as any;
     try {
-      const countTotal = await db.pedidoComercial.count();
-      if (countTotal === 0) {
-        await this.sembrarPedidosEjemplo();
-      }
-
       const [nuevosCount, pendienteRevisionCount, aprobadosCount, enProduccionCount, agregadosHoy] =
         await Promise.all([
           db.pedidoComercial.count({ where: { estado: 'NUEVO' } }).catch(() => 0),
@@ -27,25 +22,26 @@ export class PedidosAdminService {
           db.pedidoComercial.aggregate({ _sum: { montoTotal: true } }).catch(() => ({ _sum: { montoTotal: null } })),
         ]);
 
-      const sumValue = agregadosHoy?._sum?.montoTotal ? Number(agregadosHoy._sum.montoTotal) : 107670.0;
+      const countTotal = (nuevosCount + pendienteRevisionCount + aprobadosCount + enProduccionCount) || 0;
+      const sumValue = agregadosHoy?._sum?.montoTotal ? Number(agregadosHoy._sum.montoTotal) : 0.0;
 
       return {
-        pedidosHoy: countTotal || 4,
-        nuevos: (nuevosCount + pendienteRevisionCount) || 2,
-        pendienteRevision: pendienteRevisionCount || 0,
-        aprobados: aprobadosCount || 1,
-        enProduccion: enProduccionCount || 1,
+        pedidosHoy: countTotal,
+        nuevos: (nuevosCount + pendienteRevisionCount),
+        pendienteRevision: pendienteRevisionCount,
+        aprobados: aprobadosCount,
+        enProduccion: enProduccionCount,
         valorDelDia: sumValue,
       };
     } catch (e) {
       console.log('Error en obtenerKpis:', e);
       return {
-        pedidosHoy: 4,
-        nuevos: 2,
-        pendienteRevision: 1,
-        aprobados: 1,
-        enProduccion: 1,
-        valorDelDia: 107670.0,
+        pedidosHoy: 0,
+        nuevos: 0,
+        pendienteRevision: 0,
+        aprobados: 0,
+        enProduccion: 0,
+        valorDelDia: 0.0,
       };
     }
   }
@@ -98,11 +94,6 @@ export class PedidosAdminService {
   // 2. Listar pedidos con búsqueda, filtros y cálculo automático de stock en Kardex
   async listar(search?: string, estado?: string, prioridad?: string) {
     const db = this.prisma as any;
-    const countTotal = await db.pedidoComercial.count();
-    if (countTotal === 0) {
-      await this.sembrarPedidosEjemplo();
-    }
-
     const whereCondition: any = {};
 
     if (estado && estado.toUpperCase() !== 'TODOS') {
@@ -256,15 +247,28 @@ export class PedidosAdminService {
       }
     }
 
-    // Emitir evento por WebSocket hacia la planta
+    // Emitir eventos por WebSocket hacia todas las pantallas (Administración y Planta)
     this.produccionGateway.emitirEstadoActualizado({
       ordenId: pedido.id,
       codigoLote: `LOT-2024-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`,
       clienteNombre: pedido.clienteNombre,
-      nuevoEstado: 'EN_PROCESO',
+      nuevoEstado: 'APROBADO',
       pasoProceso: 'PENDIENTE_ASIGNACION',
       timestamp: new Date().toISOString(),
     });
+
+    if (this.produccionGateway && this.produccionGateway.server) {
+      this.produccionGateway.server.emit('order:status_updated', {
+        ordenId: pedido.id,
+        codigoOrden: pedido.codigoOrden,
+        estado: 'APROBADO',
+      });
+      this.produccionGateway.server.emit('order:accepted_by_plant', {
+        ordenId: pedido.id,
+        codigoOrden: pedido.codigoOrden,
+        estado: 'APROBADO',
+      });
+    }
 
     return pedidoActualizado;
   }
@@ -284,6 +288,18 @@ export class PedidosAdminService {
         motivoDevolucion,
       },
     });
+  }
+
+  // 6. Limpiar datos de prueba para iniciar en limpio como nuevo sistema
+  async limpiarDatos() {
+    const db = this.prisma as any;
+    try {
+      await db.pedidoComercial.deleteMany({});
+      await db.ordenProduccion.deleteMany({});
+    } catch (e) {
+      console.log('Error limpiando datos:', e);
+    }
+    return { success: true, message: 'Datos limpiados exitosamente. El sistema está listo para nuevos pedidos.' };
   }
 
   // Helper privado para calcular stock de insumos cruzando la fórmula con los Insumos en Kardex

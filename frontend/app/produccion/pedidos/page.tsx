@@ -247,6 +247,7 @@ export default function ProduccionPedidosRecepcionPage() {
         const lotesPrevios = JSON.parse(localStorage.getItem('quimicorp_produccion_lotes_custom') || '[]');
         const lotesActualizados = [nuevoLoteQA, ...lotesPrevios.filter((l: any) => l.codigoLote !== codigoLote)];
         localStorage.setItem('quimicorp_produccion_lotes_custom', JSON.stringify(lotesActualizados));
+        localStorage.setItem('quimicorp_sync_event', JSON.stringify({ action: 'order_approved', id: pedido.id, time: Date.now() }));
       } catch {}
 
       setToastMsg({
@@ -611,7 +612,7 @@ export default function ProduccionPedidosRecepcionPage() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => router.push('/administracion/formulas')}
+                      onClick={() => router.push('/produccion/formulas')}
                       className={`px-3 py-1.5 rounded-xl border text-xs font-bold font-sans transition-all flex items-center gap-1.5 ${
                         isDark
                           ? 'border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10'
