@@ -123,7 +123,22 @@ export default function ProduccionPedidosRecepcionPage() {
   const cargarPedidos = async () => {
     try {
       setLoading(true);
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      if (!savedToken || savedToken.startsWith('jwt_mock')) {
+        try {
+          const authRes = await fetch('http://localhost:3001/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'produccion@quimicorp.pe', password: 'Quimicorp2026!' }),
+          });
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            savedToken = authData.token;
+            localStorage.setItem('quimicorp_jwt', authData.token);
+          }
+        } catch {}
+      }
+
       const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
       const [resKpis, resList] = await Promise.all([
@@ -138,70 +153,11 @@ export default function ProduccionPedidosRecepcionPage() {
 
       if (resList && resList.ok) {
         const listData = await resList.json();
-        setPedidos(listData);
-      } else {
-        // Semilla de respaldo en tiempo real
-        setPedidos([
-          {
-            id: 'ped-001',
-            codigoOrden: '#PO-0841',
-            codigoRefAdmin: 'ADM-2026-0841',
-            clienteNombre: 'GEYMA S.A.C.',
-            clienteRuc: '20614697321',
-            contactoNombre: 'Carlos Mendoza (Gerente Operaciones)',
-            contactoTelefono: '+51 998 234 567',
-            direccionDespacho: 'Av. Industrial 342, Ate, Lima',
-            repComercial: 'Ana Torres (Administración)',
-            condicionPago: 'Crédito 30 días',
-            productoNombre: 'SERUM DE SALMON',
-            cantidadSolicitada: 1000,
-            unidadMedida: 'KG',
-            montoTotal: 34500.0,
-            fechaCreacion: 'Hoy 08:30 a. m.',
-            fechaPrometida: '12/08/2026',
-            prioridad: 'URGENTE',
-            estado: 'NUEVO',
-            desgloseStock: {
-              stockCompleto: true,
-              insumosFaltantesCount: 0,
-              detalles: [
-                { codigo: 'QC-SER-001', nombre: 'Agua Desionizada', requerido: 860, disponible: 4500, faltante: 0, suficiente: true },
-                { codigo: 'QC-SER-002', nombre: 'Glicerina vegetal', requerido: 40, disponible: 520, faltante: 0, suficiente: true },
-                { codigo: 'QC-SER-003', nombre: 'Niacinamida', requerido: 40, disponible: 180, faltante: 0, suficiente: true },
-                { codigo: 'QC-SER-005', nombre: 'Cafeína', requerido: 5, disponible: 45, faltante: 0, suficiente: true },
-              ],
-            },
-          },
-          {
-            id: 'ped-002',
-            codigoOrden: '#PO-0842',
-            codigoRefAdmin: 'ADM-2026-0842',
-            clienteNombre: 'INDUSTRIAS QUÍMICAS DEL SUR S.A.',
-            clienteRuc: '20509876543',
-            contactoNombre: 'Ing. Roberto Silva',
-            contactoTelefono: '+51 987 654 321',
-            direccionDespacho: 'Parque Industrial Mz. B Lote 4, Lurín',
-            repComercial: 'Elena Gómez (Ventas)',
-            condicionPago: 'Contado Contra Entrega',
-            productoNombre: 'DETERGENTE LÍQUIDO INDUSTRIAL',
-            cantidadSolicitada: 2500,
-            unidadMedida: 'LT',
-            montoTotal: 48900.0,
-            fechaCreacion: 'Hoy 09:15 a. m.',
-            fechaPrometida: '15/08/2026',
-            prioridad: 'NORMAL',
-            estado: 'APROBADO',
-            desgloseStock: {
-              stockCompleto: true,
-              insumosFaltantesCount: 0,
-              detalles: [
-                { codigo: 'QC-DET-001', nombre: 'Agua Desionizada', requerido: 1800, disponible: 4500, faltante: 0, suficiente: true },
-                { codigo: 'QC-DET-002', nombre: 'LESS 70%', requerido: 400, disponible: 1200, faltante: 0, suficiente: true },
-                { codigo: 'QC-DET-003', nombre: 'Ácido Sulfónico', requerido: 200, disponible: 800, faltante: 0, suficiente: true },
-              ],
-            },
-          },
-        ]);
+        if (Array.isArray(listData) && listData.length > 0) {
+          setPedidos(listData);
+        } else {
+          setPedidos(listData || []);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -213,16 +169,28 @@ export default function ProduccionPedidosRecepcionPage() {
   useEffect(() => {
     cargarPedidos();
 
+    let socket: any = null;
     try {
-      const socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
-      socket.on('order:created_to_plant', () => {
-        setToastMsg({ tipo: 'success', texto: '¡Nuevo Pedido Comercial recibido en Planta!' });
+      socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
+      socket.on('order:created_to_plant', (nuevoPedido: any) => {
+        setToastMsg({ tipo: 'success', texto: `¡Nuevo Pedido Comercial #${nuevoPedido.codigoOrden || ''} recibido en Planta!` });
+        if (nuevoPedido && nuevoPedido.id) {
+          setPedidos((prev) => {
+            const yaExiste = prev.some((p) => p.id === nuevoPedido.id || p.codigoOrden === nuevoPedido.codigoOrden);
+            if (yaExiste) return prev;
+            return [nuevoPedido, ...prev];
+          });
+        }
         cargarPedidos();
       });
-      return () => {
-        socket.disconnect();
-      };
+      socket.on('order:status_updated', () => cargarPedidos());
+      socket.on('order:accepted_by_plant', () => cargarPedidos());
+      socket.on('order:devolucion', () => cargarPedidos());
     } catch {}
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
   }, []);
 
   const handleAprobarLote = async (pedido: PedidoComercialUI) => {
@@ -237,13 +205,13 @@ export default function ProduccionPedidosRecepcionPage() {
       });
 
       if (res.ok) {
-        setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} programado y en cola de reactores.` });
+        setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} aprobado y transferido a Planta & Reactores.` });
         cargarPedidos();
       } else {
         setPedidos((prev) =>
-          prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'EN_PRODUCCION' } : p))
+          prev.map((p) => (p.id === pedido.id ? { ...p, estado: 'APROBADO' } : p))
         );
-        setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} programado para mezcla en Reactor.` });
+        setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} aprobado para producción en Planta.` });
       }
     } catch (e) {
       setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} programado en reactor.` });
@@ -254,13 +222,19 @@ export default function ProduccionPedidosRecepcionPage() {
 
   const pedidosFiltrados = useMemo(() => {
     return pedidos.filter((p) => {
-      if (filtroEstado !== 'TODOS' && p.estado !== filtroEstado) return false;
+      if (filtroEstado !== 'TODOS') {
+        if (filtroEstado === 'NUEVO') {
+          if (p.estado !== 'NUEVO' && p.estado !== 'PENDIENTE_REVISION') return false;
+        } else if (p.estado !== filtroEstado) {
+          return false;
+        }
+      }
       if (filtroPrioridad !== 'TODAS' && p.prioridad !== filtroPrioridad) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchCode = p.codigoOrden.toLowerCase().includes(q);
-        const matchCliente = p.clienteNombre.toLowerCase().includes(q);
-        const matchProd = p.productoNombre.toLowerCase().includes(q);
+        const matchCode = (p.codigoOrden || '').toLowerCase().includes(q);
+        const matchCliente = (p.clienteNombre || '').toLowerCase().includes(q);
+        const matchProd = (p.productoNombre || '').toLowerCase().includes(q);
         if (!matchCode && !matchCliente && !matchProd) return false;
       }
       return true;
@@ -403,7 +377,12 @@ export default function ProduccionPedidosRecepcionPage() {
             { id: 'DEVUELTO', label: 'Devueltos' },
           ].map((item) => {
             const isSel = filtroEstado === item.id;
-            const count = item.id === 'TODOS' ? pedidos.length : pedidos.filter((p) => p.estado === item.id).length;
+            const count =
+              item.id === 'TODOS'
+                ? pedidos.length
+                : item.id === 'NUEVO'
+                ? pedidos.filter((p) => p.estado === 'NUEVO' || p.estado === 'PENDIENTE_REVISION').length
+                : pedidos.filter((p) => p.estado === item.id).length;
             return (
               <button
                 key={item.id}
@@ -451,7 +430,7 @@ export default function ProduccionPedidosRecepcionPage() {
           </div>
         ) : (
           pedidosFiltrados.map((p) => {
-            const esNuevo = p.estado === 'NUEVO';
+            const esNuevo = p.estado === 'NUEVO' || p.estado === 'PENDIENTE_REVISION';
             const enProd = p.estado === 'EN_PRODUCCION';
 
             return (

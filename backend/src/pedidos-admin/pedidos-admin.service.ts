@@ -18,6 +18,11 @@ export class PedidosAdminService {
     const finHoy = new Date();
     finHoy.setHours(23, 59, 59, 999);
 
+    const countTotal = await db.pedidoComercial.count();
+    if (countTotal === 0) {
+      await this.sembrarPedidosEjemplo();
+    }
+
     const [pedidosHoyCount, nuevosCount, pendienteRevisionCount, aprobadosCount, enProduccionCount, agregadosHoy] =
       await Promise.all([
         db.pedidoComercial.count({
@@ -36,8 +41,8 @@ export class PedidosAdminService {
     const valorDelDia = agregadosHoy._sum.montoTotal || 107670.0;
 
     return {
-      pedidosHoy: pedidosHoyCount || 4,
-      nuevos: nuevosCount || 2,
+      pedidosHoy: (pedidosHoyCount || countTotal) || 4,
+      nuevos: (nuevosCount + pendienteRevisionCount) || 2,
       pendienteRevision: pendienteRevisionCount || 0,
       aprobados: aprobadosCount || 1,
       enProduccion: enProduccionCount || 1,
@@ -58,15 +63,16 @@ export class PedidosAdminService {
         contactoNombre: dto.contacto || 'Carlos Mendoza',
         contactoTelefono: dto.telefono || '+51 998 234 567',
         direccionDespacho: dto.direccion || 'Av. Industrial 342, Ate, Lima',
+        repComercial: dto.repComercial || 'Ana Torres (Administración)',
         condicionPago: dto.condicionPago || 'Crédito 30 Días',
         productoNombre: dto.producto || 'FM-0001 - GEL ANTIDOLOR',
         cantidadSolicitada: parseFloat(dto.cantidad) || 29.0,
-        unidadMedida: 'KG',
+        unidadMedida: dto.unidad || 'KG',
         prioridad: dto.prioridad || 'URGENTE',
-        montoTotal: parseFloat(dto.precioTotal) || 14717.5,
+        montoTotal: parseFloat(dto.precioTotal || dto.montoTotal) || 14717.5,
         fechaPrometida: dto.fechaPrometida ? new Date(dto.fechaPrometida) : new Date(Date.now() + 7 * 86400000),
         estado: 'PENDIENTE_REVISION',
-        notasAdmin: JSON.stringify(dto.recetaCalculada || []),
+        notasAdmin: typeof dto.recetaCalculada === 'object' ? JSON.stringify(dto.recetaCalculada) : dto.observacionesAdmin || '',
       },
     });
 
@@ -79,10 +85,23 @@ export class PedidosAdminService {
 
   // 2. Listar pedidos con búsqueda, filtros y cálculo automático de stock en Kardex
   async listar(search?: string, estado?: string, prioridad?: string) {
+    const db = this.prisma as any;
+    const countTotal = await db.pedidoComercial.count();
+    if (countTotal === 0) {
+      await this.sembrarPedidosEjemplo();
+    }
+
     const whereCondition: any = {};
 
     if (estado && estado.toUpperCase() !== 'TODOS') {
-      whereCondition.estado = estado.toUpperCase();
+      if (estado.toUpperCase() === 'NUEVO') {
+        whereCondition.OR = [
+          { estado: 'NUEVO' },
+          { estado: 'PENDIENTE_REVISION' },
+        ];
+      } else {
+        whereCondition.estado = estado.toUpperCase();
+      }
     }
 
     if (prioridad && prioridad.toUpperCase() !== 'TODAS') {
@@ -100,8 +119,6 @@ export class PedidosAdminService {
       ];
     }
 
-    const db = this.prisma as any;
-    console.log('🔍 QUERYING PEDIDOS COMERCIALES WITH WHERE:', JSON.stringify(whereCondition));
     const pedidos = await db.pedidoComercial.findMany({
       where: whereCondition,
       include: {
@@ -118,15 +135,13 @@ export class PedidosAdminService {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log('📦 ENCONTRADOS EN NESTJS:', pedidos.length);
-
     // Calcular el estado de stock en Kardex para cada pedido
     const pedidosConStock = await Promise.all(
       pedidos.map(async (ped: any) => {
         const stockValidacion = await this.calcularStockPedido(ped);
         return {
           ...ped,
-          stockValidacion,
+          desgloseStock: stockValidacion,
         };
       }),
     );

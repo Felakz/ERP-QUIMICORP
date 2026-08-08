@@ -11,14 +11,14 @@ export class PedidosAdminController {
 
   @Get('kpis')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
   obtenerKpis() {
     return this.pedidosAdminService.obtenerKpis();
   }
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.ECOMMERCE_MARKETING)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.ECOMMERCE_MARKETING, Role.PRODUCCION_ALMACEN)
   listar(
     @Query('search') search?: string,
     @Query('estado') estado?: string,
@@ -36,21 +36,21 @@ export class PedidosAdminController {
 
   @Get(':id/desglose-stock')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
   obtenerDesgloseStock(@Param('id') id: string) {
     return this.pedidosAdminService.obtenerDesgloseStock(id);
   }
 
   @Post(':id/aprobar')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   aprobarPedido(@Param('id') id: string) {
     return this.pedidosAdminService.aprobarPedido(id);
   }
 
   @Post(':id/devolver')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   devolverPedido(
     @Param('id') id: string,
     @Body('motivoDevolucion') motivoDevolucion: string,
