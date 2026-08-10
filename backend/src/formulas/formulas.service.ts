@@ -46,4 +46,17 @@ export class FormulasService {
       data: { estado: EstadoFormula.ACTIVA },
     });
   }
+
+  async listarVariantes(formulaId: string, clienteId?: string) {
+    const db = this.prisma as any;
+    const where: any = { formulaId };
+    if (clienteId && clienteId.trim()) {
+      where.clienteId = clienteId.trim();
+    }
+    return db.formulaVariant.findMany({
+      where,
+      include: { cliente: true },
+      orderBy: { nombre: 'asc' },
+    });
+  }
 }

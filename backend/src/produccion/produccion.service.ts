@@ -532,14 +532,20 @@ export class ProduccionService {
 
       const esEnProceso =
         !esTerminado &&
-        (o.estado === EstadoOrdenProduccion.EN_PROCESO ||
+        (o.pasoProceso === 'ELABORANDO' ||
+          o.pasoProceso === 'EN_MUESTREO_QA' ||
           o.estado === EstadoOrdenProduccion.QA_PENDIENTE ||
-          o.pasoProceso === 'ELABORANDO' ||
-          o.pasoProceso === 'EN_MUESTREO_QA');
+          (!!o.operariosAsignados && o.operariosAsignados.trim().length > 0));
 
-      if (esTerminado) {
+      const estadoCalculado: 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE' = esTerminado
+        ? 'TERMINADO'
+        : esEnProceso
+        ? 'EN PROCESO'
+        : 'PENDIENTE';
+
+      if (estadoCalculado === 'TERMINADO') {
         terminadosCount++;
-      } else if (esEnProceso) {
+      } else if (estadoCalculado === 'EN PROCESO') {
         enProcesoCount++;
       } else {
         pendientesCount++;
@@ -554,12 +560,13 @@ export class ProduccionService {
         fraganciaEspecificada: o.fraganciaEspecificada || 'SIN FRAGANCIA',
         cantidad: cant,
         unidadMedida: 'KG',
-        estado: esTerminado ? 'TERMINADO' : esEnProceso ? 'EN PROCESO' : 'PENDIENTE',
-        operarios: o.operariosAsignados || 'Carlos Quispe, Ana Flores',
+        estado: estadoCalculado,
+        operarios: o.operariosAsignados || 'Sin Asignar',
         prioridad: o.prioridad || 'NORMAL',
         fechaCreacion: o.createdAt,
         fechaCierre: o.fechaCierre,
       };
+
     });
 
     return {

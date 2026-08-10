@@ -9,17 +9,17 @@ export class PedidosAdminService {
     private readonly produccionGateway: ProduccionGateway,
   ) {}
 
-  // 1. Obtener KPIs superiores dinámicos del día
+  // 1. Obtener KPIs superiores dinámicos del día (solo órdenes de producción OP)
   async obtenerKpis() {
     const db = this.prisma as any;
     try {
       const [nuevosCount, pendienteRevisionCount, aprobadosCount, enProduccionCount, agregadosHoy] =
         await Promise.all([
-          db.pedidoComercial.count({ where: { estado: 'NUEVO' } }).catch(() => 0),
-          db.pedidoComercial.count({ where: { estado: 'PENDIENTE_REVISION' } }).catch(() => 0),
-          db.pedidoComercial.count({ where: { estado: 'APROBADO' } }).catch(() => 0),
-          db.pedidoComercial.count({ where: { estado: 'EN_PRODUCCION' } }).catch(() => 0),
-          db.pedidoComercial.aggregate({ _sum: { montoTotal: true } }).catch(() => ({ _sum: { montoTotal: null } })),
+          db.pedidoComercial.count({ where: { estado: 'NUEVO', docType: 'OP' } }).catch(() => 0),
+          db.pedidoComercial.count({ where: { estado: 'PENDIENTE_REVISION', docType: 'OP' } }).catch(() => 0),
+          db.pedidoComercial.count({ where: { estado: 'APROBADO', docType: 'OP' } }).catch(() => 0),
+          db.pedidoComercial.count({ where: { estado: 'EN_PRODUCCION', docType: 'OP' } }).catch(() => 0),
+          db.pedidoComercial.aggregate({ where: { docType: 'OP' }, _sum: { montoTotal: true } }).catch(() => ({ _sum: { montoTotal: null } })),
         ]);
 
       const countTotal = (nuevosCount + pendienteRevisionCount + aprobadosCount + enProduccionCount) || 0;
@@ -46,55 +46,158 @@ export class PedidosAdminService {
     }
   }
 
-  // 1.5 Crear nuevo pedido comercial registrado en revisión de planta desde Administración y Finanzas / Fórmulas
+
+  // 1.5 Crear pedido/cotización — bifurcado por mode: 'COTIZACION'|'PEDIDO'
   async crearPedido(dto: any) {
     const db = this.prisma as any;
-    let codigoOrden = dto.code || `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
-    const existe = await db.pedidoComercial.findUnique({ where: { codigoOrden } });
-    if (existe) {
-      codigoOrden = `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    const mode: 'COTIZACION' | 'PEDIDO' = dto.mode === 'COTIZACION' ? 'COTIZACION' : 'PEDIDO';
+
+    // ── Generar código de orden único ──
+    let codigoOrden: string;
+    if (mode === 'COTIZACION') {
+      const year = new Date().getFullYear();
+      let seq = (await db.pedidoComercial.count({ where: { docType: 'COT' } })) + 1;
+      codigoOrden = `COT-${year}-${String(seq).padStart(3, '0')}`;
+      while (await db.pedidoComercial.findUnique({ where: { codigoOrden } })) {
+        seq++;
+        codigoOrden = `COT-${year}-${String(seq).padStart(3, '0')}`;
+      }
+    } else {
+      let poCode = dto.code || `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+      while (await db.pedidoComercial.findUnique({ where: { codigoOrden: poCode } })) {
+        poCode = `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+      }
+      codigoOrden = poCode;
     }
 
+
+    // ── Fecha prometida ──
     let fechaPrometida = new Date(Date.now() + 7 * 86400000);
     if (dto.fechaPrometida) {
       const parsed = new Date(dto.fechaPrometida);
-      if (!isNaN(parsed.getTime())) {
-        fechaPrometida = parsed;
+      if (!isNaN(parsed.getTime())) fechaPrometida = parsed;
+    }
+
+    // ── Resolver formulaId de manera 100% segura contra foreign key constraint ──
+    let validFormulaId: string | null = null;
+    if (dto.formulaId) {
+      const foundById = await this.prisma.formulaMaster.findUnique({
+        where: { id: dto.formulaId },
+      }).catch(() => null);
+      if (foundById) {
+        validFormulaId = foundById.id;
       }
     }
 
+    if (!validFormulaId) {
+      const matchCode = (dto.producto || dto.formulaId || '').match(/FM-\d+[\w-]*/i)?.[0];
+      if (matchCode) {
+        const foundByCode = await this.prisma.formulaMaster.findFirst({
+          where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
+        }).catch(() => null);
+        if (foundByCode) {
+          validFormulaId = foundByCode.id;
+        } else {
+          const nuevaFormula = await this.prisma.formulaMaster.create({
+            data: {
+              codigoFormula: matchCode,
+              nombreProducto: dto.producto?.replace(matchCode, '').replace(/^[\s-]+/, '').trim() || `Fórmula ${matchCode}`,
+              estado: 'ACTIVA',
+              densidadTeorica: 1.0,
+            },
+          }).catch(() => null);
+          if (nuevaFormula) {
+            validFormulaId = nuevaFormula.id;
+          }
+        }
+      }
+    }
+
+    // ── Resolver clienteId seguro ──
+    let validClienteId: string | null = null;
+    if (dto.clienteId) {
+      const cFound = await db.cliente.findUnique({ where: { id: dto.clienteId } }).catch(() => null);
+      if (cFound) validClienteId = cFound.id;
+    }
+
+    const targetRuc = dto.ruc || dto.clienteInline?.ruc;
+    if (!validClienteId && targetRuc) {
+      const existing = await db.cliente.findUnique({ where: { ruc: targetRuc } }).catch(() => null);
+      if (existing) {
+        validClienteId = existing.id;
+      } else {
+        const nuevo = await db.cliente.create({
+          data: {
+            razonSocial: dto.cliente || dto.clienteInline?.razonSocial || 'Cliente Comercial',
+            ruc: targetRuc,
+            telefono: dto.telefono || dto.clienteInline?.telefono || null,
+            direccion: dto.direccion || dto.clienteInline?.direccion || null,
+            condicionPago: dto.condicionPago || dto.clienteInline?.condicionPago || 'Contado',
+          },
+        }).catch(() => null);
+        if (nuevo) validClienteId = nuevo.id;
+      }
+    }
+
+    // ── Resolver varianteId seguro ──
+    let validVarianteId: string | null = null;
+    if (dto.varianteId) {
+      const vFound = await db.formulaVariant.findUnique({ where: { id: dto.varianteId } }).catch(() => null);
+      if (vFound) validVarianteId = vFound.id;
+    }
+
+    // ── Crear el registro ──
     const nuevoPedido = await db.pedidoComercial.create({
       data: {
         codigoOrden,
-        clienteNombre: dto.cliente || 'GEYMA S.A.C.',
-        clienteRuc: dto.ruc || '20614697321',
-        contactoNombre: dto.contacto || 'Carlos Mendoza',
-        contactoTelefono: dto.telefono || '+51 998 234 567',
-        direccionDespacho: dto.direccion || 'Av. Industrial 342, Ate, Lima',
-        repComercial: dto.repComercial || 'Ana Torres (Administración)',
-        condicionPago: dto.condicionPago || 'Crédito 30 Días',
-        productoNombre: dto.producto || 'FM-0001 - GEL ANTIDOLOR',
-        cantidadSolicitada: parseFloat(dto.cantidad) || 29.0,
-        unidadMedida: dto.unidad || 'KG',
-        prioridad: dto.prioridad || 'URGENTE',
-        montoTotal: parseFloat(dto.precioTotal || dto.montoTotal) || 14717.5,
+        docType: mode === 'COTIZACION' ? 'COT' : 'OP',
+        clienteNombre: dto.cliente || dto.clienteInline?.razonSocial || 'GEYMA S.A.C.',
+        clienteRuc: targetRuc || '20614697321',
+        contactoNombre: dto.contacto || null,
+        contactoTelefono: dto.telefono || null,
+        direccionDespacho: dto.direccion || null,
+        repComercial: dto.repComercial || 'Administración Quimicorp',
+        condicionPago: dto.condicionPago || 'Contado',
+        productoNombre: dto.producto || 'Producto sin especificar',
+        cantidadSolicitada: parseFloat(dto.cantidad) || 1.0,
+        unidadMedida: dto.unidad || dto.unidadMedida || 'KG',
+        prioridad: dto.prioridad || 'NORMAL',
+        montoTotal: parseFloat(dto.precioTotal || dto.montoTotal) || 0,
         fechaPrometida,
-        estado: 'NUEVO',
-        notasAdmin: typeof dto.recetaCalculada === 'object' ? JSON.stringify(dto.recetaCalculada) : dto.observacionesAdmin || '',
+        estado: mode === 'COTIZACION' ? 'NUEVO' : 'PENDIENTE_REVISION',
+        formulaId: validFormulaId,
+        clienteId: validClienteId,
+        varianteId: validVarianteId,
+        aroma: dto.aroma || null,
+        color: dto.color || null,
+        notasAdmin: dto.itemsJson
+          ? JSON.stringify({
+              items: dto.itemsJson,
+              observaciones: dto.observacionesAdmin || dto.notasAdmin || '',
+            })
+          : typeof dto.recetaCalculada === 'object'
+          ? JSON.stringify(dto.recetaCalculada)
+          : dto.observacionesAdmin || dto.notasAdmin || null,
       },
     });
 
-    if (this.produccionGateway && this.produccionGateway.server) {
+    // ── Emitir WebSocket SOLO para pedidos OP ──
+    if (mode === 'PEDIDO' && this.produccionGateway && this.produccionGateway.server) {
       this.produccionGateway.server.emit('order:created_to_plant', nuevoPedido);
     }
 
-    return nuevoPedido;
+    return { ...nuevoPedido, isCotizacion: mode === 'COTIZACION' };
   }
 
+
   // 2. Listar pedidos con búsqueda, filtros y cálculo automático de stock en Kardex
-  async listar(search?: string, estado?: string, prioridad?: string) {
+  async listar(search?: string, estado?: string, prioridad?: string, docType?: string) {
     const db = this.prisma as any;
     const whereCondition: any = {};
+
+    if (docType && docType.toUpperCase() !== 'TODOS') {
+      whereCondition.docType = docType.toUpperCase();
+    }
 
     if (estado && estado.toUpperCase() !== 'TODOS') {
       if (estado.toUpperCase() === 'NUEVO') {
@@ -110,6 +213,7 @@ export class PedidosAdminService {
     if (prioridad && prioridad.toUpperCase() !== 'TODAS') {
       whereCondition.prioridad = prioridad.toUpperCase();
     }
+
 
     if (search && search.trim() !== '') {
       const q = search.trim();
@@ -138,19 +242,36 @@ export class PedidosAdminService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Calcular el estado de stock en Kardex para cada pedido
+    // Calcular el estado de stock en Kardex y desglosar items guardados
     const pedidosConStock = await Promise.all(
       pedidos.map(async (ped: any) => {
         const stockValidacion = await this.calcularStockPedido(ped);
+        
+        let itemsList: any[] = [];
+        let cleanObservaciones = ped.notasAdmin;
+
+        if (ped.notasAdmin && typeof ped.notasAdmin === 'string') {
+          try {
+            const parsed = JSON.parse(ped.notasAdmin);
+            if (parsed && Array.isArray(parsed.items)) {
+              itemsList = parsed.items;
+              cleanObservaciones = parsed.observaciones || '';
+            }
+          } catch {}
+        }
+
         return {
           ...ped,
           desgloseStock: stockValidacion,
+          itemsList,
+          observacionesClean: cleanObservaciones,
         };
       }),
     );
 
     return pedidosConStock;
   }
+
 
   // 3. Obtener desglose exacto de stock para el modal de stock insuficiente
   async obtenerDesgloseStock(pedidoId: string) {
@@ -192,60 +313,151 @@ export class PedidosAdminService {
       data: { estado: 'APROBADO' },
     });
 
-    // Crear la Orden de Producción correspondiente en PostgreSQL
-    let targetFormulaId = pedido.formulaId;
-    if (!targetFormulaId) {
-      const matchCode = (pedido.productoNombre || '').match(/FM-\d+/)?.[0];
-      if (matchCode) {
-        const found = await this.prisma.formulaMaster.findFirst({
-          where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
-        });
-        targetFormulaId = found?.id;
-      }
-      if (!targetFormulaId) {
-        const fallbackFormula = await this.prisma.formulaMaster.findFirst();
-        targetFormulaId = fallbackFormula?.id;
-      }
+    // Desglosar items si existen
+    let itemsParsed: any[] = [];
+    if (pedido.notasAdmin) {
+      try {
+        const parsed = JSON.parse(pedido.notasAdmin);
+        if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+          itemsParsed = parsed.items;
+        }
+      } catch {}
     }
 
-    if (targetFormulaId) {
-      const codigoLote = `LOT-2024-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`;
-      const existeOp = await this.prisma.ordenProduccion.findFirst({
-        where: { codigoLote },
+    let supervisor = await this.prisma.usuario.findFirst();
+    if (!supervisor) {
+      let rol = await this.prisma.rol.findFirst();
+      if (!rol) {
+        rol = await this.prisma.rol.create({ data: { nombre: 'ADMIN_SISTEMA' } });
+      }
+      supervisor = await this.prisma.usuario.create({
+        data: {
+          dni: '00000000',
+          nombres: 'Supervisor',
+          apellidos: 'Planta',
+          rolId: rol.id,
+          passwordHash: '$2b$10$xyz',
+        },
       });
-      if (!existeOp) {
-        let supervisor = await this.prisma.usuario.findFirst();
-        if (!supervisor) {
-          let rol = await this.prisma.rol.findFirst();
-          if (!rol) {
-            rol = await this.prisma.rol.create({
-              data: { nombre: 'ADMIN_SISTEMA' },
-            });
-          }
-          supervisor = await this.prisma.usuario.create({
-            data: {
-              dni: '00000000',
-              nombres: 'Supervisor',
-              apellidos: 'Planta',
-              rolId: rol.id,
-              passwordHash: '$2b$10$xyz',
-            },
-          });
+    }
+
+    // Si tiene múltiples items, crear una orden de producción por cada producto
+    if (itemsParsed.length > 0) {
+      for (let i = 0; i < itemsParsed.length; i++) {
+        const item = itemsParsed[i];
+        const numPart = pedido.codigoOrden.replace(/\D/g, '') || '0841';
+        const codigoLote = `LOT-2024-${numPart}-${i + 1}`;
+
+        let formulaId: string | null = null;
+        if (item.formulaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.formulaId)) {
+          const exists = await this.prisma.formulaMaster.findUnique({ where: { id: item.formulaId } }).catch(() => null);
+          if (exists) formulaId = exists.id;
         }
 
-        await this.prisma.ordenProduccion.create({
-          data: {
-            codigoLote,
-            formulaId: targetFormulaId,
-            cantidadPlanificada: pedido.cantidadSolicitada,
-            clienteNombre: pedido.clienteNombre,
-            supervisorId: supervisor.id,
-            estado: 'EN_PROCESO',
-            pasoProceso: 'PENDIENTE_ASIGNACION',
-          },
-        });
+        if (!formulaId) {
+          const matchCode = (item.codigoFM || item.codigo || item.productoNombre || '').match(/FM-\d+[\w-]*/i)?.[0];
+          if (matchCode) {
+            let found = await this.prisma.formulaMaster.findFirst({
+              where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
+            }).catch(() => null);
+            if (!found) {
+              found = await this.prisma.formulaMaster.create({
+                data: {
+                  codigoFormula: matchCode,
+                  nombreProducto: item.productoNombre || item.descripcion || `Fórmula ${matchCode}`,
+                  estado: 'ACTIVA',
+                  densidadTeorica: 1.0,
+                },
+              }).catch(() => null);
+            }
+            if (found) formulaId = found.id;
+          }
+        }
+
+        if (!formulaId) {
+          let fallback = await this.prisma.formulaMaster.findFirst().catch(() => null);
+          if (!fallback) {
+            fallback = await this.prisma.formulaMaster.create({
+              data: {
+                codigoFormula: 'FM-0001',
+                nombreProducto: item.productoNombre || 'Fórmula Base',
+                estado: 'ACTIVA',
+                densidadTeorica: 1.0,
+              },
+            }).catch(() => null);
+          }
+          if (fallback) formulaId = fallback.id;
+        }
+
+        if (formulaId) {
+          const existe = await this.prisma.ordenProduccion.findFirst({ where: { codigoLote } }).catch(() => null);
+          if (!existe) {
+            await this.prisma.ordenProduccion.create({
+              data: {
+                codigoLote,
+                formulaId,
+                cantidadPlanificada: Number(item.cantidad) || 100,
+                clienteNombre: pedido.clienteNombre,
+                supervisorId: supervisor.id,
+                estado: 'EN_PROCESO',
+                pasoProceso: 'PENDIENTE_ASIGNACION',
+              },
+            }).catch((err: any) => console.log('Error creando ordenProduccion item:', err));
+          }
+        }
+      }
+    } else {
+      // Pedido único
+      let targetFormulaId: string | null = null;
+      if (pedido.formulaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pedido.formulaId)) {
+        const exists = await this.prisma.formulaMaster.findUnique({ where: { id: pedido.formulaId } }).catch(() => null);
+        if (exists) targetFormulaId = exists.id;
+      }
+
+      if (!targetFormulaId) {
+        const matchCode = (pedido.productoNombre || '').match(/FM-\d+[\w-]*/i)?.[0];
+        if (matchCode) {
+          let found = await this.prisma.formulaMaster.findFirst({
+            where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
+          }).catch(() => null);
+          if (!found) {
+            found = await this.prisma.formulaMaster.create({
+              data: {
+                codigoFormula: matchCode,
+                nombreProducto: pedido.productoNombre || `Fórmula ${matchCode}`,
+                estado: 'ACTIVA',
+                densidadTeorica: 1.0,
+              },
+            }).catch(() => null);
+          }
+          if (found) targetFormulaId = found.id;
+        }
+      }
+
+      if (!targetFormulaId) {
+        let fallback = await this.prisma.formulaMaster.findFirst().catch(() => null);
+        if (fallback) targetFormulaId = fallback.id;
+      }
+
+      if (targetFormulaId) {
+        const codigoLote = `LOT-2024-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`;
+        const existeOp = await this.prisma.ordenProduccion.findFirst({ where: { codigoLote } }).catch(() => null);
+        if (!existeOp) {
+          await this.prisma.ordenProduccion.create({
+            data: {
+              codigoLote,
+              formulaId: targetFormulaId,
+              cantidadPlanificada: pedido.cantidadSolicitada,
+              clienteNombre: pedido.clienteNombre,
+              supervisorId: supervisor.id,
+              estado: 'EN_PROCESO',
+              pasoProceso: 'PENDIENTE_ASIGNACION',
+            },
+          }).catch((err: any) => console.log('Error creando ordenProduccion:', err));
+        }
       }
     }
+
 
     // Emitir eventos por WebSocket hacia todas las pantallas (Administración y Planta)
     this.produccionGateway.emitirEstadoActualizado({
@@ -290,17 +502,92 @@ export class PedidosAdminService {
     });
   }
 
+  // 5.5 Convertir Cotización Comercial en Pedido de Producción (Aceptado por Cliente)
+  async convertirCotizacionAPedido(id: string, dto?: any) {
+    const db = this.prisma as any;
+    const cotizacion = await db.pedidoComercial.findUnique({ where: { id } });
+    if (!cotizacion) {
+      throw new NotFoundException('Cotización no encontrada.');
+    }
+
+    // Generar código de Orden de Producción #PO-XXXX único
+    let nuevoCodigo = dto?.code || `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    while (await db.pedidoComercial.findUnique({ where: { codigoOrden: nuevoCodigo } })) {
+      nuevoCodigo = `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    }
+
+    // Preservar estructura JSON de items para no perder el desglose de productos
+    let updatedNotasAdmin = cotizacion.notasAdmin;
+    let itemsParsed: any[] = [];
+    if (cotizacion.notasAdmin) {
+      try {
+        const parsed = JSON.parse(cotizacion.notasAdmin);
+        if (parsed && Array.isArray(parsed.items)) {
+          itemsParsed = parsed.items;
+          if (dto?.observaciones) {
+            parsed.observaciones = dto.observaciones;
+          }
+          updatedNotasAdmin = JSON.stringify(parsed);
+        }
+      } catch {
+        updatedNotasAdmin = dto?.observaciones || cotizacion.notasAdmin;
+      }
+    }
+
+    const pedidoConvertido = await db.pedidoComercial.update({
+      where: { id },
+      data: {
+        codigoOrden: nuevoCodigo,
+        codigoRefAdmin: cotizacion.codigoOrden, // Guarda referencia al código de cotización COT-...
+        docType: 'OP',
+        estado: 'PENDIENTE_REVISION',
+        prioridad: dto?.prioridad || cotizacion.prioridad || 'NORMAL',
+        notasAdmin: updatedNotasAdmin,
+      },
+    });
+
+    // Transmitir orden a Planta vía WebSocket con itemsList
+    if (this.produccionGateway && this.produccionGateway.server) {
+      this.produccionGateway.server.emit('order:created_to_plant', {
+        ...pedidoConvertido,
+        itemsList: itemsParsed,
+      });
+    }
+
+    return {
+      success: true,
+      message: `Cotización ${cotizacion.codigoOrden} convertida exitosamente a Orden de Producción ${nuevoCodigo} y transmitida a Planta.`,
+      pedido: {
+        ...pedidoConvertido,
+        itemsList: itemsParsed,
+      },
+    };
+  }
+
+
+
   // 6. Limpiar datos de prueba para iniciar en limpio como nuevo sistema
   async limpiarDatos() {
     const db = this.prisma as any;
     try {
       await db.pedidoComercial.deleteMany({});
       await db.ordenProduccion.deleteMany({});
+      if (db.colaDespacho) {
+        await db.colaDespacho.deleteMany({});
+      }
     } catch (e) {
       console.log('Error limpiando datos:', e);
     }
+
+    if (this.produccionGateway && this.produccionGateway.server) {
+      this.produccionGateway.server.emit('order:created_to_plant', null);
+      this.produccionGateway.server.emit('order:status_updated', { ordenId: null });
+      this.produccionGateway.server.emit('lote:estado_actualizado', { ordenId: null });
+    }
+
     return { success: true, message: 'Datos limpiados exitosamente. El sistema está listo para nuevos pedidos.' };
   }
+
 
   // Helper privado para calcular stock de insumos cruzando la fórmula con los Insumos en Kardex
   private async calcularStockPedido(pedido: any) {
@@ -459,13 +746,70 @@ export class PedidosAdminService {
     ];
 
     const db = this.prisma as any;
+
+    // Sembrar Clientes de Ejemplo
+    const clientesData = [
+      { razonSocial: 'Farmacias Peruanas S.A.C.', ruc: '20381396431', telefono: '+51 999 234 781', direccion: 'Av. Angamos Este 2646, Surquillo, Lima', condicionPago: 'Crédito 30 Días' },
+      { razonSocial: 'Alfalion Corp. S.A.', ruc: '20504648087', telefono: '+51 987 654 321', direccion: 'Jr. Natalio Sánchez 220, Jesús María, Lima', condicionPago: 'Contado' },
+      { razonSocial: 'Austin Cosmetics Perú', ruc: '20601234567', telefono: '+51 912 345 678', direccion: 'Av. Industrial 450, Ate, Lima', condicionPago: 'Crédito 15 Días' },
+      { razonSocial: 'Geyma Biotech S.A.C.', ruc: '20459876543', telefono: '+51 976 543 210', direccion: 'Av. El Sol 890, San Isidro, Lima', condicionPago: 'Contado' },
+    ];
+
+    const clientesMap: Record<string, any> = {};
+    for (const c of clientesData) {
+      const clienteGuardado = await db.cliente.upsert({
+        where: { ruc: c.ruc },
+        update: {},
+        create: c,
+      });
+      clientesMap[c.ruc] = clienteGuardado;
+    }
+
+    // Sembrar Variantes de Fórmula
+    if (formulaRef?.id) {
+      const variante1 = await db.formulaVariant.findFirst({
+        where: { formulaId: formulaRef.id, nombre: 'Aroma Lavanda Suave - Alfalion' },
+      });
+      if (!variante1) {
+        await db.formulaVariant.create({
+          data: {
+            nombre: 'Aroma Lavanda Suave - Alfalion',
+            formulaId: formulaRef.id,
+            clienteId: clientesMap['20504648087']?.id || null,
+            notas: 'Ajuste de fragancia con 0.5% extra de lavandín francés.',
+            ajustesJson: { aroma: 'Lavanda Francesa', color: 'Translúcido' },
+          },
+        });
+      }
+
+      const variante2 = await db.formulaVariant.findFirst({
+        where: { formulaId: formulaRef.id, nombre: 'Extracto Cítrico - Austin' },
+      });
+      if (!variante2) {
+        await db.formulaVariant.create({
+          data: {
+            nombre: 'Extracto Cítrico - Austin',
+            formulaId: formulaRef.id,
+            clienteId: clientesMap['20601234567']?.id || null,
+            notas: 'Variante con aroma a limón y tonalidad amarillo ámbar.',
+            ajustesJson: { aroma: 'Cítrico Limón', color: 'Amarillo Ámbar' },
+          },
+        });
+      }
+    }
+
     for (const p of pedidosData) {
       const res = await db.pedidoComercial.upsert({
         where: { codigoOrden: p.codigoOrden },
         update: {},
-        create: p,
+        create: {
+          ...p,
+          clienteId: clientesMap[p.clienteRuc]?.id || null,
+          docType: p.codigoOrden.startsWith('COT') ? 'COT' : 'OP',
+        },
       });
       console.log('✅ PEDIDO GUARDADO EN BD:', res.codigoOrden);
     }
   }
 }
+

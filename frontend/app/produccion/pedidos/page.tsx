@@ -69,7 +69,9 @@ export interface PedidoComercialUI {
   aprobadoPor?: string;
   fechaAprobacion?: string;
   desgloseStock?: StockValidacionInfo;
+  itemsList?: any[];
 }
+
 
 export default function ProduccionPedidosRecepcionPage() {
   const { theme } = useTheme();
@@ -90,12 +92,13 @@ export default function ProduccionPedidosRecepcionPage() {
   const [timeString, setTimeString] = useState('');
 
   const [kpis, setKpis] = useState({
-    pedidosHoy: 4,
-    nuevos: 2,
-    aprobados: 1,
-    enProduccion: 1,
-    valorDelDia: 107670.0,
+    pedidosHoy: 0,
+    nuevos: 0,
+    aprobados: 0,
+    enProduccion: 0,
+    valorDelDia: 0,
   });
+
 
   useEffect(() => {
     const updateTime = () => {
@@ -143,7 +146,7 @@ export default function ProduccionPedidosRecepcionPage() {
 
       const [resKpis, resList] = await Promise.all([
         fetch('http://localhost:3001/api/v1/pedidos-admin/kpis', { headers: authHeader }).catch(() => null),
-        fetch('http://localhost:3001/api/v1/pedidos-admin', { headers: authHeader }).catch(() => null),
+        fetch('http://localhost:3001/api/v1/pedidos-admin?docType=OP', { headers: authHeader }).catch(() => null),
       ]);
 
       if (resKpis && resKpis.ok) {
@@ -154,9 +157,11 @@ export default function ProduccionPedidosRecepcionPage() {
       if (resList && resList.ok) {
         const listData = await resList.json();
         if (Array.isArray(listData) && listData.length > 0) {
-          setPedidos(listData);
+          // Filtrar estrictamente solo pedidos OP (no cotizaciones)
+          const soloOps = listData.filter((p: any) => p.docType !== 'COT' && !p.codigoOrden?.startsWith('COT') && p.estado !== 'COTIZACION_EMITIDA');
+          setPedidos(soloOps);
         } else {
-          setPedidos(listData || []);
+          setPedidos([]);
         }
       }
     } catch (e) {
@@ -173,16 +178,20 @@ export default function ProduccionPedidosRecepcionPage() {
     try {
       socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
       socket.on('order:created_to_plant', (nuevoPedido: any) => {
-        setToastMsg({ tipo: 'success', texto: `¡Nuevo Pedido Comercial #${nuevoPedido.codigoOrden || ''} recibido en Planta!` });
-        if (nuevoPedido && nuevoPedido.id) {
-          setPedidos((prev) => {
-            const yaExiste = prev.some((p) => p.id === nuevoPedido.id || p.codigoOrden === nuevoPedido.codigoOrden);
-            if (yaExiste) return prev;
-            return [nuevoPedido, ...prev];
-          });
+        // Solo agregar a la bandeja si es un Pedido Comercial / OP (no cotización)
+        if (nuevoPedido && nuevoPedido.docType !== 'COT' && !nuevoPedido.codigoOrden?.startsWith('COT')) {
+          setToastMsg({ tipo: 'success', texto: `¡Nuevo Pedido Comercial #${nuevoPedido.codigoOrden || ''} recibido en Planta!` });
+          if (nuevoPedido.id) {
+            setPedidos((prev) => {
+              const yaExiste = prev.some((p) => p.id === nuevoPedido.id || p.codigoOrden === nuevoPedido.codigoOrden);
+              if (yaExiste) return prev;
+              return [nuevoPedido, ...prev];
+            });
+          }
         }
         cargarPedidos();
       });
+
       socket.on('order:status_updated', () => cargarPedidos());
       socket.on('order:accepted_by_plant', () => cargarPedidos());
       socket.on('order:devolucion', () => cargarPedidos());
@@ -274,6 +283,10 @@ export default function ProduccionPedidosRecepcionPage() {
 
   const pedidosFiltrados = useMemo(() => {
     return pedidos.filter((p) => {
+      // Excluir cualquier cotización
+      if ((p as any).docType === 'COT' || (p.codigoOrden && p.codigoOrden.startsWith('COT')) || (p.estado as string) === 'COTIZACION_EMITIDA') {
+        return false;
+      }
       if (filtroEstado !== 'TODOS') {
         if (filtroEstado === 'NUEVO') {
           if (p.estado !== 'NUEVO' && p.estado !== 'PENDIENTE_REVISION') return false;
@@ -292,6 +305,7 @@ export default function ProduccionPedidosRecepcionPage() {
       return true;
     });
   }, [pedidos, filtroEstado, filtroPrioridad, searchQuery]);
+
 
   return (
     <div className="space-y-5 font-mono min-h-screen">
@@ -567,14 +581,71 @@ export default function ProduccionPedidosRecepcionPage() {
                 {/* Detalles de la Fabricación */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-sans">
                   <div>
-                    <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      PRODUCTO A MEZCLAR
+                    <span className={`text-[10px] uppercase font-bold block mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      PRODUCTOS A FABRICAR / MEZCLAR
                     </span>
-                    <p className={`font-bold text-sm ${textValue}`}>{p.productoNombre}</p>
-                    <p className={`text-[11px] font-mono mt-0.5 ${isDark ? 'text-cyan-400' : 'text-teal-700 font-bold'}`}>
-                      Masa Requerida: <strong>{Number(p.cantidadSolicitada).toLocaleString()} {p.unidadMedida}</strong>
-                    </p>
+                    {p.itemsList && p.itemsList.length > 0 ? (
+                      <div className="space-y-2">
+                        {p.itemsList.map((it: any, i: number) => {
+                          const codeFM = it.codigoFM || it.codigo || 'FM-0001';
+                          return (
+                            <div
+                              key={i}
+                              onClick={() => router.push(`/produccion/formulas?codigo=${encodeURIComponent(codeFM)}`)}
+                              className={`p-2 rounded-xl border space-y-1 cursor-pointer transition-all hover:border-cyan-500/60 hover:bg-cyan-500/5 ${
+                                isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+                              }`}
+                              title={`Click para inspeccionar la fórmula maestra ${codeFM}`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 font-bold">
+                                  <span className="text-[10px] font-mono text-cyan-400 font-black">#{i + 1}</span>
+                                  <span className={textValue}>{it.productoNombre || it.descripcion}</span>
+                                </div>
+                                <span className="text-[11px] font-mono font-bold text-teal-400 shrink-0">
+                                  {Number(it.cantidad).toLocaleString()} {it.unidadMedida || it.unidad || 'KG'}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-[10px] font-mono text-slate-400">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-cyan-400 font-bold">Código: {codeFM}</span>
+                                  {it.aroma && (
+                                    <span className="px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                      {it.aroma}
+                                    </span>
+                                  )}
+                                  {it.color && (
+                                    <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                      {it.color}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-cyan-400 flex items-center gap-0.5 font-sans font-semibold hover:underline">
+                                  <Beaker className="w-3 h-3" /> Ver Fórmula →
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => {
+                          const code = p.productoNombre?.match(/FM-\d+/)?.[0] || 'FM-0001';
+                          router.push(`/produccion/formulas?codigo=${encodeURIComponent(code)}`);
+                        }}
+                        className={`p-2 rounded-xl border space-y-1 cursor-pointer transition-all hover:border-cyan-500/60 ${
+                          isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <p className={`font-bold text-sm ${textValue}`}>{p.productoNombre}</p>
+                        <p className={`text-[11px] font-mono mt-0.5 ${isDark ? 'text-cyan-400' : 'text-teal-700 font-bold'}`}>
+                          Masa Requerida: <strong>{Number(p.cantidadSolicitada).toLocaleString()} {p.unidadMedida}</strong>
+                        </p>
+                      </div>
+                    )}
                   </div>
+
 
                   <div>
                     <span className={`text-[10px] uppercase font-bold block mb-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -612,7 +683,14 @@ export default function ProduccionPedidosRecepcionPage() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => router.push('/produccion/formulas')}
+                      onClick={() => {
+                        const targetCode =
+                          (p.itemsList && p.itemsList[0]?.codigoFM) ||
+                          (p.itemsList && p.itemsList[0]?.codigo) ||
+                          (p.productoNombre?.match(/FM-\d+/)?.[0]) ||
+                          'FM-0001';
+                        router.push(`/produccion/formulas?codigo=${encodeURIComponent(targetCode)}`);
+                      }}
                       className={`px-3 py-1.5 rounded-xl border text-xs font-bold font-sans transition-all flex items-center gap-1.5 ${
                         isDark
                           ? 'border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10'
@@ -638,19 +716,20 @@ export default function ProduccionPedidosRecepcionPage() {
                       </button>
                     )}
 
-                    {enProd && (
+                    {(p.estado === 'APROBADO' || enProd) && (
                       <button
                         onClick={() => router.push('/produccion/qa')}
                         className={`px-4 py-1.5 rounded-xl text-white font-bold font-sans text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md ${
                           isDark
-                            ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/20'
-                            : 'bg-purple-700 hover:bg-purple-800 shadow-purple-700/20'
+                            ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
+                            : 'bg-teal-600 hover:bg-teal-700 shadow-teal-600/20'
                         }`}
                       >
                         <Zap className="w-3.5 h-3.5" />
-                        <span>Monitorear en Reactor</span>
+                        <span>Control de Producción & QA</span>
                       </button>
                     )}
+
                   </div>
                 </div>
               </div>

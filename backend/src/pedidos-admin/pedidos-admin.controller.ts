@@ -23,9 +23,11 @@ export class PedidosAdminController {
     @Query('search') search?: string,
     @Query('estado') estado?: string,
     @Query('prioridad') prioridad?: string,
+    @Query('docType') docType?: string,
   ) {
-    return this.pedidosAdminService.listar(search, estado, prioridad);
+    return this.pedidosAdminService.listar(search, estado, prioridad, docType);
   }
+
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -58,6 +60,16 @@ export class PedidosAdminController {
     return this.pedidosAdminService.devolverPedido(id, motivoDevolucion || 'Sin motivo especificado.');
   }
 
+  @Post(':id/convertir-a-pedido')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
+  convertirCotizacionAPedido(
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    return this.pedidosAdminService.convertirCotizacionAPedido(id, dto);
+  }
+
   @Post('limpiar-datos')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
@@ -65,3 +77,4 @@ export class PedidosAdminController {
     return this.pedidosAdminService.limpiarDatos();
   }
 }
+

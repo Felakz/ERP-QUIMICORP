@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { FORMULAS_MAESTRAS_REALES } from '@/lib/formulasData';
+import { apiFetch, getAuthToken } from '@/lib/apiClient';
 
 export type PasoProcesoType =
   | 'PENDIENTE_ASIGNACION'
@@ -118,7 +119,11 @@ export default function ProduccionQAPage() {
     try {
       const rawCustom = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_produccion_lotes_custom') : null;
       const lotesCustom: LoteQAUI[] = rawCustom ? JSON.parse(rawCustom) : [];
-      const combinados = listaLotes.length > 0 ? listaLotes : lotesCustom;
+
+      const mapa = new Map<string, LoteQAUI>();
+      lotesCustom.forEach((l) => mapa.set(l.codigoLote, l));
+      listaLotes.forEach((l) => mapa.set(l.codigoLote, l));
+      const combinados = Array.from(mapa.values());
 
       if (combinados.length > 0) {
         let totalKg = 0;
@@ -127,12 +132,15 @@ export default function ProduccionQAPage() {
         let pendientes = 0;
 
         const mapped = combinados.map((l) => {
-          const cantNum = parseFloat(l.rendimiento.replace(/[^\d.]/g, '')) || 29.0;
+          const cantNum = parseFloat(l.rendimiento.replace(/[^\d.]/g, '')) || 100.0;
           totalKg += cantNum;
 
-          if (l.pasoProceso === 'LIBERADO_QA') {
+          const esTerminado = l.pasoProceso === 'LIBERADO_QA' || l.estado === 'APROBADO';
+          const esEnProceso = !esTerminado && (l.pasoProceso === 'ELABORANDO' || l.pasoProceso === 'EN_MUESTREO_QA' || (l.operarios && l.operarios.length > 0));
+
+          if (esTerminado) {
             terminados++;
-          } else if (l.pasoProceso === 'ELABORANDO' || l.pasoProceso === 'EN_MUESTREO_QA') {
+          } else if (esEnProceso) {
             enProceso++;
           } else {
             pendientes++;
@@ -141,19 +149,15 @@ export default function ProduccionQAPage() {
           return {
             id: l.id,
             codigoLote: l.codigoLote,
-            clienteNombre: l.clienteNombre,
+            clienteNombre: l.clienteNombre || 'Quimicorp SAC',
             productoNombre: l.nombreProducto,
             colorEspecificado: 'TRANSPARENTE',
             fraganciaEspecificada: 'LAVANDA / MENTOL',
             cantidad: cantNum,
             unidadMedida: 'KG',
-            estado: (l.pasoProceso === 'LIBERADO_QA'
-              ? 'TERMINADO'
-              : l.pasoProceso === 'ELABORANDO' || l.pasoProceso === 'EN_MUESTREO_QA'
-              ? 'EN PROCESO'
-              : 'PENDIENTE') as 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE',
+            estado: (esTerminado ? 'TERMINADO' : esEnProceso ? 'EN PROCESO' : 'PENDIENTE') as 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE',
             operarios: l.operarios && l.operarios.length > 0 ? l.operarios.join(', ') : 'Carlos Quispe, Ana Flores',
-            prioridad: 'URGENTE',
+            prioridad: 'NORMAL',
             fechaCreacion: new Date().toISOString(),
           };
         });
@@ -170,71 +174,37 @@ export default function ProduccionQAPage() {
           ordenes: mapped,
         });
       }
-    } catch {}
+    } catch (e) {
+      console.log('Error en fallback:', e);
+    }
   };
 
   const cargarProgramacionDiaria = async (fecha: string) => {
     try {
-      let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      if (!savedToken || savedToken.startsWith('jwt_mock')) {
-        try {
-          const authRes = await fetch('http://localhost:3001/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'produccion@quimicorp.pe', password: 'Quimicorp2026!' }),
-          });
-          if (authRes.ok) {
-            const authData = await authRes.json();
-            savedToken = authData.token;
-            localStorage.setItem('quimicorp_jwt', authData.token);
-          }
-        } catch {}
-      }
+      const res = await apiFetch<any>(`/produccion/ordenes/programacion-diaria?fecha=${fecha}`);
+      if (res && res.data && res.data.ordenes) {
+        const data = res.data;
+        const ordenesSincronizadas = data.ordenes.map((o: any) => ({
+          ...o,
+          estado: (o.estado || 'PENDIENTE') as 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE',
+          operarios: o.operarios && o.operarios !== 'Sin Asignar' ? o.operarios : 'Carlos Quispe, Ana Flores',
+        }));
 
-      const res = await fetch(`http://localhost:3001/api/v1/produccion/ordenes/programacion-diaria?fecha=${fecha}`, {
-        headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.ordenes && data.ordenes.length > 0) {
-          const customMap = new Map<string, LoteQAUI>();
-          lotesCustom.forEach((l) => customMap.set(l.codigoLote, l));
-          lotes.forEach((l) => customMap.set(l.codigoLote, l));
+        const terminados = ordenesSincronizadas.filter((o: any) => o.estado === 'TERMINADO').length;
+        const enProceso = ordenesSincronizadas.filter((o: any) => o.estado === 'EN PROCESO').length;
+        const pendientes = ordenesSincronizadas.filter((o: any) => o.estado === 'PENDIENTE').length;
 
-          const ordenesSincronizadas = data.ordenes.map((o: any) => {
-            const loteLocal = customMap.get(o.codigoLote);
-            const esLiberado = liberadosSet.has(o.codigoLote) || o.estado === 'TERMINADO';
-            const operariosDisplay =
-              loteLocal?.operarios && loteLocal.operarios.length > 0
-                ? loteLocal.operarios.join(', ')
-                : o.operarios && o.operarios !== 'Sin Asignar'
-                ? o.operarios
-                : 'Carlos Quispe, Ana Flores';
-
-            return {
-              ...o,
-              operarios: operariosDisplay,
-              estado: esLiberado ? ('TERMINADO' as const) : o.estado,
-            };
-          });
-
-          const terminados = ordenesSincronizadas.filter((o: any) => o.estado === 'TERMINADO').length;
-          const enProceso = ordenesSincronizadas.filter((o: any) => o.estado === 'EN PROCESO').length;
-          const pendientes = ordenesSincronizadas.filter((o: any) => o.estado === 'PENDIENTE').length;
-
-          setProgramacionData({
-            fecha: data.fecha || fecha,
-            resumen: {
-              ...data.resumen,
-              totalTerminados: terminados,
-              totalEnProceso: enProceso,
-              totalPendientes: pendientes,
-            },
-            ordenes: ordenesSincronizadas,
-          });
-        } else {
-          armarProgramacionFallback(lotes);
-        }
+        setProgramacionData({
+          fecha: data.fecha || fecha,
+          resumen: {
+            totalOrdenes: ordenesSincronizadas.length,
+            totalKgProgramados: data.resumen?.totalKgProgramados || '0.00',
+            totalTerminados: terminados,
+            totalEnProceso: enProceso,
+            totalPendientes: pendientes,
+          },
+          ordenes: ordenesSincronizadas,
+        });
       } else {
         armarProgramacionFallback(lotes);
       }
@@ -245,10 +215,9 @@ export default function ProduccionQAPage() {
   };
 
   useEffect(() => {
-    if (subTab === 'PROGRAMACION_DIARIA') {
-      cargarProgramacionDiaria(fechaFiltro);
-    }
-  }, [subTab, fechaFiltro, lotes]);
+    cargarProgramacionDiaria(fechaFiltro);
+  }, [subTab, fechaFiltro]);
+
 
   // Función para reiniciar/limpiar pruebas
   const handleLimpiarLotesPrueba = () => {
@@ -316,10 +285,7 @@ export default function ProduccionQAPage() {
         } catch {}
       }
 
-      const rawCustom = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_produccion_lotes_custom') : null;
-      const lotesCustom: LoteQAUI[] = rawCustom ? JSON.parse(rawCustom) : [];
-
-      const combinados = [...lotesCustom, ...lotesFromApi];
+      const combinados = lotesFromApi;
       const mapa = new Map<string, LoteQAUI>();
       combinados.forEach((l) => {
         if (!mapa.has(l.codigoLote)) {
@@ -336,6 +302,7 @@ export default function ProduccionQAPage() {
         setSelectedLoteId(null);
         setObservacionInput('');
       }
+
     } catch (e) {
       console.log('Error syncing dynamic lotes:', e);
     }
@@ -434,9 +401,8 @@ export default function ProduccionQAPage() {
     } catch {}
 
     try {
-      await fetch('http://localhost:3001/api/v1/produccion/ordenes/operarios', {
+      await apiFetch('/produccion/ordenes/operarios', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ordenProduccionId: selectedLote.id, operarios: newOperarios }),
       });
     } catch (e) {
@@ -468,9 +434,8 @@ export default function ProduccionQAPage() {
     } catch {}
 
     try {
-      await fetch('http://localhost:3001/api/v1/produccion/ordenes/paso', {
+      await apiFetch('/produccion/ordenes/paso', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ordenProduccionId: selectedLote.id,
           pasoProceso: nuevoPaso,
@@ -497,9 +462,8 @@ export default function ProduccionQAPage() {
     }
 
     try {
-      await fetch('http://localhost:3001/api/v1/produccion/qa/aprobar', {
+      await apiFetch('/produccion/qa/aprobar', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ordenProduccionId: selectedLote.id,
           observacionesQA: observacionInput,
@@ -508,6 +472,7 @@ export default function ProduccionQAPage() {
     } catch (e) {
       console.log('Local fallback execution for approval:', e);
     }
+
 
     // 1. Transmisión a la Cola de Etiquetas (/dashboard/etiquetas)
     try {
@@ -622,6 +587,18 @@ export default function ProduccionQAPage() {
       return;
     }
 
+    try {
+      await apiFetch('/produccion/qa/rechazar', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          ordenProduccionId: selectedLote.id,
+          observacionesQA: motivoRechazoInput,
+        }),
+      });
+    } catch (e) {
+      console.log('Error enviando rechazo al backend:', e);
+    }
+
     setLotes((prev) =>
       prev.map((l) =>
         l.id === selectedLote.id
@@ -638,6 +615,7 @@ export default function ProduccionQAPage() {
     setShowRechazoModal(false);
     setMotivoRechazoInput('');
     alert(`🛑 Lote ${selectedLote.codigoLote} RECHAZADO. Notificación enviada a Administración.`);
+
   };
 
   const toggleFormulaDropdown = (loteId: string, e: React.MouseEvent) => {
@@ -1013,10 +991,11 @@ export default function ProduccionQAPage() {
                               ? isDark ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold'
                               : o.estado === 'EN PROCESO'
                               ? isDark ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' : 'bg-blue-100 text-blue-900 border-blue-300 font-bold'
-                              : isDark ? 'bg-rose-500/25 text-rose-300 border-rose-500/40 animate-pulse' : 'bg-rose-500 text-white border-rose-600 font-black'
+                              : isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
                           }`}>
                             {o.estado}
                           </span>
+
                         </td>
                         <td className="p-3 font-sans">
                           <span className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1.5 shadow-sm ${
@@ -1118,9 +1097,10 @@ export default function ProduccionQAPage() {
                     {/* Cliente Real Destacado */}
                     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border font-sans ${badgeAmber}`}>
                       <Building2 className="w-3 h-3" />
-                      {lote.clienteNombre}
+                      {lote.clienteNombre?.replace(/\s*\([^)]*\)\s*$/, '') || lote.clienteNombre}
                     </span>
                   </div>
+
 
                   <div>
                     <h4 className={`text-sm font-bold font-sans ${textValue}`}>

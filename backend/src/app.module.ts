@@ -9,6 +9,7 @@ import { FormulasModule } from './formulas/formulas.module';
 import { SubAlmacenModule } from './sub-almacen/sub-almacen.module';
 import { PedidosAdminModule } from './pedidos-admin/pedidos-admin.module';
 import { AuthModule } from './auth/auth.module';
+import { ClientesModule } from './clientes/clientes.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AuthModule } from './auth/auth.module';
     FormulasModule,
     SubAlmacenModule,
     PedidosAdminModule,
+    ClientesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

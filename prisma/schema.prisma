@@ -188,6 +188,7 @@ model FormulaMaster {
   detalles          FormulaDetalle[]
   ordenesProduccion OrdenProduccion[]
   pedidosComerciales PedidoComercial[]
+  variants          FormulaVariant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -617,11 +618,64 @@ model PedidoComercial {
   notasAdmin         String?                  @map("notas_admin")
   motivoDevolucion   String?                  @map("motivo_devolucion")
 
+  // Campos nuevos (opcionales para compatibilidad con payloads antiguos)
+  docType            String?                  @default("OP") @map("doc_type")   // "COT" | "OP"
+  aroma              String?
+  color              String?
+  varianteId         String?                  @map("variante_id")
+  variante           FormulaVariant?          @relation(fields: [varianteId], references: [id])
+  clienteId          String?                  @map("cliente_id")
+  clienteRef         Cliente?                 @relation(fields: [clienteId], references: [id])
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([estado])
   @@index([clienteRuc])
+  @@index([docType])
   @@map("pedidos_comerciales")
 }
+
+// ============================================================================
+// 🟤 MODULO CLIENTES COMERCIALES
+// ============================================================================
+
+model Cliente {
+  id            String   @id @default(uuid())
+  razonSocial   String
+  ruc           String   @unique
+  telefono      String?
+  direccion     String?
+  condicionPago String?  @default("Contado")
+
+  pedidos  PedidoComercial[]
+  variantes FormulaVariant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ruc])
+  @@map("clientes")
+}
+
+model FormulaVariant {
+  id        String        @id @default(uuid())
+  nombre    String
+  formulaId String        @map("formula_id")
+  formula   FormulaMaster @relation(fields: [formulaId], references: [id])
+  clienteId String?       @map("cliente_id")
+  cliente   Cliente?      @relation(fields: [clienteId], references: [id])
+  notas     String?
+  ajustesJson Json?       @map("ajustes_json")
+
+  pedidos PedidoComercial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([formulaId])
+  @@index([clienteId])
+  @@map("formula_variants")
+}
+
 

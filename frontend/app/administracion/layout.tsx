@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { LogOut, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
+import { apiFetch } from '@/lib/apiClient';
 import { adminSidebarItems } from '@/components/sidebar';
 
 export default function AdministracionLayout({ children }: { children: React.ReactNode }) {
@@ -20,10 +21,9 @@ export default function AdministracionLayout({ children }: { children: React.Rea
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis');
-        if (res.ok) {
-          const data = await res.json();
-          setPedidoCount(data.pedidosPendientes || 0);
+        const { data, ok } = await apiFetch<{ pedidosPendientes?: number; nuevos?: number }>('/pedidos-admin/kpis');
+        if (ok && data) {
+          setPedidoCount(data.pedidosPendientes || data.nuevos || 0);
         }
       } catch {}
     };
@@ -31,6 +31,7 @@ export default function AdministracionLayout({ children }: { children: React.Rea
     const interval = setInterval(fetchCount, 10000);
     return () => clearInterval(interval);
   }, []);
+
 
   useEffect(() => {
     const updateTime = () => {

@@ -43,19 +43,19 @@ export class ProduccionController {
   }
 
   @Patch('ordenes/operarios')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   asignarOperarios(@Body() dto: AsignarOperariosDto) {
     return this.produccionService.asignarOperarios(dto);
   }
 
   @Patch('ordenes/paso')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   cambiarPaso(@Body() dto: CambiarPasoDto) {
     return this.produccionService.cambiarPasoProceso(dto);
   }
 
   @Post('ajustes-finos')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   registrarAjusteFino(@Body() dto: RegistrarAjusteFinoDto) {
     return this.produccionService.registrarAjusteFino(dto);
   }
@@ -79,14 +79,15 @@ export class ProduccionController {
   }
 
   @Patch('ordenes/:id/enviar-qa')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   enviarAQA(@Param('id', ParseUUIDPipe) id: string, @Body('cantidadObtenida') cantidadObtenida: number) {
     return this.produccionService.enviarAQA(id, cantidadObtenida);
   }
 
   @Get('etiquetas/cola')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   obtenerColaDespacho() {
     return this.produccionService.obtenerColaDespacho();
   }
+
 }
