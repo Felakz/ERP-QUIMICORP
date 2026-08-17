@@ -5,273 +5,508 @@ import { useSearchParams } from 'next/navigation';
 import {
   Beaker,
   Search,
+  Scale,
+  Lock,
+  Sparkles,
+  Users,
+  Layers,
+  ArrowRight,
+  Calculator,
+  CheckCircle2,
+  Tag,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import {
   FORMULAS_MAESTRAS_REALES,
   CATEGORIAS_FORMULAS,
+  FormulaProducto,
 } from '@/lib/formulasData';
+
+interface InsumoDetalleAPI {
+  id: string;
+  insumoId?: string;
+  nombreComponente?: string;
+  skuComponente?: string;
+  porcentaje: number;
+  pesoMasaTeorico: number;
+  insumo?: {
+    codigo: string;
+    nombre: string;
+    unidadMedida: string;
+    unidadMedidaVisual?: string;
+    stockReal: number;
+  };
+}
+
+interface VarianteClienteAPI {
+  id: string;
+  nombre: string;
+  clienteId?: string;
+  cliente?: {
+    razonSocial: string;
+    ruc: string;
+  };
+  notas?: string;
+  ajustesJson?: any[];
+}
+
+interface FormulaMasterAPI {
+  id: string;
+  codigoFormula: string;
+  nombreProducto: string;
+  version: number;
+  densidadTeorica: number;
+  estado: string;
+  detalles: InsumoDetalleAPI[];
+  variants: VarianteClienteAPI[];
+}
 
 function FormulasContent() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const searchParams = useSearchParams();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
+  const [formulasApi, setFormulasApi] = useState<FormulaMasterAPI[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedFormulaId, setSelectedFormulaId] = useState<string>('1');
+  const [selectedFormulaId, setSelectedFormulaId] = useState<string>('');
 
-  // Auto-seleccionar fórmula si viene en los parámetros URL (?codigo=FM-0001 o ?id=1)
+  // 🎯 Estado de Variante Activa: null = Receta Base Maestra; string = ID de la Variante de Cliente seleccionada
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
+  // ⚖️ Calculadora de Batch Dinámica para Operarios
+  const [batchObjetivoKg, setBatchObjetivoKg] = useState<number>(100);
+
+  // Cargar Fórmulas Maestras y Variantes desde la API
+  const fetchFormulas = async () => {
+    try {
+      setLoading(true);
+      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+
+      const res = await fetch(`http://localhost:3001/api/v1/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`, {
+        headers: authHeader,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setFormulasApi(data);
+          if (!selectedFormulaId) {
+            setSelectedFormulaId(data[0].id);
+          }
+        }
+      }
+    } catch (e) {
+      console.log('Fallback a catálogo local:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFormulas();
+  }, [searchQuery]);
+
+  // Selección por URL params
   useEffect(() => {
     const codigoParam = searchParams.get('codigo') || searchParams.get('codigoFM');
     const idParam = searchParams.get('id');
 
     if (codigoParam || idParam) {
-      const match = FORMULAS_MAESTRAS_REALES.find((f) => {
-        if (idParam && f.id === idParam) return true;
-        if (codigoParam) {
-          const cParam = codigoParam.trim().toLowerCase();
-          return (
-            f.codigoFM.toLowerCase() === cParam ||
-            f.codigoFM.toLowerCase().includes(cParam) ||
-            f.nombreProducto.toLowerCase().includes(cParam)
-          );
-        }
-        return false;
-      });
-
-      if (match) {
-        setSelectedFormulaId(match.id);
-        setSelectedCategory(match.categoria);
+      const matchApi = formulasApi.find((f) => f.id === idParam || f.codigoFormula.toLowerCase() === codigoParam?.toLowerCase());
+      if (matchApi) {
+        setSelectedFormulaId(matchApi.id);
+        setSelectedVariantId(null);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, formulasApi]);
 
-  const filteredFormulas = FORMULAS_MAESTRAS_REALES.filter((f) => {
-    const matchesCategory = selectedCategory === 'Todas' || f.categoria === selectedCategory;
-    const matchesSearch =
-      f.nombreProducto.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.codigoFM.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+  // Al cambiar de fórmula seleccionada, resetear la variante activa a null (Receta Base)
+  const handleSelectFormula = (id: string) => {
+    setSelectedFormulaId(id);
+    setSelectedVariantId(null);
+  };
+
+  // Mapeo unificado para visualización
+  const formulasVisual = formulasApi.length > 0
+    ? formulasApi.map((f) => ({
+        id: f.id,
+        codigoFM: f.codigoFormula,
+        nombreProducto: f.nombreProducto,
+        categoria: 'INDUSTRIAL',
+        pesoObjetivo: 100,
+        variants: f.variants?.map((v) => ({
+          id: v.id,
+          clienteNombre: v.cliente?.razonSocial || 'Cliente Exclusivo',
+          nombreComercial: v.nombre,
+          ingredientes: Array.isArray(v.ajustesJson) && v.ajustesJson.length > 0
+            ? v.ajustesJson.map((aj: any) => ({
+                sku: aj.sku || 'INS-VAR',
+                componente: aj.componente || aj.nombre || 'Insumo de Variante',
+                tipo: aj.tipo || 'CLIENTE',
+                porcentaje: Number(aj.porcentaje) || 0,
+                unidad: 'KG',
+              }))
+            : f.detalles.map((d: any) => ({
+                sku: d.insumo?.codigo || d.skuComponente || 'INS-BOM',
+                componente: d.insumo?.nombre || d.nombreComponente || 'Componente Químico',
+                tipo: 'BASE',
+                porcentaje: Number(d.porcentaje),
+                unidad: d.insumo?.unidadMedidaVisual || d.insumo?.unidadMedida || 'KG',
+              })),
+        })) || [],
+        ingredientesBase: f.detalles.map((d: any) => ({
+          sku: d.insumo?.codigo || d.skuComponente || 'INS-BOM',
+          componente: d.insumo?.nombre || d.nombreComponente || 'Componente Químico',
+          tipo: 'BASE',
+          porcentaje: Number(d.porcentaje),
+          unidad: d.insumo?.unidadMedidaVisual || d.insumo?.unidadMedida || 'KG',
+        })),
+      }))
+    : FORMULAS_MAESTRAS_REALES.map((f) => ({
+        id: f.id,
+        codigoFM: f.codigoFM,
+        nombreProducto: f.nombreProducto,
+        categoria: f.categoria,
+        pesoObjetivo: f.pesoObjetivo || 100,
+        variants: [
+          {
+            id: `var-${f.id}-1`,
+            clienteNombre: 'ALFALION SAC',
+            nombreComercial: `${f.nombreProducto} (Línea Alfalion)`,
+            ingredientes: f.ingredientes.map((i) => ({
+              sku: i.sku,
+              componente: i.componente,
+              tipo: i.tipo,
+              porcentaje: i.porcentaje,
+              unidad: 'KG',
+            })),
+          },
+        ],
+        ingredientesBase: f.ingredientes.map((i) => ({
+          sku: i.sku,
+          componente: i.componente,
+          tipo: i.tipo,
+          porcentaje: i.porcentaje,
+          unidad: 'KG',
+        })),
+      }));
+
+  const filteredFormulas = formulasVisual.filter((f) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    const matchFormula = f.nombreProducto.toLowerCase().includes(q) || f.codigoFM.toLowerCase().includes(q);
+    const matchVariante = f.variants.some(
+      (v) => v.nombreComercial.toLowerCase().includes(q) || v.clienteNombre.toLowerCase().includes(q)
+    );
+    return matchFormula || matchVariante;
   });
 
   const formulaActual =
-    FORMULAS_MAESTRAS_REALES.find((f) => f.id === selectedFormulaId) ||
+    formulasVisual.find((f) => f.id === selectedFormulaId) ||
     filteredFormulas[0] ||
-    FORMULAS_MAESTRAS_REALES[0];
+    formulasVisual[0];
 
-  const getCategoryCount = (cat: string) => {
-    if (cat === 'Todas') return FORMULAS_MAESTRAS_REALES.length;
-    return FORMULAS_MAESTRAS_REALES.filter((f) => f.categoria === cat).length;
-  };
+  // Determinar si hay una variante de cliente activa seleccionada
+  const varianteSeleccionada = formulaActual?.variants.find((v) => v.id === selectedVariantId);
+
+  // Lista de ingredientes a dosificar en balanza: si se seleccionó una variante, muestra sus ingredientes; de lo contrario, muestra los de la base
+  const ingredientesParaDosificar = varianteSeleccionada
+    ? varianteSeleccionada.ingredientes
+    : formulaActual?.ingredientesBase || [];
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
-  const inputBg = isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400';
+  const inputBg = isDark
+    ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500'
+    : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400';
 
   return (
     <div className="space-y-5 font-mono min-h-screen">
-      {/* Selector de Fórmulas y Filtro por Categorías */}
+      {/* Banner de Modo Solo Lectura / Operarios */}
+      <div className={`rounded-xl p-4 border flex flex-wrap items-center justify-between gap-3 ${
+        isDark ? 'bg-cyan-950/30 border-cyan-500/30 text-cyan-200' : 'bg-cyan-50 border-cyan-300 text-cyan-950 shadow-sm'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-black font-sans tracking-wide">
+              VISTA DE PLANTA & OPERARIOS (SOLO LECTURA)
+            </h4>
+            <p className="text-[11px] font-sans text-slate-400 mt-0.5">
+              Haz clic en la <strong>Receta Base</strong> o en la <strong>Etiqueta de un Cliente</strong> para ver su dosificación limpia y directa en balanza.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-sans font-bold">
+          <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+            {formulasVisual.length} Fórmulas Químicas Maestras
+          </span>
+        </div>
+      </div>
+
+      {/* Buscador Universal y Selector Rápido */}
       <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Beaker className="h-5 w-5 text-cyan-500" />
             <div>
               <h3 className={`text-xs font-bold tracking-widest uppercase ${textTitle}`}>
-                CATÁLOGO DE FÓRMULAS MAESTRAS INDUSTRIALES
+                CATÁLOGO DE FÓRMULAS QUÍMICAS & VARIANTES DE MARCA BLANCA
               </h3>
               <p className="text-[11px] text-slate-400 font-sans">
-                {FORMULAS_MAESTRAS_REALES.length} Fórmulas Maestras registradas en planta (Datos Oficiales Excel)
+                Busca por nombre químico o por cliente (ej. David Sarmiento, Daniel Espinoza, Jhon Canto, Alfalion)
               </p>
             </div>
           </div>
 
-          <div className="relative w-full max-w-xs">
+          <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por fórmula o código FM..."
+              placeholder="Buscar por Fórmula, Alias o Cliente..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded-xl pl-9 pr-4 py-2 text-xs font-sans border ${inputBg}`}
+              className={`w-full rounded-xl pl-9 pr-4 py-2 text-xs font-sans border focus:border-[#00F2C3] focus:outline-none transition-all ${inputBg}`}
             />
           </div>
         </div>
 
-        {/* Category Pills */}
-        <div className="flex flex-wrap items-center gap-2 font-sans text-xs">
-          {CATEGORIAS_FORMULAS.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            const count = getCategoryCount(cat);
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCategory(cat)}
-                className={`rounded-lg px-3.5 py-1.5 font-bold transition-all flex items-center gap-1.5 border ${
-                  isSelected
-                    ? 'bg-[#00F2C3] text-[#090C10] border-[#00F2C3] shadow-md'
-                    : isDark
-                    ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
-                    : 'bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-900'
-                }`}
-              >
-                <span>{cat}</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                    isSelected
-                      ? 'bg-[#090C10]/20 text-[#090C10]'
-                      : isDark
-                      ? 'bg-slate-800 text-slate-400'
-                      : 'bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
         {/* Formula Cards Quick Selector Grid */}
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 max-h-48 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 max-h-56 overflow-y-auto pr-1">
           {filteredFormulas.map((f) => {
-            const isSelected = f.id === selectedFormulaId;
+            const isSelected = f.id === formulaActual?.id;
             return (
               <button
                 key={f.id}
                 type="button"
-                onClick={() => setSelectedFormulaId(f.id)}
-                className={`rounded-lg p-3 text-left transition-all border space-y-1 ${
+                onClick={() => handleSelectFormula(f.id)}
+                className={`rounded-xl p-3.5 text-left transition-all border space-y-2 ${
                   isSelected
                     ? isDark
-                      ? 'bg-[#151D2A] border-[#00F2C3] ring-1 ring-[#00F2C3]/30'
-                      : 'bg-cyan-50/70 border-cyan-500 ring-1 ring-cyan-500/20'
+                      ? 'bg-[#151D2A] border-[#00F2C3] ring-1 ring-[#00F2C3]/30 shadow-lg'
+                      : 'bg-cyan-50/70 border-cyan-500 ring-1 ring-cyan-500/20 shadow-md'
                     : isDark
                     ? 'bg-[#0B0F17] border-[#1A2232] hover:bg-[#151D2A]/60'
                     : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                 }`}
               >
                 <div className="flex items-center justify-between text-[10px]">
-                  <span className="font-mono font-bold text-cyan-500">{f.codigoFM}</span>
-                  <span className={`px-1.5 py-0.5 rounded font-bold uppercase text-[9px] border ${isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-200 text-slate-700 border-slate-300'}`}>
-                    {f.categoria}
+                  <span className="font-mono font-bold text-cyan-400">{f.codigoFM}</span>
+                  <span className="px-1.5 py-0.5 rounded font-bold uppercase text-[9px] bg-slate-800 text-slate-300 border border-slate-700">
+                    {f.ingredientesBase.length} Insumos Base
                   </span>
                 </div>
                 <h4 className={`text-xs font-bold font-sans truncate ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                   {f.nombreProducto}
                 </h4>
-                <p className="text-[10px] text-slate-400 font-mono">
-                  {f.ingredientes.length} insumos · {f.pesoObjetivo} KG/LT
-                </p>
+
+                {/* Variantes comerciales asociadas */}
+                {f.variants.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-800/60">
+                    <Users className="w-3 h-3 text-purple-400 shrink-0" />
+                    <span className="text-[10px] text-purple-300 font-sans truncate">
+                      {f.variants.map((v) => `${v.clienteNombre}: "${v.nombreComercial}"`).join(' · ')}
+                    </span>
+                  </div>
+                )}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Main Formula Details & Components Table */}
-      <div className="space-y-4">
-        {/* Formula Header Card */}
-        <div className={`rounded-xl p-5 border flex flex-wrap items-center justify-between gap-4 ${cardBg}`}>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>
-                FÓRMULA MAESTRA SELECCIONADA
-              </span>
-              <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-500/30 font-mono uppercase">
-                {formulaActual.categoria}
-              </span>
+      {formulaActual && (
+        <div className="space-y-4">
+          {/* Header Card de la Fórmula Seleccionada y Calculadora de Batch */}
+          <div className={`rounded-xl p-5 border flex flex-wrap items-center justify-between gap-6 ${cardBg}`}>
+            <div className="space-y-3 max-w-2xl">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                  {formulaActual.codigoFM}
+                </span>
+                <span className="text-[11px] font-bold text-slate-400 font-sans">
+                  RECETA QUÍMICA MAESTRA
+                </span>
+              </div>
+
+              <h2 className={`text-xl font-bold font-sans tracking-tight ${textValue}`}>
+                {formulaActual.nombreProducto}
+              </h2>
+
+              {/* SELECTOR INTERACTIVO DE VARIANTES DE CLIENTES */}
+              <div className="space-y-1.5 pt-1 font-sans">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                  👉 Selecciona la receta a preparar en balanza:
+                </span>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Botón 1: Receta Base Estándar */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedVariantId(null)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm ${
+                      selectedVariantId === null
+                        ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-cyan-500/20 font-black'
+                        : isDark
+                        ? 'bg-[#151D2A] text-slate-300 border-slate-700 hover:border-slate-500'
+                        : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    <Beaker className="w-3.5 h-3.5" />
+                    <span>🧪 Receta Química Base ({formulaActual.ingredientesBase.length} Insumos)</span>
+                  </button>
+
+                  {/* Botones de Variantes de Clientes */}
+                  {formulaActual.variants.map((v) => {
+                    const isVariantActive = selectedVariantId === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setSelectedVariantId(v.id)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm ${
+                          isVariantActive
+                            ? 'bg-purple-600 text-white border-purple-400 shadow-purple-600/30 ring-2 ring-purple-400/40 font-black scale-[1.02]'
+                            : isDark
+                            ? 'bg-purple-950/40 border-purple-500/40 text-purple-300 hover:bg-purple-900/60 hover:border-purple-400'
+                            : 'bg-purple-50 border-purple-300 text-purple-900 hover:bg-purple-100'
+                        }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+                        <span>
+                          <strong>{v.clienteNombre}:</strong> &quot;{v.nombreComercial}&quot; ({v.ingredientes.length} insumos)
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <h2 className={`text-xl font-bold tracking-tight font-sans ${textValue}`}>
-              {formulaActual.nombreProducto}
-            </h2>
-            <p className="text-xs text-slate-400 font-mono">
-              {formulaActual.codigoFM} · Lote Base Standard: <span className="text-cyan-500 font-bold">{formulaActual.loteActual}</span>
-            </p>
+
+            {/* Calculadora de Batch Escalar */}
+            <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+              isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-300'
+            }`}>
+              <div className="p-3 rounded-lg bg-[#00F2C3]/10 border border-[#00F2C3]/30 text-[#00F2C3]">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold tracking-widest uppercase block text-slate-400 font-sans">
+                  ⚖️ BATCH A FABRICAR HOY (KG)
+                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={batchObjetivoKg}
+                    onChange={(e) => setBatchObjetivoKg(Math.max(1, parseFloat(e.target.value) || 1))}
+                    className="w-28 px-3 py-1.5 rounded-lg bg-black/40 border border-cyan-500/40 text-lg font-black text-[#00F2C3] font-mono text-center focus:outline-none focus:border-[#00F2C3]"
+                  />
+                  <span className="text-xs font-bold text-slate-400 font-sans">KG Totales</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <span className={`text-[10px] font-bold tracking-widest uppercase block ${textTitle}`}>
-                PESO OBJETIVO FÓRMULA
+          {/* Tabla de Balanza de Componentes */}
+          <div className={`rounded-xl p-5 border space-y-3 ${cardBg}`}>
+            <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-3 ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-cyan-400" />
+                <span className={`text-xs font-bold tracking-widest uppercase font-sans ${textTitle}`}>
+                  {varianteSeleccionada ? (
+                    <span className="text-purple-300 font-bold">
+                      DOSIFICACIÓN DE BALANZA PARA CLIENTE [{varianteSeleccionada.clienteNombre}] ({ingredientesParaDosificar.length} INSUMOS)
+                    </span>
+                  ) : (
+                    <span>
+                      DOSIFICACIÓN DE BALANZA PARA RECETA BASE ({ingredientesParaDosificar.length} INSUMOS)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <span className="text-xs font-mono font-bold text-emerald-400">
+                Suma Porcentual: {ingredientesParaDosificar.reduce((acc, i) => acc + Number(i.porcentaje), 0).toFixed(2)}%
               </span>
-              <span className="text-2xl font-black text-cyan-500">{formulaActual.pesoObjetivo} KG / LT</span>
             </div>
-          </div>
-        </div>
 
-        {/* Ingredients Table Card */}
-        <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
-          <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-3 ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold tracking-widest uppercase ${textTitle}`}>
-                COMPONENTES DE LA FÓRMULA ({formulaActual.ingredientes.length} ITEMS)
-              </span>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className={`border-b text-[10px] font-bold tracking-widest uppercase ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
-                  <th className="py-2.5 px-3">SKU</th>
-                  <th className="py-2.5 px-3">COMPONENTE QUÍMICO</th>
-                  <th className="py-2.5 px-3">TIPO</th>
-                  <th className="py-2.5 px-3">% BASE</th>
-                  <th className="py-2.5 px-3">PESO TEÓRICO</th>
-                  <th className="py-2.5 px-3">STOCK</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60 font-mono' : 'divide-slate-200 font-mono'}`}>
-                {formulaActual.ingredientes.map((item) => (
-                  <tr key={item.sku} className={`transition-colors ${isDark ? 'hover:bg-[#151D2A]/50' : 'hover:bg-slate-50'}`}>
-                    <td className="py-3 px-3 font-bold text-cyan-500">
-                      {item.sku}
-                    </td>
-                    <td className={`py-3 px-3 font-sans font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                      {item.componente}
-                    </td>
-                    <td className="py-3 px-3">
-                      {item.tipo === 'BASE' ? (
-                        <span className="rounded bg-slate-500/20 px-2 py-0.5 text-[10px] font-bold text-slate-400 border border-slate-500/30">
-                          FÓRMULA BASE
-                        </span>
-                      ) : (
-                        <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-500/30">
-                          + ADICIONAL LOTE
-                        </span>
-                      )}
-                    </td>
-                    <td className={`py-3 px-3 font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {item.porcentaje > 0 ? `${item.porcentaje.toFixed(1)}%` : 'Ajuste'}
-                    </td>
-                    <td className={`py-3 px-3 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                      {item.pesoTeorico.toFixed(2)} KG
-                    </td>
-                    <td className="py-3 px-3">
-                      {item.stockStatus === 'OK' && (
-                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block shadow-sm shadow-emerald-500/50" />
-                      )}
-                      {item.stockStatus === 'BAJO' && (
-                        <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-500 border border-amber-500/30">
-                          BAJO
-                        </span>
-                      )}
-                      {item.stockStatus === 'CRITICAL' && (
-                        <span className="inline-flex items-center gap-1 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-bold text-rose-500 border border-rose-500/30">
-                          CRÍTICO
-                        </span>
-                      )}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className={`border-b text-[10px] font-bold tracking-widest uppercase ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
+                    <th className="py-3 px-3">SKU</th>
+                    <th className="py-3 px-3">COMPONENTE QUÍMICO</th>
+                    <th className="py-3 px-3 text-right">PROPORCIÓN (%)</th>
+                    <th className="py-3 px-3 text-right text-cyan-400">PESO A PESAR (KG)</th>
+                    <th className="py-3 px-3 text-right text-purple-400">PESO EN GRAMOS (GR)</th>
+                    <th className="py-3 px-3 text-center">ORIGEN</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>
+                  {ingredientesParaDosificar.map((item, idx) => {
+                    const pesoCalculadoKg = (Number(item.porcentaje) / 100) * batchObjetivoKg;
+                    const pesoCalculadoGr = pesoCalculadoKg * 1000;
+
+                    return (
+                      <tr key={`${item.sku}-${idx}`} className={`transition-colors ${isDark ? 'hover:bg-[#151D2A]/50' : 'hover:bg-slate-50'}`}>
+                        <td className="py-3.5 px-3 font-bold text-cyan-400">
+                          {item.sku}
+                        </td>
+                        <td className={`py-3.5 px-3 font-sans font-bold uppercase text-xs ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                          {item.componente}
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-bold text-slate-300">
+                          {Number(item.porcentaje).toFixed(2)} %
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-black text-sm text-[#00F2C3]">
+                          {pesoCalculadoKg.toFixed(3)} KG
+                        </td>
+                        <td className="py-3.5 px-3 text-right font-bold text-xs text-purple-300">
+                          {pesoCalculadoGr.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} GR
+                        </td>
+                        <td className="py-3.5 px-3 text-center">
+                          {varianteSeleccionada ? (
+                            <span className="rounded px-2 py-0.5 text-[9px] font-bold uppercase bg-purple-950/60 text-purple-300 border border-purple-500/40">
+                              {varianteSeleccionada.clienteNombre}
+                            </span>
+                          ) : (
+                            <span className="rounded px-2 py-0.5 text-[9px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
+                              BASE
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className={`font-bold border-t ${isDark ? 'bg-[#151D2A] text-cyan-300' : 'bg-cyan-50 text-cyan-950'}`}>
+                    <td colSpan={2} className="py-3 px-3 uppercase text-xs">
+                      TOTAL BATCH A FABRICAR:
+                    </td>
+                    <td className="py-3 px-3 text-right text-emerald-400 font-black">
+                      100.00 %
+                    </td>
+                    <td className="py-3 px-3 text-right text-sm font-black text-[#00F2C3]">
+                      {batchObjetivoKg.toFixed(3)} KG
+                    </td>
+                    <td className="py-3 px-3 text-right font-black text-purple-300">
+                      {(batchObjetivoKg * 1000).toLocaleString('es-PE')} GR
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

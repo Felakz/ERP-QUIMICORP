@@ -25,11 +25,13 @@ import {
   RefreshCw,
   Zap,
   Play,
+  Sparkles,
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
+import { DateNavigatorToolbar } from '@/components/produccion/DateNavigatorToolbar';
 
 export interface InsumoValidacion {
   codigo: string;
@@ -69,6 +71,10 @@ export interface PedidoComercialUI {
   aprobadoPor?: string;
   fechaAprobacion?: string;
   desgloseStock?: StockValidacionInfo;
+  color?: string;
+  aroma?: string;
+  colorText?: string;
+  aromaText?: string;
   itemsList?: any[];
 }
 
@@ -91,6 +97,7 @@ export default function ProduccionPedidosRecepcionPage() {
   const [toastMsg, setToastMsg] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
   const [timeString, setTimeString] = useState('');
 
+  const [fechaFiltro, setFechaFiltro] = useState<string>(new Date().toISOString().split('T')[0]);
   const [kpis, setKpis] = useState({
     pedidosHoy: 0,
     nuevos: 0,
@@ -123,9 +130,10 @@ export default function ProduccionPedidosRecepcionPage() {
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
 
-  const cargarPedidos = async () => {
+  const cargarPedidos = async (fechaParam?: string) => {
     try {
       setLoading(true);
+      const fechaQuery = fechaParam || fechaFiltro;
       let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
       if (!savedToken || savedToken.startsWith('jwt_mock')) {
         try {
@@ -145,8 +153,8 @@ export default function ProduccionPedidosRecepcionPage() {
       const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
       const [resKpis, resList] = await Promise.all([
-        fetch('http://localhost:3001/api/v1/pedidos-admin/kpis', { headers: authHeader }).catch(() => null),
-        fetch('http://localhost:3001/api/v1/pedidos-admin?docType=OP', { headers: authHeader }).catch(() => null),
+        fetch(`http://localhost:3001/api/v1/pedidos-admin/kpis?fecha=${fechaQuery}`, { headers: authHeader }).catch(() => null),
+        fetch(`http://localhost:3001/api/v1/pedidos-admin?docType=OP&fecha=${fechaQuery}`, { headers: authHeader }).catch(() => null),
       ]);
 
       if (resKpis && resKpis.ok) {
@@ -172,35 +180,27 @@ export default function ProduccionPedidosRecepcionPage() {
   };
 
   useEffect(() => {
-    cargarPedidos();
+    cargarPedidos(fechaFiltro);
 
     let socket: any = null;
     try {
       socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
       socket.on('order:created_to_plant', (nuevoPedido: any) => {
-        // Solo agregar a la bandeja si es un Pedido Comercial / OP (no cotización)
         if (nuevoPedido && nuevoPedido.docType !== 'COT' && !nuevoPedido.codigoOrden?.startsWith('COT')) {
           setToastMsg({ tipo: 'success', texto: `¡Nuevo Pedido Comercial #${nuevoPedido.codigoOrden || ''} recibido en Planta!` });
-          if (nuevoPedido.id) {
-            setPedidos((prev) => {
-              const yaExiste = prev.some((p) => p.id === nuevoPedido.id || p.codigoOrden === nuevoPedido.codigoOrden);
-              if (yaExiste) return prev;
-              return [nuevoPedido, ...prev];
-            });
-          }
         }
-        cargarPedidos();
+        cargarPedidos(fechaFiltro);
       });
 
-      socket.on('order:status_updated', () => cargarPedidos());
-      socket.on('order:accepted_by_plant', () => cargarPedidos());
-      socket.on('order:devolucion', () => cargarPedidos());
+      socket.on('order:status_updated', () => cargarPedidos(fechaFiltro));
+      socket.on('order:accepted_by_plant', () => cargarPedidos(fechaFiltro));
+      socket.on('order:devolucion', () => cargarPedidos(fechaFiltro));
     } catch {}
 
     return () => {
       if (socket) socket.disconnect();
     };
-  }, []);
+  }, [fechaFiltro]);
 
   const handleAprobarLote = async (pedido: PedidoComercialUI) => {
     try {
@@ -346,7 +346,7 @@ export default function ProduccionPedidosRecepcionPage() {
         <div className="flex items-center gap-2 font-sans text-xs">
           <span className="text-slate-400 font-mono text-[11px]">{timeString}</span>
           <button
-            onClick={cargarPedidos}
+            onClick={() => cargarPedidos(fechaFiltro)}
             className={`p-2 rounded-xl border transition-all ${
               isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-300 hover:text-white' : 'bg-slate-100 border-slate-300 text-slate-700'
             }`}
@@ -355,6 +355,14 @@ export default function ProduccionPedidosRecepcionPage() {
           </button>
         </div>
       </div>
+
+      {/* 📅 Barra de Navegación por Día (DateNavigatorToolbar) */}
+      <DateNavigatorToolbar
+        fecha={fechaFiltro}
+        onFechaChange={(nuevaFecha) => setFechaFiltro(nuevaFecha)}
+        titulo="RECEPCIÓN DE PEDIDOS POR TURNO"
+        subtitulo="Pedidos comerciales de planta filtrados por fecha de registro en base de datos"
+      />
 
       {/* 5 KPIs Superiores */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -511,10 +519,31 @@ export default function ProduccionPedidosRecepcionPage() {
       {/* Lista de Tarjetas de Pedidos en Planta */}
       <div className="space-y-4">
         {pedidosFiltrados.length === 0 ? (
-          <div className={`rounded-2xl p-12 text-center border ${cardBg}`}>
-            <Inbox className="w-12 h-12 text-slate-500 mx-auto mb-2 opacity-50" />
-            <p className={`text-sm font-bold font-sans ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>No hay pedidos en esta bandeja</p>
-            <p className={`text-xs font-sans ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>Ajusta los filtros de búsqueda o el estado del pedido.</p>
+          <div className={`rounded-2xl p-12 text-center border space-y-3 ${cardBg}`}>
+            <Inbox className="w-12 h-12 text-slate-500 mx-auto opacity-50" />
+            <div className="space-y-1">
+              <p className={`text-sm font-bold font-sans ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                No hay pedidos para la fecha ({fechaFiltro})
+              </p>
+              <p className={`text-xs font-sans ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                {fechaFiltro === new Date().toISOString().split('T')[0]
+                  ? 'Ajusta los filtros de búsqueda o emite un nuevo pedido desde Administración.'
+                  : 'No se encontraron órdenes comerciales emitidas para el día seleccionado.'}
+              </p>
+            </div>
+            {fechaFiltro !== new Date().toISOString().split('T')[0] && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setFechaFiltro(new Date().toISOString().split('T')[0])}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold font-sans border transition-all ${
+                    isDark ? 'border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10' : 'border-teal-300 text-teal-800 hover:bg-teal-50'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Volver a Pedidos de Hoy</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           pedidosFiltrados.map((p) => {
@@ -634,7 +663,7 @@ export default function ProduccionPedidosRecepcionPage() {
                           const code = p.productoNombre?.match(/FM-\d+/)?.[0] || 'FM-0001';
                           router.push(`/produccion/formulas?codigo=${encodeURIComponent(code)}`);
                         }}
-                        className={`p-2 rounded-xl border space-y-1 cursor-pointer transition-all hover:border-cyan-500/60 ${
+                        className={`p-2.5 rounded-xl border space-y-1.5 cursor-pointer transition-all hover:border-cyan-500/60 ${
                           isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
                         }`}
                       >
@@ -642,6 +671,20 @@ export default function ProduccionPedidosRecepcionPage() {
                         <p className={`text-[11px] font-mono mt-0.5 ${isDark ? 'text-cyan-400' : 'text-teal-700 font-bold'}`}>
                           Masa Requerida: <strong>{Number(p.cantidadSolicitada).toLocaleString()} {p.unidadMedida}</strong>
                         </p>
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[10px] font-mono">
+                          <span className={`px-2 py-0.5 rounded-md border font-bold inline-flex items-center gap-1 ${
+                            isDark ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-purple-50 text-purple-900 border-purple-300'
+                          }`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                            {p.color || (p as any).colorText || 'TRANSPARENTE'}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-md border font-bold inline-flex items-center gap-1 ${
+                            isDark ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' : 'bg-amber-50 text-amber-900 border-amber-300'
+                          }`}>
+                            <span>🌸</span>
+                            {p.aroma || (p as any).aromaText || 'SIN FRAGANCIA'}
+                          </span>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -419,24 +419,43 @@ export class ProduccionService {
     return ordenRechazada;
   }
 
-  listar() {
+  private parsearRangoDia(fechaStr?: string) {
+    let y: number, m: number, d: number;
+    if (fechaStr && /^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+      const parts = fechaStr.split('-').map(Number);
+      y = parts[0];
+      m = parts[1] - 1;
+      d = parts[2];
+    } else {
+      const now = new Date();
+      y = now.getFullYear();
+      m = now.getMonth();
+      d = now.getDate();
+    }
+
+    const inicioDia = new Date(y, m, d, 0, 0, 0, 0);
+    const finDia = new Date(y, m, d, 23, 59, 59, 999);
+    const fechaISO = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+    return { inicioDia, finDia, fechaISO };
+  }
+
+  listar(fechaStr?: string) {
+    let whereCondition: any = {};
+    if (fechaStr) {
+      const { inicioDia, finDia } = this.parsearRangoDia(fechaStr);
+      whereCondition.createdAt = { gte: inicioDia, lte: finDia };
+    }
+
     return this.prisma.ordenProduccion.findMany({
+      where: whereCondition,
       include: { formula: true, supervisor: { select: { nombres: true, apellidos: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async obtenerProgramacionDiaria(fechaStr?: string) {
-    let fechaFiltro = fechaStr ? new Date(fechaStr) : new Date();
-    if (isNaN(fechaFiltro.getTime())) {
-      fechaFiltro = new Date();
-    }
-
-    const inicioDia = new Date(fechaFiltro);
-    inicioDia.setHours(0, 0, 0, 0);
-
-    const finDia = new Date(fechaFiltro);
-    finDia.setHours(23, 59, 59, 999);
+    const { inicioDia, finDia, fechaISO } = this.parsearRangoDia(fechaStr);
 
     const ordenesDelDia = await this.prisma.ordenProduccion.findMany({
       where: {
@@ -452,77 +471,25 @@ export class ProduccionService {
       orderBy: { createdAt: 'desc' },
     });
 
-    let ordenesRes = ordenesDelDia.length > 0 ? ordenesDelDia : await this.prisma.ordenProduccion.findMany({
-      take: 50,
+    // Cargar pedidos comerciales del sistema para resolver aditivos y atributos personalizados
+    const pedidosRecientes = await (this.prisma as any).pedidoComercial.findMany({
       include: {
-        formula: true,
-        supervisor: { select: { nombres: true, apellidos: true } },
+        aditivos: {
+          include: { insumo: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
-    });
-
-    // Si aún no hay ordenesProduccion creadas, consultar pedidos comerciales aprobados
-    if (ordenesRes.length === 0) {
-      const pedidosAprobados = await this.prisma.pedidoComercial.findMany({
-        where: { OR: [{ estado: 'APROBADO' }, { estado: 'EN_PRODUCCION' }] },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (pedidosAprobados.length > 0) {
-        let totalKg = 0;
-        const mapped = pedidosAprobados.map((p) => {
-          const cant = Number(p.cantidadSolicitada || 29);
-          totalKg += cant;
-          return {
-            id: p.id,
-            codigoLote: `LOT-2024-${p.codigoOrden.replace(/\D/g, '') || '0841'}`,
-            clienteNombre: p.clienteNombre,
-            productoNombre: p.productoNombre,
-            colorEspecificado: 'TRANSPARENTE',
-            fraganciaEspecificada: 'LAVANDA / MENTOL',
-            cantidad: cant,
-            unidadMedida: p.unidadMedida || 'KG',
-            estado: (p.estado === 'APROBADO' ? 'EN PROCESO' : 'PENDIENTE') as 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE',
-            operarios: 'Carlos Quispe, Ana Flores',
-            prioridad: p.prioridad || 'URGENTE',
-            fechaCreacion: p.createdAt.toISOString(),
-          };
-        });
-
-        return {
-          fecha: inicioDia.toISOString().split('T')[0],
-          resumen: {
-            totalOrdenes: mapped.length,
-            totalKgProgramados: totalKg.toFixed(2),
-            totalTerminados: mapped.filter((m) => m.estado === 'TERMINADO').length,
-            totalEnProceso: mapped.filter((m) => m.estado === 'EN PROCESO').length,
-            totalPendientes: mapped.filter((m) => m.estado === 'PENDIENTE').length,
-          },
-          ordenes: mapped,
-        };
-      } else {
-        return {
-          fecha: inicioDia.toISOString().split('T')[0],
-          resumen: {
-            totalOrdenes: 0,
-            totalKgProgramados: '0.00',
-            totalTerminados: 0,
-            totalEnProceso: 0,
-            totalPendientes: 0,
-          },
-          ordenes: [],
-        };
-      }
-    }
+      take: 100,
+    }).catch(() => []);
 
     let totalKgProgramados = 0;
     let terminadosCount = 0;
     let enProcesoCount = 0;
     let pendientesCount = 0;
 
-    const listaFormatted = ordenesRes.map((oItem) => {
+    const listaFormatted = ordenesDelDia.map((oItem) => {
       const o = oItem as any;
-      const cant = Number(o.cantidadPlanificada);
+      const cant = Number(o.cantidadPlanificada) || 0;
       totalKgProgramados += cant;
 
       const esTerminado =
@@ -551,13 +518,42 @@ export class ProduccionService {
         pendientesCount++;
       }
 
+      // Resolver Color y Fragancia con prioridad: OrdenProduccion > PedidoComercial > Fallback
+      let colorResuelto = o.colorEspecificado;
+      let fraganciaResuelta = o.fraganciaEspecificada;
+
+      if (!colorResuelto || colorResuelto === 'TRANSPARENTE' || colorResuelto === 'SIN COLOR' || !fraganciaResuelta || fraganciaResuelta === 'SIN FRAGANCIA' || fraganciaResuelta === 'SIN AROMA') {
+        const numPart = (o.codigoLote || '').replace(/\D/g, '');
+        const matchingPedido = pedidosRecientes.find((p: any) => {
+          const pNum = (p.codigoOrden || '').replace(/\D/g, '');
+          if (numPart && pNum && (numPart.includes(pNum) || pNum.includes(numPart))) return true;
+          return p.clienteNombre === o.clienteNombre && p.formulaId === o.formulaId;
+        });
+
+        if (matchingPedido) {
+          const fragAdit = matchingPedido.aditivos?.find(
+            (a: any) => a.tipo === 'FRAGANCIA' || a.insumo?.tipo === 'FRAGANCIA' || a.insumo?.nombre?.toLowerCase().includes('fragancia')
+          );
+          const pigmAdit = matchingPedido.aditivos?.find(
+            (a: any) => a.tipo === 'PIGMENTO' || a.insumo?.tipo === 'PIGMENTO' || a.insumo?.nombre?.toLowerCase().includes('pigmento')
+          );
+
+          if (!colorResuelto || colorResuelto === 'TRANSPARENTE' || colorResuelto === 'SIN COLOR') {
+            colorResuelto = matchingPedido.colorText || matchingPedido.color || pigmAdit?.insumo?.nombre || 'TRANSPARENTE';
+          }
+          if (!fraganciaResuelta || fraganciaResuelta === 'SIN FRAGANCIA' || fraganciaResuelta === 'SIN AROMA') {
+            fraganciaResuelta = matchingPedido.aromaText || matchingPedido.aroma || fragAdit?.insumo?.nombre || 'SIN FRAGANCIA';
+          }
+        }
+      }
+
       return {
         id: o.id,
         codigoLote: o.codigoLote,
         clienteNombre: o.clienteNombre || 'Quimicorp SAC',
         productoNombre: o.formula?.nombreProducto || 'Producto Químico',
-        colorEspecificado: o.colorEspecificado || 'TRANSPARENTE',
-        fraganciaEspecificada: o.fraganciaEspecificada || 'SIN FRAGANCIA',
+        colorEspecificado: colorResuelto || 'TRANSPARENTE',
+        fraganciaEspecificada: fraganciaResuelta || 'SIN FRAGANCIA',
         cantidad: cant,
         unidadMedida: 'KG',
         estado: estadoCalculado,
@@ -566,13 +562,12 @@ export class ProduccionService {
         fechaCreacion: o.createdAt,
         fechaCierre: o.fechaCierre,
       };
-
     });
 
     return {
-      fecha: inicioDia.toISOString().split('T')[0],
+      fecha: fechaISO,
       resumen: {
-        totalOrdenes: ordenesRes.length,
+        totalOrdenes: listaFormatted.length,
         totalKgProgramados: totalKgProgramados.toFixed(2),
         totalTerminados: terminadosCount,
         totalEnProceso: enProcesoCount,
@@ -581,4 +576,115 @@ export class ProduccionService {
       ordenes: listaFormatted,
     };
   }
+
+  /**
+   * Receta Unificada (mergeReceta):
+   * Combina componentes de la fórmula base + aditivos personalizados (Fragancias, Pigmentos)
+   * con sus porcentajes, gramos calculados y estado de stock en Kardex.
+   */
+  async obtenerMergeReceta(loteId: string) {
+    const orden = await this.prisma.ordenProduccion.findUnique({
+      where: { id: loteId },
+      include: {
+        formula: {
+          include: {
+            detalles: {
+              include: {
+                insumo: {
+                  include: { familia: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!orden) {
+      throw new NotFoundException('Orden de producción no encontrada.');
+    }
+
+    const cantidadPlanificadaKg = Number(orden.cantidadPlanificada) || 100;
+
+    // 1. Componentes base de la fórmula
+    const ingredientesBase = orden.formula.detalles.map((d) => {
+      const pct = Number(d.porcentaje);
+      const gramos = cantidadPlanificadaKg * 1000 * (pct / 100);
+      return {
+        insumoId: d.insumoId,
+        codigo: d.insumo.codigo,
+        nombre: d.insumo.nombre,
+        familia: d.insumo.familia?.nombre || 'General',
+        tipo: 'BASE',
+        porcentaje: pct,
+        gramosCalculados: Math.round(gramos * 100) / 100,
+        unidadMedida: d.insumo.unidadMedida,
+        stockReal: Number(d.insumo.stockReal),
+        suficiente: Number(d.insumo.stockReal) * 1000 >= gramos,
+        esAditivo: false,
+      };
+    });
+
+    // 2. Aditivos del pedido comercial asociado
+    let aditivos: any[] = [];
+    if (orden.codigoLote) {
+      const numPart = (orden.codigoLote || '').replace(/\D/g, '');
+
+      const pedido = await (this.prisma as any).pedidoComercial.findFirst({
+        where: numPart
+          ? {
+              OR: [
+                { codigoOrden: { contains: numPart } },
+                { codigoRefAdmin: { contains: numPart } },
+                { clienteNombre: orden.clienteNombre },
+              ],
+            }
+          : { clienteNombre: orden.clienteNombre },
+        include: {
+          aditivos: {
+            include: {
+              insumo: {
+                include: { familia: true },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (pedido && pedido.aditivos && pedido.aditivos.length > 0) {
+        aditivos = pedido.aditivos.map((ad: any) => {
+          const pct = Number(ad.porcentaje) || (ad.tipo === 'PIGMENTO' ? 0.5 : 1.0);
+          const gramos = Number(ad.gramosCalculados) || (cantidadPlanificadaKg * 1000 * (pct / 100));
+          return {
+            insumoId: ad.insumoId,
+            codigo: ad.insumo?.codigo || 'AD-001',
+            nombre: ad.insumo?.nombre || 'Aditivo Personalizado',
+            familia: ad.insumo?.familia?.nombre || (ad.tipo === 'FRAGANCIA' ? 'Fragancias' : 'Pigmentos'),
+            tipo: ad.tipo || 'FRAGANCIA',
+            porcentaje: pct,
+            gramosCalculados: Math.round(gramos * 100) / 100,
+            unidadMedida: ad.insumo?.unidadMedida || 'KG',
+            stockReal: Number(ad.insumo?.stockReal || 50),
+            suficiente: Number(ad.insumo?.stockReal || 50) * 1000 >= gramos,
+            esAditivo: true,
+          };
+        });
+      }
+    }
+
+    const mergeReceta = [...ingredientesBase, ...aditivos];
+    const totalGramos = mergeReceta.reduce((sum, item) => sum + item.gramosCalculados, 0);
+
+    return {
+      ordenId: orden.id,
+      codigoLote: orden.codigoLote,
+      clienteNombre: orden.clienteNombre,
+      productoNombre: orden.formula.nombreProducto,
+      cantidadPlanificadaKg,
+      totalGramos: Math.round(totalGramos * 100) / 100,
+      ingredientes: mergeReceta,
+    };
+  }
 }
+

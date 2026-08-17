@@ -21,6 +21,14 @@ enum UnidadMedida {
   UN
 }
 
+enum TipoInsumo {
+  BASE
+  FRAGANCIA
+  PIGMENTO
+  ENVASE
+  OTRO
+}
+
 enum EstadoGenerico {
   ACTIVO
   INACTIVO
@@ -156,24 +164,30 @@ model Insumo {
   nombre        String
   familiaId     String
   familia       FamiliaInsumo  @relation(fields: [familiaId], references: [id])
-  unidadMedida  UnidadMedida
-  stockTeorico  Decimal        @default(0) @db.Decimal(14, 4)
-  stockReal     Decimal        @default(0) @db.Decimal(14, 4)
-  stockMinimo   Decimal        @default(0) @db.Decimal(14, 4)
-  costoUnitario Decimal        @default(0) @db.Decimal(14, 4)
-  estado        EstadoGenerico @default(ACTIVO)
+  unidadMedida       UnidadMedida
+  unidadMedidaVisual String?
+  categoria          String?
+  proveedorHistorico String?
+  stockTeorico       Decimal        @default(0) @db.Decimal(14, 4)
+  stockReal          Decimal        @default(0) @db.Decimal(14, 4)
+  stockMinimo        Decimal        @default(0) @db.Decimal(14, 4)
+  costoUnitario      Decimal        @default(0) @db.Decimal(14, 4)
+  estado             EstadoGenerico @default(ACTIVO)
+  tipo               TipoInsumo?    @default(OTRO)
 
   formulaDetalles     FormulaDetalle[]
   ajustesFinos        AjusteFino[]
   kardexMovimientos   KardexInmutable[]
   kardexCategorizados KardexMovimiento[]
   subAlmacenSobrantes SubAlmacenSobrante[]
+  pedidoAditivos      PedidoAditivo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([familiaId])
   @@index([estado])
+  @@index([tipo])
   @@map("insumos")
 }
 
@@ -198,19 +212,21 @@ model FormulaMaster {
 }
 
 model FormulaDetalle {
-  id              String        @id @default(uuid())
-  formulaId       String
-  formula         FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
-  insumoId        String
-  insumo          Insumo        @relation(fields: [insumoId], references: [id])
-  porcentaje      Decimal       @db.Decimal(6, 3)
-  pesoMasaTeorico Decimal       @db.Decimal(14, 4)
+  id               String        @id @default(uuid())
+  formulaId        String
+  formula          FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  insumoId         String?
+  insumo           Insumo?       @relation(fields: [insumoId], references: [id], onDelete: SetNull)
+  nombreComponente String?
+  skuComponente    String?
+  porcentaje       Decimal       @db.Decimal(6, 3)
+  pesoMasaTeorico  Decimal       @db.Decimal(14, 4)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([formulaId, insumoId])
   @@index([formulaId])
+  @@index([insumoId])
   @@map("formula_detalles")
 }
 
@@ -622,10 +638,14 @@ model PedidoComercial {
   docType            String?                  @default("OP") @map("doc_type")   // "COT" | "OP"
   aroma              String?
   color              String?
+  aromaText          String?                  @map("aroma_text")
+  colorText          String?                  @map("color_text")
   varianteId         String?                  @map("variante_id")
   variante           FormulaVariant?          @relation(fields: [varianteId], references: [id])
   clienteId          String?                  @map("cliente_id")
   clienteRef         Cliente?                 @relation(fields: [clienteId], references: [id])
+
+  aditivos           PedidoAditivo[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -634,6 +654,25 @@ model PedidoComercial {
   @@index([clienteRuc])
   @@index([docType])
   @@map("pedidos_comerciales")
+}
+
+model PedidoAditivo {
+  id               String          @id @default(uuid())
+  pedidoId         String          @map("pedido_id")
+  pedido           PedidoComercial @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  insumoId         String          @map("insumo_id")
+  insumo           Insumo          @relation(fields: [insumoId], references: [id])
+  tipo             TipoInsumo
+  porcentaje       Decimal         @default(1.00) @db.Decimal(5, 2)
+  gramosCalculados Decimal?        @map("gramos_calculados") @db.Decimal(14, 4)
+
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  @@index([pedidoId])
+  @@index([insumoId])
+  @@index([tipo])
+  @@map("pedido_aditivos")
 }
 
 // ============================================================================

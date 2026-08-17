@@ -12,8 +12,8 @@ export class PedidosAdminController {
   @Get('kpis')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
-  obtenerKpis() {
-    return this.pedidosAdminService.obtenerKpis();
+  obtenerKpis(@Query('fecha') fecha?: string) {
+    return this.pedidosAdminService.obtenerKpis(fecha);
   }
 
   @Get()
@@ -24,8 +24,9 @@ export class PedidosAdminController {
     @Query('estado') estado?: string,
     @Query('prioridad') prioridad?: string,
     @Query('docType') docType?: string,
+    @Query('fecha') fecha?: string,
   ) {
-    return this.pedidosAdminService.listar(search, estado, prioridad, docType);
+    return this.pedidosAdminService.listar(search, estado, prioridad, docType, fecha);
   }
 
 

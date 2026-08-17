@@ -10,8 +10,11 @@ interface MaterialItem {
   familia: string;
   stockPercentage: number;
   stockReal: number;
+  cantidadFisica?: number;
   stockMinimo: number;
   unidad: string;
+  unidadMedidaVisual?: string;
+  proveedor?: string;
   ubicacion: string;
   estado: 'OK' | 'LOW STOCK' | 'CRITICAL';
 }
@@ -36,12 +39,12 @@ export default function InventariosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedEstadoFilter, setSelectedEstadoFilter] = useState<'TODOS' | 'OK' | 'LOW_STOCK' | 'CRITICAL'>('TODOS');
-  const [materialsData, setMaterialsData] = useState<MaterialItem[]>(INVENTARIO_REAL_SEED_DATA);
-  const [subAlmacenData, setSubAlmacenData] = useState<SubAlmacenItem[]>(SUBALMACEN_REAL_SEED_DATA);
+  const [materialsData, setMaterialsData] = useState<MaterialItem[]>([]);
+  const [subAlmacenData, setSubAlmacenData] = useState<SubAlmacenItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [disponibilidadTotal, setDisponibilidadTotal] = useState('14,250');
-  const [stockCriticoCount, setStockCriticoCount] = useState(2);
-  const [stockBajoCount, setStockBajoCount] = useState(1);
+  const [disponibilidadTotal, setDisponibilidadTotal] = useState('0');
+  const [stockCriticoCount, setStockCriticoCount] = useState(0);
+  const [stockBajoCount, setStockBajoCount] = useState(0);
   const [insumosCriticosDetalle, setInsumosCriticosDetalle] = useState<any[]>([]);
 
   // Estado del Modal de Reaprovisionamiento en Masa (Múltiples productos)
@@ -63,33 +66,24 @@ export default function InventariosPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.insumos && Array.isArray(data.insumos) && data.insumos.length > 0) {
-          setMaterialsData(
-            data.insumos.map((m: any) => ({
-              ...m,
-              stockReal: m.stockReal ?? m.stockActual ?? 0,
-              stockMinimo: m.stockMinimo ?? 10,
-            }))
-          );
-        }
-        if (data.subAlmacen && Array.isArray(data.subAlmacen) && data.subAlmacen.length > 0) {
-          setSubAlmacenData(data.subAlmacen);
-        }
-        if (data.disponibilidadTotalKg) {
-          setDisponibilidadTotal(Number(data.disponibilidadTotalKg).toLocaleString('es-PE'));
-        }
-        if (data.stockCriticoCount !== undefined) {
-          setStockCriticoCount(data.stockCriticoCount);
-        }
-        if (data.stockBajoCount !== undefined) {
-          setStockBajoCount(data.stockBajoCount);
-        }
-        if (data.insumosCriticosDetalle && Array.isArray(data.insumosCriticosDetalle)) {
-          setInsumosCriticosDetalle(data.insumosCriticosDetalle);
-        }
+        setMaterialsData(
+          (data.insumos || []).map((m: any) => ({
+            ...m,
+            cantidadFisica: m.cantidadFisica ?? (m.unidad === 'GR' ? m.stockReal : (m.stockReal / 1000)),
+            stockReal: m.stockReal ?? m.stockActual ?? 0,
+            stockMinimo: m.stockMinimo ?? 10,
+          }))
+        );
+        setSubAlmacenData(data.subAlmacen || []);
+        setDisponibilidadTotal(
+          data.disponibilidadTotalKg ? Number(data.disponibilidadTotalKg).toLocaleString('es-PE') : '0'
+        );
+        setStockCriticoCount(data.stockCriticoCount ?? 0);
+        setStockBajoCount(data.stockBajoCount ?? 0);
+        setInsumosCriticosDetalle(data.insumosCriticosDetalle || []);
       }
     } catch (e) {
-      console.log('Fallback inventario local:', e);
+      console.log('Error cargando inventario:', e);
     } finally {
       setLoading(false);
     }
@@ -454,10 +448,10 @@ export default function InventariosPage() {
               <tr className={`border-b text-[10px] font-bold tracking-widest uppercase ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
                 <th className="py-3 px-4">SKU</th>
                 <th className="py-3 px-4">NOMBRE QUÍMICO</th>
-                <th className="py-3 px-4">FAMILIA</th>
+                <th className="py-3 px-4">CATEGORÍA / FAMILIA</th>
+                <th className="py-3 px-4 text-right">CANTIDAD DISPONIBLE</th>
                 <th className="py-3 px-4">NIVEL STOCK</th>
-                <th className="py-3 px-4">UNIDAD</th>
-                <th className="py-3 px-4">UBICACIÓN EN PLANTA</th>
+                <th className="py-3 px-4">PROVEEDOR ACTUAL</th>
                 <th className="py-3 px-4">ESTADO</th>
                 <th className="py-3 px-4 text-right">ACCIÓN</th>
               </tr>
@@ -475,36 +469,62 @@ export default function InventariosPage() {
                     <td className="py-3.5 px-4 font-mono font-bold text-cyan-500">
                       {item.sku}
                     </td>
-                    <td className={`py-3.5 px-4 font-sans font-medium ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
+                    <td className={`py-3.5 px-4 font-sans font-bold text-xs uppercase ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                       {item.nombre}
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className={`rounded px-2 py-0.5 text-[10px] font-bold border ${isDark ? 'bg-[#1A2434] text-slate-300 border-[#233146]' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                      <span className={`rounded px-2 py-0.5 text-[10px] font-bold border tracking-wider uppercase ${isDark ? 'bg-[#1A2434] text-slate-300 border-[#233146]' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
                         {item.familia}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 w-48">
-                      <div className="flex items-center gap-3">
+
+                    {/* CANTIDAD DISPONIBLE EN NÚMEROS */}
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-baseline justify-end gap-1.5 font-mono">
+                        <span className={`text-sm font-black tracking-tight ${
+                          item.estado === 'CRITICAL'
+                            ? 'text-rose-400 font-extrabold'
+                            : item.estado === 'LOW STOCK'
+                            ? 'text-amber-400 font-bold'
+                            : isDark
+                            ? 'text-[#00F2C3]'
+                            : 'text-cyan-700'
+                        }`}>
+                          {(item.cantidadFisica !== undefined ? item.cantidadFisica : item.stockReal).toLocaleString('es-PE', {
+                            minimumFractionDigits: item.unidad === 'GR' ? 1 : 3,
+                            maximumFractionDigits: 3,
+                          })}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                          {item.unidad}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* NIVEL STOCK (Barra Visual + Porcentaje) */}
+                    <td className="py-3.5 px-4 w-44">
+                      <div className="flex items-center gap-2.5">
                         <div className={`h-2 flex-1 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                           <div
-                            className={`h-full rounded-full ${
-                              item.stockPercentage > 50
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              item.estado === 'OK'
                                 ? 'bg-[#00F2C3]'
-                                : item.stockPercentage > 25
+                                : item.estado === 'LOW STOCK'
                                 ? 'bg-amber-500'
                                 : 'bg-rose-500'
                             }`}
                             style={{ width: `${item.stockPercentage}%` }}
                           />
                         </div>
-                        <span className="font-mono text-[11px] text-slate-400 w-8">
+                        <span className="font-mono text-[11px] font-bold text-slate-400 w-10 text-right">
                           {item.stockPercentage}%
                         </span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-400">{item.unidad}</td>
-                    <td className={`py-3.5 px-4 font-sans text-xs ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                      {item.ubicacion}
+
+                    {/* PROVEEDOR ACTUAL */}
+                    <td className={`py-3.5 px-4 font-sans text-xs font-medium uppercase ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {item.proveedor || item.ubicacion || 'ALMACÉN PRINCIPAL'}
                     </td>
                     <td className="py-3.5 px-4">
                       {item.estado === 'OK' && (

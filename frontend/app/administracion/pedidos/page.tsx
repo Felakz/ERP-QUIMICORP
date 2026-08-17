@@ -54,6 +54,9 @@ interface PedidoEmitido {
   estado: string;
   aroma?: string | null;
   color?: string | null;
+  aromaText?: string | null;
+  colorText?: string | null;
+  aditivos?: any[];
   notasAdmin?: string | null;
   observacionesClean?: string | null;
   itemsList?: any[];
@@ -102,6 +105,9 @@ export default function AdministracionPedidosComercialesPage() {
           estado: p.estado || 'NUEVO',
           aroma: p.aroma,
           color: p.color,
+          aromaText: p.aromaText || p.aroma,
+          colorText: p.colorText || p.color,
+          aditivos: p.aditivos || [],
           notasAdmin: p.notasAdmin,
           itemsList: p.itemsList,
           observacionesClean: p.observacionesClean,
@@ -542,16 +548,33 @@ export default function AdministracionPedidosComercialesPage() {
 
                       {/* Personalización */}
                       <td className="py-3 px-3">
-                        {(p.aroma || p.color) ? (
+                        {p.aditivos && p.aditivos.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
-                            {p.aroma && (
+                            {p.aditivos.map((ad: any, adIdx: number) => (
+                              <span
+                                key={adIdx}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+                                  ad.tipo === 'FRAGANCIA'
+                                    ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}
+                                title={`${ad.insumo?.nombre || 'Aditivo'}: ${ad.porcentaje}% (${ad.gramosCalculados ? (ad.gramosCalculados / 1000).toFixed(2) + ' KG' : ''})`}
+                              >
+                                {ad.tipo === 'FRAGANCIA' ? '🌸 ' : '🎨 '}
+                                {ad.insumo?.nombre || ad.tipo} ({ad.porcentaje}%)
+                              </span>
+                            ))}
+                          </div>
+                        ) : (p.aroma || p.color || p.aromaText || p.colorText) ? (
+                          <div className="flex flex-wrap gap-1">
+                            {(p.aromaText || p.aroma) && (
                               <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                                {p.aroma}
+                                🌸 {p.aromaText || p.aroma}
                               </span>
                             )}
-                            {p.color && (
+                            {(p.colorText || p.color) && (
                               <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                {p.color}
+                                🎨 {p.colorText || p.color}
                               </span>
                             )}
                           </div>

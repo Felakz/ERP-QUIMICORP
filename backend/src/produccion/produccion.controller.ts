@@ -38,8 +38,14 @@ export class ProduccionController {
 
   @Get('ordenes')
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN, Role.FINANZAS)
-  listar() {
-    return this.produccionService.listar();
+  listar(@Query('fecha') fecha?: string) {
+    return this.produccionService.listar(fecha);
+  }
+
+  @Get('ordenes/:id/receta')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  obtenerReceta(@Param('id', ParseUUIDPipe) id: string) {
+    return this.produccionService.obtenerMergeReceta(id);
   }
 
   @Patch('ordenes/operarios')

@@ -1,0 +1,657 @@
+[
+  {
+    "ingrediente": "AGUA DESIONIZADA",
+    "veces": 68,
+    "formulas": "FM-0001, FM-0002, FM-0003, FM-0004, FM-0005, FM-0006, FM-0007, FM-0008, FM-0009, FM-0010, FM-0013, FM-0014, FM-0015, FM-0016, FM-0017, FM-0018, FM-0019, FM-0020, FM-0021, FM-0022, FM-0023, FM-0024, FM-0025, FM-0026, FM-0027, FM-0028, FM-0029, FM-0030, FM-0031, FM-0032, FM-0033, FM-0034, FM-0036, FM-0037, FM-0038, FM-0045, FM-0046, FM-0047, FM-0048, FM-0049, FM-0050, FM-0051, FM-0052, FM-0053, FM-0054, FM-0055, FM-0067, FM-0070, FM-0071, FM-0072, FM-0073, FM-0074, FM-0075, FM-0076, FM-0077, FM-0079, FM-0080, FM-0081, FM-0082, FM-0083, FM-0085, FM-0086, FM-0087, FM-0088, FM-0089, FM-0090, FM-0091, FM-0092"
+  },
+  {
+    "ingrediente": "FRAGANCIA",
+    "veces": 29,
+    "formulas": "FM-0002, FM-0005, FM-0008, FM-0013, FM-0015, FM-0016, FM-0017, FM-0018, FM-0023, FM-0024, FM-0029, FM-0033, FM-0042, FM-0043, FM-0044, FM-0046, FM-0048, FM-0050, FM-0051, FM-0053, FM-0054, FM-0062, FM-0070, FM-0071, FM-0073, FM-0074, FM-0075, FM-0077, FM-0079"
+  },
+  {
+    "ingrediente": "BENZOATO DE SODIO",
+    "veces": 29,
+    "formulas": "FM-0002, FM-0003, FM-0004, FM-0006, FM-0009, FM-0010, FM-0011, FM-0016, FM-0017, FM-0019, FM-0020, FM-0022, FM-0023, FM-0024, FM-0025, FM-0027, FM-0029, FM-0030, FM-0039, FM-0064, FM-0065, FM-0066, FM-0067, FM-0070, FM-0073, FM-0077, FM-0080, FM-0085, FM-0087"
+  },
+  {
+    "ingrediente": "TRIETANOLAMINA",
+    "veces": 21,
+    "formulas": "FM-0002, FM-0007, FM-0008, FM-0009, FM-0010, FM-0015, FM-0016, FM-0017, FM-0020, FM-0022, FM-0023, FM-0024, FM-0025, FM-0026, FM-0027, FM-0028, FM-0029, FM-0030, FM-0031, FM-0032, FM-0070"
+  },
+  {
+    "ingrediente": "EXTRACTO DE ALOE VERA",
+    "veces": 20,
+    "formulas": "FM-0002, FM-0004, FM-0005, FM-0007, FM-0010, FM-0014, FM-0019, FM-0023, FM-0024, FM-0039, FM-0040, FM-0044, FM-0045, FM-0072, FM-0073, FM-0074, FM-0075, FM-0077, FM-0086, FM-0087"
+  },
+  {
+    "ingrediente": "ALCOHOL EXTRA NEUTRO",
+    "veces": 12,
+    "formulas": "FM-0012, FM-0025, FM-0069, FM-0072, FM-0076, FM-0081, FM-0085, FM-0086, FM-0088, FM-0089, FM-0090, FM-0091"
+  },
+  {
+    "ingrediente": "DEHYQUART",
+    "veces": 11,
+    "formulas": "FM-0035, FM-0045, FM-0046, FM-0047, FM-0048, FM-0049, FM-0050, FM-0051, FM-0052, FM-0054, FM-0055"
+  },
+  {
+    "ingrediente": "NIACINAMIDA",
+    "veces": 10,
+    "formulas": "FM-0001, FM-0002, FM-0004, FM-0005, FM-0010, FM-0017, FM-0019, FM-0037, FM-0040, FM-0070"
+  },
+  {
+    "ingrediente": "COLAGENO",
+    "veces": 9,
+    "formulas": "FM-0008, FM-0014, FM-0032, FM-0033, FM-0036, FM-0048, FM-0050, FM-0051, FM-0053"
+  },
+  {
+    "ingrediente": "MENTOL EN CRISTALES",
+    "veces": 8,
+    "formulas": "FM-0003, FM-0031, FM-0045, FM-0047, FM-0052, FM-0057, FM-0066, FM-0091"
+  },
+  {
+    "ingrediente": "CARBOPOL",
+    "veces": 8,
+    "formulas": "FM-0023, FM-0024, FM-0025, FM-0026, FM-0027, FM-0028, FM-0029, FM-0032"
+  },
+  {
+    "ingrediente": "DEHYCUART",
+    "veces": 7,
+    "formulas": "FM-0033, FM-0036, FM-0037, FM-0038, FM-0039, FM-0053, FM-0092"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL DE ROMERO",
+    "veces": 7,
+    "formulas": "FM-0045, FM-0047, FM-0052, FM-0061, FM-0064, FM-0068, FM-0069"
+  },
+  {
+    "ingrediente": "GLICERINA VEGETAL",
+    "veces": 5,
+    "formulas": "FM-0001, FM-0002, FM-0034, FM-0039, FM-0070"
+  },
+  {
+    "ingrediente": "EXTRACTO DE CENTELLA ASIATICA",
+    "veces": 5,
+    "formulas": "FM-0006, FM-0019, FM-0033, FM-0035, FM-0037"
+  },
+  {
+    "ingrediente": "EXTRACTO DE HAMAMELIS",
+    "veces": 5,
+    "formulas": "FM-0009, FM-0023, FM-0024, FM-0038, FM-0041"
+  },
+  {
+    "ingrediente": "EXTRACTO DE CASTAÑA DE INDIAS",
+    "veces": 5,
+    "formulas": "FM-0009, FM-0038, FM-0041, FM-0050, FM-0051"
+  },
+  {
+    "ingrediente": "COLORANTE",
+    "veces": 5,
+    "formulas": "FM-0027, FM-0042, FM-0043, FM-0070, FM-0088"
+  },
+  {
+    "ingrediente": "SILICONA A LA GRASA 1000",
+    "veces": 5,
+    "formulas": "FM-0042, FM-0043, FM-0050, FM-0051, FM-0084"
+  },
+  {
+    "ingrediente": "SORBATO DE SODIO",
+    "veces": 4,
+    "formulas": "FM-0006, FM-0067, FM-0073, FM-0077"
+  },
+  {
+    "ingrediente": "EDTA",
+    "veces": 4,
+    "formulas": "FM-0015, FM-0027, FM-0030, FM-0092"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL ROMERO",
+    "veces": 4,
+    "formulas": "FM-0025, FM-0055, FM-0058, FM-0091"
+  },
+  {
+    "ingrediente": "DIOXIDO DE TITANIO",
+    "veces": 4,
+    "formulas": "FM-0029, FM-0034, FM-0054, FM-0056"
+  },
+  {
+    "ingrediente": "DEHYCUARTH",
+    "veces": 4,
+    "formulas": "FM-0040, FM-0041, FM-0042, FM-0043"
+  },
+  {
+    "ingrediente": "FRAGANCIA MANZANILLA",
+    "veces": 3,
+    "formulas": "FM-0006, FM-0014, FM-0036"
+  },
+  {
+    "ingrediente": "CELLOZICE",
+    "veces": 3,
+    "formulas": "FM-0013, FM-0016, FM-0018"
+  },
+  {
+    "ingrediente": "CONSERVANTE PROCIDE CG",
+    "veces": 3,
+    "formulas": "FM-0013, FM-0014, FM-0018"
+  },
+  {
+    "ingrediente": "SACARINA SODICA",
+    "veces": 3,
+    "formulas": "FM-0022, FM-0066, FM-0085"
+  },
+  {
+    "ingrediente": "MENTOL EN CRISTAL",
+    "veces": 3,
+    "formulas": "FM-0022, FM-0025, FM-0085"
+  },
+  {
+    "ingrediente": "EXTRACTO DE ARNICA",
+    "veces": 3,
+    "formulas": "FM-0027, FM-0050, FM-0051"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL LAVANDA",
+    "veces": 3,
+    "formulas": "FM-0027, FM-0057, FM-0067"
+  },
+  {
+    "ingrediente": "ACEITE DE JOJOBA",
+    "veces": 3,
+    "formulas": "FM-0059, FM-0060, FM-0063"
+  },
+  {
+    "ingrediente": "VAINILLINA",
+    "veces": 3,
+    "formulas": "FM-0081, FM-0089, FM-0090"
+  },
+  {
+    "ingrediente": "FRAGANCIA PACO LUCKY",
+    "veces": 3,
+    "formulas": "FM-0088, FM-0089, FM-0090"
+  },
+  {
+    "ingrediente": "D - PANTENOL",
+    "veces": 2,
+    "formulas": "FM-0005, FM-0037"
+  },
+  {
+    "ingrediente": "NIACINAMIDA (VITAMINA B3)",
+    "veces": 2,
+    "formulas": "FM-0006, FM-0011"
+  },
+  {
+    "ingrediente": "D- PANTENOL",
+    "veces": 2,
+    "formulas": "FM-0006, FM-0067"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL ARBOL DEL TE",
+    "veces": 2,
+    "formulas": "FM-0012, FM-0067"
+  },
+  {
+    "ingrediente": "ACIDO ASCORBICO CON POCA AGUA",
+    "veces": 2,
+    "formulas": "FM-0013, FM-0018"
+  },
+  {
+    "ingrediente": "EXTRACTO DE AVENA",
+    "veces": 2,
+    "formulas": "FM-0020, FM-0087"
+  },
+  {
+    "ingrediente": "EXTRACTO DE TÉ VERDE",
+    "veces": 2,
+    "formulas": "FM-0023, FM-0024"
+  },
+  {
+    "ingrediente": "COLORANTE (OPCIONAL)",
+    "veces": 2,
+    "formulas": "FM-0023, FM-0024"
+  },
+  {
+    "ingrediente": "SABORIZANTE MENTA",
+    "veces": 2,
+    "formulas": "FM-0031, FM-0085"
+  },
+  {
+    "ingrediente": "AGUA",
+    "veces": 2,
+    "formulas": "FM-0039, FM-0069"
+  },
+  {
+    "ingrediente": "ACEITE DE ALMENDRAS",
+    "veces": 2,
+    "formulas": "FM-0044, FM-0059"
+  },
+  {
+    "ingrediente": "COLORANTE ROJO",
+    "veces": 2,
+    "formulas": "FM-0060, FM-0076"
+  },
+  {
+    "ingrediente": "CLORHIDRATO DE ALUMINIO",
+    "veces": 2,
+    "formulas": "FM-0074, FM-0075"
+  },
+  {
+    "ingrediente": "POLISORBATO 20 PARA EL TRIETIL CITRATO",
+    "veces": 2,
+    "formulas": "FM-0074, FM-0075"
+  },
+  {
+    "ingrediente": "POLISORBATO 20 PARA LA FRAGANCIA",
+    "veces": 2,
+    "formulas": "FM-0074, FM-0075"
+  },
+  {
+    "ingrediente": "PEROXIDO DE HIDROGENO",
+    "veces": 2,
+    "formulas": "FM-0082, FM-0083"
+  },
+  {
+    "ingrediente": "PROCIDE CG (CONSERVANTE)",
+    "veces": 1,
+    "formulas": "FM-0001"
+  },
+  {
+    "ingrediente": "PANTENOL (VITAMINA B5)",
+    "veces": 1,
+    "formulas": "FM-0002"
+  },
+  {
+    "ingrediente": "CARPOBOL",
+    "veces": 1,
+    "formulas": "FM-0005"
+  },
+  {
+    "ingrediente": "ALLCOHOL EXTRA NEUTRO",
+    "veces": 1,
+    "formulas": "FM-0007"
+  },
+  {
+    "ingrediente": "EXTACTO DE MANZANILLA",
+    "veces": 1,
+    "formulas": "FM-0009"
+  },
+  {
+    "ingrediente": "PANTENOL (PRO VITAMINA B5)",
+    "veces": 1,
+    "formulas": "FM-0011"
+  },
+  {
+    "ingrediente": "CELLOZISE",
+    "veces": 1,
+    "formulas": "FM-0012"
+  },
+  {
+    "ingrediente": "BENZOATO  DE SODIO",
+    "veces": 1,
+    "formulas": "FM-0012"
+  },
+  {
+    "ingrediente": "VITAMINA C (ACIDO ASCORBICO)",
+    "veces": 1,
+    "formulas": "FM-0014"
+  },
+  {
+    "ingrediente": "POLYQUATERNIUM 7",
+    "veces": 1,
+    "formulas": "FM-0016"
+  },
+  {
+    "ingrediente": "NICIANIMIDA",
+    "veces": 1,
+    "formulas": "FM-0021"
+  },
+  {
+    "ingrediente": "ALCOHOL EXTRA NUETRO",
+    "veces": 1,
+    "formulas": "FM-0022"
+  },
+  {
+    "ingrediente": "SABORIZANTE CANELA",
+    "veces": 1,
+    "formulas": "FM-0022"
+  },
+  {
+    "ingrediente": "COLORANTE ALIMENTICIO",
+    "veces": 1,
+    "formulas": "FM-0022"
+  },
+  {
+    "ingrediente": "FRAGANCIA COCO",
+    "veces": 1,
+    "formulas": "FM-0028"
+  },
+  {
+    "ingrediente": "COLORANTE NEGRO",
+    "veces": 1,
+    "formulas": "FM-0030"
+  },
+  {
+    "ingrediente": "COLORANTE VIOLETA DISPERSANTE",
+    "veces": 1,
+    "formulas": "FM-0031"
+  },
+  {
+    "ingrediente": "SACARINA",
+    "veces": 1,
+    "formulas": "FM-0031"
+  },
+  {
+    "ingrediente": "PROCIDE  CG",
+    "veces": 1,
+    "formulas": "FM-0033"
+  },
+  {
+    "ingrediente": "EMULGADE",
+    "veces": 1,
+    "formulas": "FM-0034"
+  },
+  {
+    "ingrediente": "DIMETICONA (SILICONA 1501)",
+    "veces": 1,
+    "formulas": "FM-0034"
+  },
+  {
+    "ingrediente": "ARCILLA BLANCA",
+    "veces": 1,
+    "formulas": "FM-0034"
+  },
+  {
+    "ingrediente": "FRAGANCIA  VAINILLA",
+    "veces": 1,
+    "formulas": "FM-0035"
+  },
+  {
+    "ingrediente": "AGUA DEIONIZADA",
+    "veces": 1,
+    "formulas": "FM-0035"
+  },
+  {
+    "ingrediente": "ACEITE ESENIAL TEA TREE",
+    "veces": 1,
+    "formulas": "FM-0039"
+  },
+  {
+    "ingrediente": "EXTRACTO DE CENTELLLA ASIATICA",
+    "veces": 1,
+    "formulas": "FM-0041"
+  },
+  {
+    "ingrediente": "FRAGANCIA MIEL",
+    "veces": 1,
+    "formulas": "FM-0041"
+  },
+  {
+    "ingrediente": "ALCANFOR EN CRISTALES",
+    "veces": 1,
+    "formulas": "FM-0045"
+  },
+  {
+    "ingrediente": "ACEITE DE CALENDULA",
+    "veces": 1,
+    "formulas": "FM-0045"
+  },
+  {
+    "ingrediente": "EXTRAXTO DE CENTELLA ASIATICA",
+    "veces": 1,
+    "formulas": "FM-0045"
+  },
+  {
+    "ingrediente": "EXTRAXTO DE ARNICA",
+    "veces": 1,
+    "formulas": "FM-0045"
+  },
+  {
+    "ingrediente": "COLORANTE VERDE",
+    "veces": 1,
+    "formulas": "FM-0047"
+  },
+  {
+    "ingrediente": "MENTOL EN  CRISTAL",
+    "veces": 1,
+    "formulas": "FM-0049"
+  },
+  {
+    "ingrediente": "ACEITE ESENSIAL DE ARBOL DEL TÉ",
+    "veces": 1,
+    "formulas": "FM-0049"
+  },
+  {
+    "ingrediente": "VITAMINA C",
+    "veces": 1,
+    "formulas": "FM-0053"
+  },
+  {
+    "ingrediente": "EXTRAXTO DE ALOE VERA",
+    "veces": 1,
+    "formulas": "FM-0053"
+  },
+  {
+    "ingrediente": "EXTRAXTO DE TE VERDE",
+    "veces": 1,
+    "formulas": "FM-0053"
+  },
+  {
+    "ingrediente": "DIMETICONA",
+    "veces": 1,
+    "formulas": "FM-0053"
+  },
+  {
+    "ingrediente": "ALCOHOL CETLICO",
+    "veces": 1,
+    "formulas": "FM-0053"
+  },
+  {
+    "ingrediente": "CERA DE ABEJA VIRGEN",
+    "veces": 1,
+    "formulas": "FM-0056"
+  },
+  {
+    "ingrediente": "FRAGANCIA ROSAS",
+    "veces": 1,
+    "formulas": "FM-0056"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL ARNICA",
+    "veces": 1,
+    "formulas": "FM-0057"
+  },
+  {
+    "ingrediente": "MIRITATO DE ISOPROPILO",
+    "veces": 1,
+    "formulas": "FM-0058"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL MENTA",
+    "veces": 1,
+    "formulas": "FM-0058"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL EUCALIPTO",
+    "veces": 1,
+    "formulas": "FM-0058"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL LIMON",
+    "veces": 1,
+    "formulas": "FM-0058"
+  },
+  {
+    "ingrediente": "ACEITE DE ROSA MOSQUETA",
+    "veces": 1,
+    "formulas": "FM-0059"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL ÁRBOL DEL TÉ",
+    "veces": 1,
+    "formulas": "FM-0059"
+  },
+  {
+    "ingrediente": "FRAGANCIA FRESA",
+    "veces": 1,
+    "formulas": "FM-0060"
+  },
+  {
+    "ingrediente": "FRAGANCIA TEA TREE",
+    "veces": 1,
+    "formulas": "FM-0061"
+  },
+  {
+    "ingrediente": "VASELINA LIQUIDO",
+    "veces": 1,
+    "formulas": "FM-0062"
+  },
+  {
+    "ingrediente": "MIRISTATO DE ISOPROPOLICO",
+    "veces": 1,
+    "formulas": "FM-0062"
+  },
+  {
+    "ingrediente": "FRAGANCIA VAINILLA",
+    "veces": 1,
+    "formulas": "FM-0063"
+  },
+  {
+    "ingrediente": "COLORANTE A LA GRASA",
+    "veces": 1,
+    "formulas": "FM-0063"
+  },
+  {
+    "ingrediente": "ACEITE DE NEEM",
+    "veces": 1,
+    "formulas": "FM-0064"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL DE LAVANDA",
+    "veces": 1,
+    "formulas": "FM-0064"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL DE EUCALIPTO",
+    "veces": 1,
+    "formulas": "FM-0064"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL DE CITRONELLA",
+    "veces": 1,
+    "formulas": "FM-0064"
+  },
+  {
+    "ingrediente": "ALCOHOL EXTRANEUTRO",
+    "veces": 1,
+    "formulas": "FM-0066"
+  },
+  {
+    "ingrediente": "SABORIZANTE  MENTA",
+    "veces": 1,
+    "formulas": "FM-0066"
+  },
+  {
+    "ingrediente": "COLOR AL GUSTO SIN COLOR",
+    "veces": 1,
+    "formulas": "FM-0066"
+  },
+  {
+    "ingrediente": "CLORHEXIDINA 20%",
+    "veces": 1,
+    "formulas": "FM-0067"
+  },
+  {
+    "ingrediente": "ALCOHOL EXTRANEUTRO DE 96%",
+    "veces": 1,
+    "formulas": "FM-0068"
+  },
+  {
+    "ingrediente": "PARAFINA",
+    "veces": 1,
+    "formulas": "FM-0071"
+  },
+  {
+    "ingrediente": "COLORANTE AZUL",
+    "veces": 1,
+    "formulas": "FM-0071"
+  },
+  {
+    "ingrediente": "PROTEINA HIDROLIZADA DE SOYA",
+    "veces": 1,
+    "formulas": "FM-0073"
+  },
+  {
+    "ingrediente": "COLORANTE AMARILLO, MARRON Y NARANJA",
+    "veces": 1,
+    "formulas": "FM-0073"
+  },
+  {
+    "ingrediente": "ACEITE ESENCIAL DE ARBOL DE TÉ",
+    "veces": 1,
+    "formulas": "FM-0076"
+  },
+  {
+    "ingrediente": "CLORURO DE MANGNESIO",
+    "veces": 1,
+    "formulas": "FM-0078"
+  },
+  {
+    "ingrediente": "AGUA DESIONIXADA",
+    "veces": 1,
+    "formulas": "FM-0078"
+  },
+  {
+    "ingrediente": "NONIL FENOL 10 M",
+    "veces": 1,
+    "formulas": "FM-0079"
+  },
+  {
+    "ingrediente": "BUTILGLICOL",
+    "veces": 1,
+    "formulas": "FM-0079"
+  },
+  {
+    "ingrediente": "CARBONATO DE SODIO",
+    "veces": 1,
+    "formulas": "FM-0079"
+  },
+  {
+    "ingrediente": "COLORANTE ALCALINO",
+    "veces": 1,
+    "formulas": "FM-0079"
+  },
+  {
+    "ingrediente": "PRILOCAINA",
+    "veces": 1,
+    "formulas": "FM-0080"
+  },
+  {
+    "ingrediente": "FRAGANCIA PACO RABANNE",
+    "veces": 1,
+    "formulas": "FM-0081"
+  },
+  {
+    "ingrediente": "COLOR VERDE",
+    "veces": 1,
+    "formulas": "FM-0085"
+  },
+  {
+    "ingrediente": "GLUCONATO DE CLORHEXIDINA",
+    "veces": 1,
+    "formulas": "FM-0087"
+  },
+  {
+    "ingrediente": "ALCOHOL LAURICO ETOXILADO",
+    "veces": 1,
+    "formulas": "FM-0088"
+  },
+  {
+    "ingrediente": "SAL",
+    "veces": 1,
+    "formulas": "FM-0092"
+  },
+  {
+    "ingrediente": "EXTRACTO DE ORTIGA",
+    "veces": 1,
+    "formulas": "FM-0092"
+  }
+]

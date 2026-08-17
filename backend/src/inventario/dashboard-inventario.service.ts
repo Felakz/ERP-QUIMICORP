@@ -173,43 +173,61 @@ export class DashboardInventarioService {
     const insumosFormatted = insumos.map((i) => {
       const stockReal = Number(i.stockReal);
       const stockMinimo = Number(i.stockMinimo);
+      const unidadVisual = i.unidadMedidaVisual || (i.unidadMedida === 'KG' ? 'KG' : i.unidadMedida === 'L' ? 'LT' : 'GR');
+
+      // Cantidad física exacta en la unidad visual correspondiente
+      let cantidadFisica = stockReal;
+      if (unidadVisual === 'KG' || unidadVisual === 'LT' || unidadVisual === 'L') {
+        cantidadFisica = stockReal / 1000;
+      }
+
       let estado: 'OK' | 'LOW STOCK' | 'CRITICAL' = 'OK';
 
-      if (stockReal <= 0 || stockReal <= stockMinimo * 0.5) {
+      if (cantidadFisica <= 0 || (unidadVisual === 'GR' && cantidadFisica < 1) || (unidadVisual !== 'GR' && cantidadFisica < 0.5)) {
         estado = 'CRITICAL';
         stockCriticoCount++;
         insumosCriticosDetalle.push({
           sku: i.codigo,
           nombre: i.nombre,
-          stockReal,
+          stockReal: cantidadFisica,
           stockMinimo,
-          unidad: i.unidadMedida,
-          porcentaje: stockMinimo > 0 ? Math.round((stockReal / stockMinimo) * 100) : 5,
+          unidad: unidadVisual,
+          porcentaje: cantidadFisica > 0 ? Math.min(Math.round(cantidadFisica * 10), 100) : 0,
         });
-      } else if (stockReal <= stockMinimo) {
+      } else if ((unidadVisual === 'GR' && cantidadFisica < 5) || (unidadVisual !== 'GR' && cantidadFisica < 2)) {
         estado = 'LOW STOCK';
         stockBajoCount++;
       }
 
-      const stockPercentage = stockMinimo > 0 ? Math.min(Math.round((stockReal / (stockMinimo * 3)) * 100), 100) : 85;
+      // Porcentaje visual ponderado
+      const stockPercentage = Math.min(Math.max(Math.round((cantidadFisica / (cantidadFisica > 20 ? cantidadFisica : 20)) * 100), 5), 100);
 
       return {
         id: i.id,
         sku: i.codigo,
         nombre: i.nombre,
-        familia: i.familia.nombre.toUpperCase(),
+        familia: (i.categoria || i.familia?.nombre || 'MATERIA_PRIMA_BASE').toUpperCase(),
         stockPercentage,
         stockReal,
+        cantidadFisica,
         stockMinimo,
-        unidad: i.unidadMedida,
+        unidad: unidadVisual,
+        unidadMedidaVisual: unidadVisual,
+        proveedor: i.proveedorHistorico || 'ALMACÉN QUIMICORP',
         ubicacion: 'Almacén Principal Quimicorp',
         estado,
       };
     });
 
+    const totalFisicoKgLt = insumos.reduce((acc, i) => {
+      const u = i.unidadMedidaVisual || i.unidadMedida;
+      const s = Number(i.stockReal);
+      return acc + (u === 'KG' || u === 'LT' || u === 'L' ? s / 1000 : s / 1000);
+    }, 0);
+
     return {
       totalMateriales: insumos.length,
-      disponibilidadTotalKg: insumos.reduce((acc, i) => acc + Number(i.stockReal), 0).toFixed(2),
+      disponibilidadTotalKg: totalFisicoKgLt.toFixed(2),
       stockCriticoCount,
       stockBajoCount,
       insumosCriticosDetalle,

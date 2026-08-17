@@ -9,23 +9,53 @@ export class PedidosAdminService {
     private readonly produccionGateway: ProduccionGateway,
   ) {}
 
+  private parsearRangoDia(fechaStr?: string) {
+    let y: number, m: number, d: number;
+    if (fechaStr && /^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+      const parts = fechaStr.split('-').map(Number);
+      y = parts[0];
+      m = parts[1] - 1;
+      d = parts[2];
+    } else {
+      const now = new Date();
+      y = now.getFullYear();
+      m = now.getMonth();
+      d = now.getDate();
+    }
+
+    const inicioDia = new Date(y, m, d, 0, 0, 0, 0);
+    const finDia = new Date(y, m, d, 23, 59, 59, 999);
+    const fechaISO = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+    return { inicioDia, finDia, fechaISO };
+  }
+
   // 1. Obtener KPIs superiores dinámicos del día (solo órdenes de producción OP)
-  async obtenerKpis() {
+  async obtenerKpis(fecha?: string) {
     const db = this.prisma as any;
     try {
+      const { inicioDia, finDia, fechaISO } = this.parsearRangoDia(fecha);
+      const dateFilter = {
+        createdAt: {
+          gte: inicioDia,
+          lte: finDia,
+        },
+      };
+
       const [nuevosCount, pendienteRevisionCount, aprobadosCount, enProduccionCount, agregadosHoy] =
         await Promise.all([
-          db.pedidoComercial.count({ where: { estado: 'NUEVO', docType: 'OP' } }).catch(() => 0),
-          db.pedidoComercial.count({ where: { estado: 'PENDIENTE_REVISION', docType: 'OP' } }).catch(() => 0),
-          db.pedidoComercial.count({ where: { estado: 'APROBADO', docType: 'OP' } }).catch(() => 0),
-          db.pedidoComercial.count({ where: { estado: 'EN_PRODUCCION', docType: 'OP' } }).catch(() => 0),
-          db.pedidoComercial.aggregate({ where: { docType: 'OP' }, _sum: { montoTotal: true } }).catch(() => ({ _sum: { montoTotal: null } })),
+          db.pedidoComercial.count({ where: { estado: 'NUEVO', docType: 'OP', ...dateFilter } }).catch(() => 0),
+          db.pedidoComercial.count({ where: { estado: 'PENDIENTE_REVISION', docType: 'OP', ...dateFilter } }).catch(() => 0),
+          db.pedidoComercial.count({ where: { estado: 'APROBADO', docType: 'OP', ...dateFilter } }).catch(() => 0),
+          db.pedidoComercial.count({ where: { estado: 'EN_PRODUCCION', docType: 'OP', ...dateFilter } }).catch(() => 0),
+          db.pedidoComercial.aggregate({ where: { docType: 'OP', ...dateFilter }, _sum: { montoTotal: true } }).catch(() => ({ _sum: { montoTotal: null } })),
         ]);
 
       const countTotal = (nuevosCount + pendienteRevisionCount + aprobadosCount + enProduccionCount) || 0;
       const sumValue = agregadosHoy?._sum?.montoTotal ? Number(agregadosHoy._sum.montoTotal) : 0.0;
 
       return {
+        fecha: fechaISO,
         pedidosHoy: countTotal,
         nuevos: (nuevosCount + pendienteRevisionCount),
         pendienteRevision: pendienteRevisionCount,
@@ -170,6 +200,8 @@ export class PedidosAdminService {
         varianteId: validVarianteId,
         aroma: dto.aroma || null,
         color: dto.color || null,
+        aromaText: dto.aromaText || dto.aroma || null,
+        colorText: dto.colorText || dto.color || null,
         notasAdmin: dto.itemsJson
           ? JSON.stringify({
               items: dto.itemsJson,
@@ -181,6 +213,34 @@ export class PedidosAdminService {
       },
     });
 
+    // ── Persistir PedidoAditivos si vienen en el payload ──
+    const kg = parseFloat(dto.cantidad) || 1.0;
+    if (dto.aditivos && Array.isArray(dto.aditivos) && dto.aditivos.length > 0) {
+      for (const adit of dto.aditivos) {
+        if (!adit.insumoId) continue;
+        const insumo = await db.insumo.findUnique({ where: { id: adit.insumoId } }).catch(() => null);
+        if (!insumo) continue;
+
+        const tipoAditivo = adit.tipo || insumo.tipo || (insumo.nombre.toLowerCase().includes('fragancia') ? 'FRAGANCIA' : 'PIGMENTO');
+        let pct = Number(adit.porcentaje);
+        if (!pct || pct <= 0) {
+          pct = tipoAditivo === 'PIGMENTO' ? 0.5 : 1.0;
+        }
+
+        const gramos = kg * 1000 * (pct / 100);
+
+        await db.pedidoAditivo.create({
+          data: {
+            pedidoId: nuevoPedido.id,
+            insumoId: insumo.id,
+            tipo: tipoAditivo,
+            porcentaje: pct,
+            gramosCalculados: gramos,
+          },
+        }).catch(() => null);
+      }
+    }
+
     // ── Emitir WebSocket SOLO para pedidos OP ──
     if (mode === 'PEDIDO' && this.produccionGateway && this.produccionGateway.server) {
       this.produccionGateway.server.emit('order:created_to_plant', nuevoPedido);
@@ -191,12 +251,17 @@ export class PedidosAdminService {
 
 
   // 2. Listar pedidos con búsqueda, filtros y cálculo automático de stock en Kardex
-  async listar(search?: string, estado?: string, prioridad?: string, docType?: string) {
+  async listar(search?: string, estado?: string, prioridad?: string, docType?: string, fecha?: string) {
     const db = this.prisma as any;
     const whereCondition: any = {};
 
     if (docType && docType.toUpperCase() !== 'TODOS') {
       whereCondition.docType = docType.toUpperCase();
+    }
+
+    if (fecha && fecha.trim() !== '' && fecha.toUpperCase() !== 'TODOS') {
+      const { inicioDia, finDia } = this.parsearRangoDia(fecha);
+      whereCondition.createdAt = { gte: inicioDia, lte: finDia };
     }
 
     if (estado && estado.toUpperCase() !== 'TODOS') {
@@ -236,6 +301,11 @@ export class PedidosAdminService {
                 insumo: true,
               },
             },
+          },
+        },
+        aditivos: {
+          include: {
+            insumo: true,
           },
         },
       },
@@ -301,7 +371,10 @@ export class PedidosAdminService {
     const db = this.prisma as any;
     const pedido = await db.pedidoComercial.findUnique({
       where: { id },
-      include: { formula: true },
+      include: {
+        formula: true,
+        aditivos: { include: { insumo: true } },
+      },
     });
 
     if (!pedido) {
@@ -340,6 +413,16 @@ export class PedidosAdminService {
         },
       });
     }
+
+    const fraganciaAditivo = pedido.aditivos?.find(
+      (a: any) => a.tipo === 'FRAGANCIA' || a.insumo?.tipo === 'FRAGANCIA' || a.insumo?.nombre?.toLowerCase().includes('fragancia')
+    );
+    const pigmentoAditivo = pedido.aditivos?.find(
+      (a: any) => a.tipo === 'PIGMENTO' || a.insumo?.tipo === 'PIGMENTO' || a.insumo?.nombre?.toLowerCase().includes('pigmento')
+    );
+
+    const defaultFragancia = pedido.aromaText || pedido.aroma || fraganciaAditivo?.insumo?.nombre || 'SIN FRAGANCIA';
+    const defaultColor = pedido.colorText || pedido.color || pigmentoAditivo?.insumo?.nombre || 'TRANSPARENTE';
 
     // Si tiene múltiples items, crear una orden de producción por cada producto
     if (itemsParsed.length > 0) {
@@ -389,6 +472,9 @@ export class PedidosAdminService {
           if (fallback) formulaId = fallback.id;
         }
 
+        const itemColor = item.color || item.colorText || defaultColor;
+        const itemFragancia = item.aroma || item.aromaText || defaultFragancia;
+
         if (formulaId) {
           const existe = await this.prisma.ordenProduccion.findFirst({ where: { codigoLote } }).catch(() => null);
           if (!existe) {
@@ -399,10 +485,20 @@ export class PedidosAdminService {
                 cantidadPlanificada: Number(item.cantidad) || 100,
                 clienteNombre: pedido.clienteNombre,
                 supervisorId: supervisor.id,
+                colorEspecificado: itemColor,
+                fraganciaEspecificada: itemFragancia,
                 estado: 'EN_PROCESO',
                 pasoProceso: 'PENDIENTE_ASIGNACION',
               },
             }).catch((err: any) => console.log('Error creando ordenProduccion item:', err));
+          } else {
+            await this.prisma.ordenProduccion.update({
+              where: { id: existe.id },
+              data: {
+                colorEspecificado: itemColor,
+                fraganciaEspecificada: itemFragancia,
+              },
+            }).catch(() => null);
           }
         }
       }
@@ -450,10 +546,20 @@ export class PedidosAdminService {
               cantidadPlanificada: pedido.cantidadSolicitada,
               clienteNombre: pedido.clienteNombre,
               supervisorId: supervisor.id,
+              colorEspecificado: defaultColor,
+              fraganciaEspecificada: defaultFragancia,
               estado: 'EN_PROCESO',
               pasoProceso: 'PENDIENTE_ASIGNACION',
             },
           }).catch((err: any) => console.log('Error creando ordenProduccion:', err));
+        } else {
+          await this.prisma.ordenProduccion.update({
+            where: { id: existeOp.id },
+            data: {
+              colorEspecificado: defaultColor,
+              fraganciaEspecificada: defaultFragancia,
+            },
+          }).catch(() => null);
         }
       }
     }

@@ -28,6 +28,8 @@ import { NuevoClienteModal, Cliente } from '../modals/NuevoClienteModal';
 import { CotizacionPDF, CotizacionData, CotizacionItem } from '../pdf/CotizacionPDF';
 import { apiFetch } from '@/lib/apiClient';
 
+import { SelectAditivos, AditivoSeleccionado } from './SelectAditivos';
+
 export interface FormItem {
   id: string;
   formulaId: string;
@@ -36,6 +38,7 @@ export interface FormItem {
   varianteId?: string;
   aroma?: string;
   color?: string;
+  aditivos?: AditivoSeleccionado[];
   cantidad: number;
   unidadMedida: string;
   precioUnitario: number;
@@ -67,6 +70,9 @@ export interface PedidoPayload {
   fechaPrometida?: string;
   aroma?: string | null;
   color?: string | null;
+  aromaText?: string | null;
+  colorText?: string | null;
+  aditivos?: AditivoSeleccionado[];
   observacionesAdmin?: string;
   notasAdmin?: string;
   mode: 'COTIZACION' | 'PEDIDO';
@@ -265,6 +271,9 @@ export function CommercialOrderForm({
         fechaPrometida,
         aroma: mainItem.aroma?.trim() || null,
         color: mainItem.color?.trim() || null,
+        aromaText: mainItem.aroma?.trim() || null,
+        colorText: mainItem.color?.trim() || null,
+        aditivos: mainItem.aditivos || [],
         observacionesAdmin: observaciones.trim() || (mode === 'COTIZACION' ? 'Cotización comercial emitida para cliente.' : 'Orden de producción formal emitida a Planta.'),
         itemsJson: items,
       };
@@ -679,33 +688,35 @@ export function CommercialOrderForm({
                   </select>
                 </div>
 
-                {/* Personalización Aroma y Color */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
-                      Aroma / Fragancia
-                    </label>
-                    <input
-                      type="text"
-                      value={item.aroma || ''}
-                      onChange={(e) => handleUpdateItem(idx, 'aroma', e.target.value)}
-                      placeholder="Ej: Mentol, Lavanda..."
-                      className={`w-full rounded-xl border p-2 text-xs ${inputBg}`}
-                    />
-                  </div>
+                {/* Personalización Dinámica de Aditivos (Fragancias & Pigmentos Reales) */}
+                <div className="pt-1">
+                  <SelectAditivos
+                    cantidadKg={item.cantidad || 100}
+                    value={item.aditivos || []}
+                    onChange={(newAditivos) => {
+                      const aromaStr = newAditivos
+                        .filter((a) => a.tipo === 'FRAGANCIA')
+                        .map((a) => a.nombre)
+                        .join(', ');
+                      const colorStr = newAditivos
+                        .filter((a) => a.tipo === 'PIGMENTO')
+                        .map((a) => a.nombre)
+                        .join(', ');
 
-                  <div>
-                    <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
-                      Color / Tono
-                    </label>
-                    <input
-                      type="text"
-                      value={item.color || ''}
-                      onChange={(e) => handleUpdateItem(idx, 'color', e.target.value)}
-                      placeholder="Ej: Ámbar, Azul..."
-                      className={`w-full rounded-xl border p-2 text-xs ${inputBg}`}
-                    />
-                  </div>
+                      setItems((prev) =>
+                        prev.map((it, i) =>
+                          i === idx
+                            ? {
+                                ...it,
+                                aditivos: newAditivos,
+                                aroma: aromaStr || undefined,
+                                color: colorStr || undefined,
+                              }
+                            : it
+                        )
+                      );
+                    }}
+                  />
                 </div>
 
                 {/* Cantidad, Unidad, Precio */}

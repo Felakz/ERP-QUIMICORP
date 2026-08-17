@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CrearInsumoDto } from './dto/crear-insumo.dto';
+import { TipoInsumo } from '@prisma/client';
 
 @Injectable()
 export class InventarioService {
@@ -19,7 +20,12 @@ export class InventarioService {
     });
   }
 
-  listar(search?: string, familiaId?: string) {
+  listar(search?: string, familiaId?: string, tipo?: TipoInsumo | string) {
+    let tipoEnum: TipoInsumo | undefined = undefined;
+    if (tipo && Object.values(TipoInsumo).includes(tipo.toUpperCase() as TipoInsumo)) {
+      tipoEnum = tipo.toUpperCase() as TipoInsumo;
+    }
+
     return this.prisma.insumo.findMany({
       where: {
         AND: [
@@ -32,6 +38,7 @@ export class InventarioService {
               }
             : {},
           familiaId ? { familiaId } : {},
+          tipoEnum ? { tipo: tipoEnum } : {},
         ],
       },
       include: { familia: true },

@@ -289,7 +289,7 @@ export default function KardexPage() {
       });
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json) && json.length > 0) {
+        if (Array.isArray(json)) {
           apiData = json;
         }
       }
@@ -297,12 +297,7 @@ export default function KardexPage() {
       console.log('Error fetching kardex endpoint:', error);
     }
 
-    if (apiData && apiData.length > 0) {
-      setMovimientos(apiData);
-    } else {
-      // Usar dataset real importado de Excel como fallback resiliente
-      setMovimientos(KARDEX_REAL_SEED_DATA);
-    }
+    setMovimientos(apiData || []);
     setLoading(false);
   };
 
