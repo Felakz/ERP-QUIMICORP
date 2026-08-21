@@ -17,6 +17,8 @@ const QUICK_ROLES: { role: UserRole; label: string; email: string; icon: string;
   { role: 'ARCHIVO_HISTORICO', label: 'Archivo Histórico', email: 'historico@quimicorp.pe', icon: '🏛️', name: 'Mario Vega (Archivo)' },
 ];
 
+import { getApiBaseUrl } from '@/lib/apiClient';
+
 export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState('produccion@quimicorp.pe');
@@ -28,7 +30,7 @@ export default function LoginPage() {
     setLoading(true);
     setErrorMsg('');
 
-    fetch('http://localhost:3001/api/v1/auth/login', {
+    fetch(`${getApiBaseUrl()}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail, password: userPass }),

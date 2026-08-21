@@ -1,9 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Building2, CreditCard, MapPin, Phone, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Building2, CreditCard, MapPin, Phone, User, CheckCircle2, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
+
+export interface ContactoRepresentante {
+  id?: string;
+  nombre: string;
+  cargo?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  esPrincipal?: boolean;
+}
 
 export interface Cliente {
   id: string;
@@ -11,7 +20,10 @@ export interface Cliente {
   ruc: string;
   telefono?: string | null;
   direccion?: string | null;
+  contacto?: string | null;
+  metodoEnvio?: string | null;
   condicionPago?: string | null;
+  contactos?: ContactoRepresentante[];
 }
 
 interface NuevoClienteModalProps {
@@ -34,7 +46,14 @@ export function NuevoClienteModal({
   const [ruc, setRuc] = useState(initialRuc);
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
+  const [metodoEnvio, setMetodoEnvio] = useState('');
   const [condicionPago, setCondicionPago] = useState('Contado');
+
+  // Contactos adicionales
+  const [contactos, setContactos] = useState<ContactoRepresentante[]>([
+    { nombre: '', cargo: 'Dueño / Compras', telefono: '', esPrincipal: true }
+  ]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -54,6 +73,22 @@ export function NuevoClienteModal({
     ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500 focus:border-blue-500'
     : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-blue-500';
 
+  const handleAddContacto = () => {
+    setContactos((prev) => [...prev, { nombre: '', cargo: 'Asistente Compras', telefono: '', esPrincipal: false }]);
+  };
+
+  const handleRemoveContacto = (idx: number) => {
+    setContactos((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleContactoChange = (idx: number, field: keyof ContactoRepresentante, value: any) => {
+    setContactos((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: value };
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!razonSocial.trim() || !ruc.trim()) {
@@ -64,6 +99,8 @@ export function NuevoClienteModal({
     setLoading(true);
     setError(null);
 
+    const contactosValidos = contactos.filter((c) => c.nombre.trim().length > 0);
+
     const { data: nuevoCliente, error: apiError, ok } = await apiFetch<Cliente>('/clientes', {
       method: 'POST',
       body: JSON.stringify({
@@ -71,14 +108,17 @@ export function NuevoClienteModal({
         ruc: ruc.trim(),
         telefono: telefono.trim() || undefined,
         direccion: direccion.trim() || undefined,
+        metodoEnvio: metodoEnvio.trim() || undefined,
         condicionPago: condicionPago || 'Contado',
+        contacto: contactosValidos[0]?.nombre || undefined,
+        contactos: contactosValidos,
       }),
     });
 
     setLoading(false);
 
     if (ok && nuevoCliente) {
-      setSuccessMsg(`✓ Cliente "${nuevoCliente.razonSocial}" registrado con éxito.`);
+      setSuccessMsg(`✓ Cliente Matriz "${nuevoCliente.razonSocial}" registrado con éxito.`);
       setTimeout(() => {
         onCreated(nuevoCliente);
         onClose();
@@ -87,6 +127,8 @@ export function NuevoClienteModal({
         setRuc('');
         setTelefono('');
         setDireccion('');
+        setMetodoEnvio('');
+        setContactos([{ nombre: '', cargo: 'Dueño / Compras', telefono: '', esPrincipal: true }]);
         setSuccessMsg(null);
       }, 700);
     } else {
@@ -95,8 +137,8 @@ export function NuevoClienteModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 font-sans animate-in fade-in duration-200">
-      <div className={`w-full max-w-lg rounded-2xl p-6 border space-y-4 ${cardBg}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 font-sans animate-in fade-in duration-200 overflow-y-auto">
+      <div className={`w-full max-w-xl rounded-2xl p-6 border space-y-4 my-8 ${cardBg}`}>
         {/* Header */}
         <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
           <div className="flex items-center gap-2.5">
@@ -105,10 +147,10 @@ export function NuevoClienteModal({
             </div>
             <div>
               <h3 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Registro Rápido de Cliente
+                Registro de Cliente Matriz / Empresa
               </h3>
               <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                Añadir nuevo cliente comercial a la cartera en PostgreSQL
+                Añadir empresa jurídica y sus múltiples representantes (1:N)
               </p>
             </div>
           </div>
@@ -137,17 +179,17 @@ export function NuevoClienteModal({
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div>
             <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
-              Razón Social / Nombre Comercial *
+              Razón Social / Empresa Matriz *
             </label>
             <input
               type="text"
               required
               value={razonSocial}
               onChange={(e) => setRazonSocial(e.target.value)}
-              placeholder="Ej: Laboratorios Farmacéuticos del Perú S.A.C."
+              placeholder="Ej: ALFALION INVESTMENT SAC"
               className={`w-full rounded-xl border p-2.5 font-medium focus:outline-none transition-all ${inputBg}`}
             />
           </div>
@@ -155,7 +197,7 @@ export function NuevoClienteModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
-                RUC / ID Tributario (11 dígitos) *
+                RUC (11 dígitos) *
               </label>
               <input
                 type="text"
@@ -163,36 +205,51 @@ export function NuevoClienteModal({
                 maxLength={11}
                 value={ruc}
                 onChange={(e) => setRuc(e.target.value)}
-                placeholder="20601234567"
+                placeholder="20612434124"
                 className={`w-full rounded-xl border p-2.5 font-mono focus:outline-none transition-all ${inputBg}`}
               />
             </div>
 
             <div>
               <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
-                Teléfono / Contacto
+                Teléfono Central
               </label>
               <input
                 type="text"
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
-                placeholder="+51 999 888 777"
+                placeholder="+51 944 245 458"
                 className={`w-full rounded-xl border p-2.5 font-mono focus:outline-none transition-all ${inputBg}`}
               />
             </div>
           </div>
 
-          <div>
-            <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
-              Dirección Fiscal / Despacho
-            </label>
-            <input
-              type="text"
-              value={direccion}
-              onChange={(e) => setDireccion(e.target.value)}
-              placeholder="Av. Las Industrias 1234, Callao, Lima"
-              className={`w-full rounded-xl border p-2.5 font-medium focus:outline-none transition-all ${inputBg}`}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                Dirección Fiscal / Despacho
+              </label>
+              <input
+                type="text"
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value)}
+                placeholder="Calle Mochicas 175, San Miguel"
+                className={`w-full rounded-xl border p-2.5 font-medium focus:outline-none transition-all ${inputBg}`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                Modalidad de Envío / Agencia
+              </label>
+              <input
+                type="text"
+                value={metodoEnvio}
+                onChange={(e) => setMetodoEnvio(e.target.value)}
+                placeholder="INDRIVER Y SR CESAR / SHALOM"
+                className={`w-full rounded-xl border p-2.5 font-medium focus:outline-none transition-all ${inputBg}`}
+              />
+            </div>
           </div>
 
           <div>
@@ -211,6 +268,69 @@ export function NuevoClienteModal({
             </select>
           </div>
 
+          {/* Sección de Representantes / Contactos (1:N) */}
+          <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5" />
+                <span>Representantes & Contactos ({contactos.length})</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleAddContacto}
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[10px] font-bold flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Añadir Contacto</span>
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {contactos.map((cont, idx) => (
+                <div key={idx} className="p-3 rounded-xl bg-[#151D2A] border border-[#1A2232] grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-5">
+                    <input
+                      type="text"
+                      placeholder="Nombre Representante"
+                      value={cont.nombre}
+                      onChange={(e) => handleContactoChange(idx, 'nombre', e.target.value)}
+                      className="w-full bg-[#0F141C] border border-slate-700/60 rounded-lg p-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <input
+                      type="text"
+                      placeholder="Cargo (Ej: Dueño 1)"
+                      value={cont.cargo || ''}
+                      onChange={(e) => handleContactoChange(idx, 'cargo', e.target.value)}
+                      className="w-full bg-[#0F141C] border border-slate-700/60 rounded-lg p-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="text"
+                      placeholder="Teléfono"
+                      value={cont.telefono || ''}
+                      onChange={(e) => handleContactoChange(idx, 'telefono', e.target.value)}
+                      className="w-full bg-[#0F141C] border border-slate-700/60 rounded-lg p-1.5 text-xs font-mono text-emerald-400 placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="col-span-1 text-center">
+                    {contactos.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveContacto(idx)}
+                        className="p-1 rounded text-rose-400 hover:bg-rose-500/20"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className={`flex items-center justify-end gap-3 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
             <button
               type="button"
@@ -227,7 +347,7 @@ export function NuevoClienteModal({
               className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold tracking-wider uppercase transition-all shadow-lg shadow-blue-500/20 flex items-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{loading ? 'Guardando...' : 'Guardar Cliente'}</span>
+              <span>{loading ? 'Guardando...' : 'Guardar Empresa Matriz'}</span>
             </button>
           </div>
         </form>

@@ -21,6 +21,7 @@ import {
 import { io } from 'socket.io-client';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
+import { apiFetch, getSocketUrl } from '@/lib/apiClient';
 
 interface NavSection {
   title: string;
@@ -125,13 +126,9 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
 
   const cargarBadgeCount = async () => {
     try {
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const res = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis', {
-        headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
-      });
-      if (res.ok) {
-        const kpis = await res.json();
-        const nuevos = Number(kpis.nuevos) || 0;
+      const { data, ok } = await apiFetch('/pedidos-admin/kpis');
+      if (ok && data) {
+        const nuevos = Number(data.nuevos) || 0;
         setPedidoCount(nuevos);
         if (nuevos === 0) {
           setIsAlerting(false);
@@ -165,7 +162,7 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
 
     let socket: any = null;
     try {
-      socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
+      socket = io(getSocketUrl(), { transports: ['websocket', 'polling'] });
       socket.on('order:created_to_plant', (payload: any) => {
         playNotificationChime();
         setIsAlerting(true);

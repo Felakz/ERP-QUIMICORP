@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
+import { apiFetch } from '@/lib/apiClient';
 import {
   FORMULAS_MAESTRAS_REALES,
   CATEGORIAS_FORMULAS,
@@ -60,6 +61,7 @@ interface VarianteClienteAPI {
   clienteId?: string;
   cliente?: ClienteAPI;
   notas?: string;
+  ajustesJson?: any;
 }
 
 interface FormulaMasterAPI {
@@ -108,34 +110,23 @@ export default function FormulasPage() {
   const fetchFormulas = async () => {
     try {
       setLoading(true);
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
-
       const [resFormulas, resClientes] = await Promise.all([
-        fetch(`http://localhost:3001/api/v1/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`, {
-          headers: authHeader,
-        }),
-        fetch(`http://localhost:3001/api/v1/clientes`, { headers: authHeader }).catch(() => null),
+        apiFetch<FormulaMasterAPI[]>(`/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`),
+        apiFetch<ClienteAPI[]>('/clientes'),
       ]);
 
-      if (resFormulas.ok) {
-        const data = await resFormulas.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setFormulasApi(data);
-          if (!selectedFormulaId) {
-            setSelectedFormulaId(data[0].id);
-          }
+      if (resFormulas.ok && Array.isArray(resFormulas.data) && resFormulas.data.length > 0) {
+        setFormulasApi(resFormulas.data);
+        if (!selectedFormulaId) {
+          setSelectedFormulaId(resFormulas.data[0].id);
         }
       }
 
-      if (resClientes && resClientes.ok) {
-        const dataClientes = await resClientes.json();
-        if (Array.isArray(dataClientes)) {
-          setClientesApi(dataClientes);
-        }
+      if (resClientes.ok && Array.isArray(resClientes.data)) {
+        setClientesApi(resClientes.data);
       }
     } catch (e) {
-      console.log('Fallback a datos locales:', e);
+      console.log('Error al cargar datos de fórmulas:', e);
     } finally {
       setLoading(false);
     }
@@ -152,14 +143,8 @@ export default function FormulasPage() {
 
     try {
       setClonGuardando(true);
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const authHeader: Record<string, string> = savedToken
-        ? { 'Content-Type': 'application/json', Authorization: `Bearer ${savedToken}` }
-        : { 'Content-Type': 'application/json' };
-
-      const res = await fetch(`http://localhost:3001/api/v1/formulas/${formulaSeleccionada.id}/clonar`, {
+      const res = await apiFetch(`/formulas/${formulaSeleccionada.id}/clonar`, {
         method: 'POST',
-        headers: authHeader,
         body: JSON.stringify({
           nuevoNombre: clonNombre.trim(),
           nuevoCodigo: clonCodigo.trim() || undefined,
@@ -168,8 +153,8 @@ export default function FormulasPage() {
         }),
       });
 
-      if (res.ok) {
-        const clonada = await res.json();
+      if (res.ok && res.data) {
+        const clonada = res.data;
         alert(`✅ Fórmula clonada exitosamente: [${clonada.codigoFormula}] ${clonada.nombreProducto}`);
         setModalClonar(false);
         setClonNombre('');
@@ -181,7 +166,7 @@ export default function FormulasPage() {
           setSelectedFormulaId(clonada.id);
         }
       } else {
-        alert('❌ Error al clonar la fórmula.');
+        alert(`❌ Error al clonar la fórmula: ${res.error || 'Operación rechazada'}`);
       }
     } catch (err) {
       alert('❌ Error de conexión al clonar fórmula.');
@@ -197,14 +182,8 @@ export default function FormulasPage() {
 
     try {
       setVarianteGuardando(true);
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const authHeader: Record<string, string> = savedToken
-        ? { 'Content-Type': 'application/json', Authorization: `Bearer ${savedToken}` }
-        : { 'Content-Type': 'application/json' };
-
-      const res = await fetch(`http://localhost:3001/api/v1/formulas/${formulaSeleccionada.id}/variantes`, {
+      const res = await apiFetch(`/formulas/${formulaSeleccionada.id}/variantes`, {
         method: 'POST',
-        headers: authHeader,
         body: JSON.stringify({
           nombre: varianteNombre.trim(),
           clienteId: varianteClienteId || undefined,
@@ -220,7 +199,7 @@ export default function FormulasPage() {
         setVarianteNotas('');
         await fetchFormulas();
       } else {
-        alert('❌ Error al registrar variante.');
+        alert(`❌ Error al registrar variante: ${res.error || 'Operación rechazada'}`);
       }
     } catch (err) {
       alert('❌ Error de conexión al crear variante.');
@@ -233,12 +212,8 @@ export default function FormulasPage() {
   const handleEliminarVariante = async (variantId: string) => {
     if (!confirm('¿Deseas desvincular esta variante comercial?')) return;
     try {
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
-
-      const res = await fetch(`http://localhost:3001/api/v1/formulas/variantes/${variantId}`, {
+      const res = await apiFetch(`/formulas/variantes/${variantId}`, {
         method: 'DELETE',
-        headers: authHeader,
       });
 
       if (res.ok) {
@@ -314,7 +289,7 @@ export default function FormulasPage() {
     if (!q) return true;
     const matchFormula = f.nombreProducto.toLowerCase().includes(q) || f.codigoFM.toLowerCase().includes(q);
     const matchVariante = f.variants.some(
-      (v) => v.nombre.toLowerCase().includes(q) || v.cliente?.razonSocial?.toLowerCase().includes(q)
+      (v) => (v.nombreComercial || '').toLowerCase().includes(q) || (v.clienteNombre || '').toLowerCase().includes(q)
     );
     return matchFormula || matchVariante;
   });

@@ -18,8 +18,8 @@ export class ClientesController {
     Role.VENTAS_ATENCION_DIGITAL,
     Role.PRODUCCION_ALMACEN,
   )
-  findAll(@Query('ruc') ruc?: string) {
-    return this.clientesService.findAll(ruc);
+  findAll(@Query('search') search?: string, @Query('ruc') ruc?: string) {
+    return this.clientesService.findAll(search || ruc);
   }
 
   @Post()
@@ -36,7 +36,10 @@ export class ClientesController {
       ruc: string;
       telefono?: string;
       direccion?: string;
+      contacto?: string;
+      metodoEnvio?: string;
       condicionPago?: string;
+      contactos?: { nombre: string; cargo?: string; telefono?: string; esPrincipal?: boolean }[];
     },
   ) {
     return this.clientesService.create(dto);

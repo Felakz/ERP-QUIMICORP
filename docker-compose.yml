@@ -16,21 +16,26 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: quimicorp_backend
     restart: unless-stopped
     depends_on:
       - postgres
     env_file:
       - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://quimicorp:quimicorp_dev_password@postgres:5432/quimicorp_erp?schema=public
+      - DIRECT_URL=postgresql://quimicorp:quimicorp_dev_password@postgres:5432/quimicorp_erp?schema=public
+      - PORT=3001
+      - FRONTEND_URL=http://localhost:3000
     ports:
       - "3001:3001"
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     container_name: quimicorp_frontend
     restart: unless-stopped
     depends_on:

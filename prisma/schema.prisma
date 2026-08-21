@@ -5,13 +5,14 @@
 // ============================================================================
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../backend/node_modules/.prisma/client"
+  provider      = "prisma-client-js"
+  output        = "../backend/node_modules/.prisma/client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://quimicorp:quimicorp_dev_password@localhost:5432/quimicorp_erp?schema=public"
+  url      = env("DATABASE_URL")
 }
 
 enum UnidadMedida {
@@ -685,8 +686,11 @@ model Cliente {
   ruc           String   @unique
   telefono      String?
   direccion     String?
+  contacto      String?
+  metodoEnvio   String?
   condicionPago String?  @default("Contado")
 
+  contactos ContactoRepresentante[]
   pedidos  PedidoComercial[]
   variantes FormulaVariant[]
 
@@ -695,6 +699,24 @@ model Cliente {
 
   @@index([ruc])
   @@map("clientes")
+}
+
+model ContactoRepresentante {
+  id          String   @id @default(uuid())
+  clienteId   String   @map("cliente_id")
+  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  nombre      String
+  cargo       String?  // Dueño, Compras, Asistente, Recepción, Supervisión
+  telefono    String?
+  email       String?
+  esPrincipal Boolean  @default(false) @map("es_principal")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([clienteId])
+  @@map("contacto_representantes")
 }
 
 model FormulaVariant {

@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
 import { FORMULAS_MAESTRAS_REALES } from '@/lib/formulasData';
 
 export default function AdministracionPage() {
@@ -25,22 +26,15 @@ export default function AdministracionPage() {
   const [pedidosRecientes, setPedidosRecientes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const cargarDatos = () => {
-    const savedToken = localStorage.getItem('quimicorp_jwt');
-    fetch('http://localhost:3001/api/v1/pedidos-admin', {
-      headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
-    })
-      .then((r) => {
-        if (!r.ok) return null;
-        return r.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setPedidosRecientes(data);
-        }
-      })
-      .catch((e) => console.log('Error fetching admin orders:', e))
-      .finally(() => setLoading(false));
+  const cargarDatos = async () => {
+    try {
+      const { data, ok } = await apiFetch('/pedidos-admin');
+      if (ok && Array.isArray(data)) {
+        setPedidosRecientes(data);
+      }
+    } catch {} finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

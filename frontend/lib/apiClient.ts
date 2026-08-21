@@ -1,9 +1,26 @@
 /**
  * Centralized API client for QUIMICORP ERP frontend
- * Handles JWT authentication, automatic token refresh/fallback in dev, and error normalization.
+ * Handles JWT authentication, dynamic host resolution, automatic token refresh/fallback, and error normalization.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+export function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    return `http://${host}:3001/api/v1`;
+  }
+  return 'http://localhost:3001/api/v1';
+}
+
+export function getSocketUrl(): string {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    return `http://${host}:3001`;
+  }
+  return 'http://localhost:3001';
+}
 
 export async function getAuthToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
@@ -13,9 +30,11 @@ export async function getAuthToken(): Promise<string | null> {
     return token;
   }
 
+  const baseUrl = getApiBaseUrl();
+
   // En entorno de desarrollo, auto-autenticar con credenciales de administración
   try {
-    const authRes = await fetch(`${API_BASE_URL}/auth/login`, {
+    const authRes = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'administracion@quimicorp.pe', password: 'Quimicorp2026!' }),
@@ -43,8 +62,9 @@ export async function apiFetch<T = any>(
   options: RequestInit = {}
 ): Promise<{ data: T | null; error: string | null; ok: boolean; status: number }> {
   const token = await getAuthToken();
+  const baseUrl = getApiBaseUrl();
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
