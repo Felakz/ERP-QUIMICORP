@@ -183,6 +183,17 @@ export function CommercialOrderForm({
     if (client.telefono) setTelefono(client.telefono);
     if (client.direccion) setDireccion(client.direccion);
     if (client.condicionPago) setCondicionPago(client.condicionPago);
+
+    // Auto-completar el contacto principal o dueño a cargo
+    const principalContact =
+      client.contactos?.find((c) => c.esPrincipal)?.nombre ||
+      client.contactos?.[0]?.nombre ||
+      client.contacto;
+
+    if (principalContact) {
+      setContacto(principalContact);
+    }
+
     setShowClientDropdown(false);
   };
 
@@ -444,7 +455,7 @@ export function CommercialOrderForm({
               className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Nuevo Cliente</span>
+              <span>Nuevo Cliente</span>
             </button>
           </div>
 
