@@ -118,6 +118,8 @@ enum AccionPermiso {
 enum Role {
   GERENCIA
   ADMINISTRACION
+  GERENTE_ADMINISTRATIVO
+  ASISTENTE_ADMINISTRATIVO
   FINANZAS
   VENTAS_ATENCION_DIGITAL
   ECOMMERCE_MARKETING
@@ -142,6 +144,28 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+model SolicitudAutorizacion {
+  id                String   @id @default(uuid())
+  solicitanteId     String   @map("solicitante_id")
+  solicitanteEmail  String   @map("solicitante_email")
+  solicitanteNombre String   @map("solicitante_nombre")
+  
+  modulo            String
+  accion            String   // 'FORMULA_EDIT', 'FORMULA_CLONE', 'CLIENTE_EDIT', 'CLIENTE_DELETE'
+  recursoId         String?  @map("recurso_id")
+  recursoNombre     String?  @map("recurso_nombre")
+  motivo            String?
+  estado            String   @default("PENDIENTE") // PENDIENTE, APROBADO, RECHAZADO
+  
+  aprobadorEmail    String?  @map("aprobador_email")
+  respuestaMotivo   String?  @map("respuesta_motivo")
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("solicitudes_autorizacion")
 }
 
 // ============================================================================
@@ -720,14 +744,21 @@ model ContactoRepresentante {
 }
 
 model FormulaVariant {
-  id        String        @id @default(uuid())
-  nombre    String
-  formulaId String        @map("formula_id")
-  formula   FormulaMaster @relation(fields: [formulaId], references: [id])
-  clienteId String?       @map("cliente_id")
-  cliente   Cliente?      @relation(fields: [clienteId], references: [id])
-  notas     String?
-  ajustesJson Json?       @map("ajustes_json")
+  id            String        @id @default(uuid())
+  nombre        String
+  formulaId     String        @map("formula_id")
+  formula       FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  clienteId     String?       @map("cliente_id")
+  cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  nombreMarca   String?       @map("nombre_marca")
+  aroma         String?
+  color         String?
+  phObjetivo    Float?        @map("ph_objetivo")
+  viscosidad    String?
+  instrucciones String?
+  notas         String?
+  ajustesJson   Json?         @map("ajustes_json")
 
   pedidos PedidoComercial[]
 

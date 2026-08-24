@@ -116,13 +116,19 @@ function playNotificationChime() {
 export default function ProduccionLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [timeString, setTimeString] = useState('');
   const [pedidoCount, setPedidoCount] = useState<number>(0);
   const [isAlerting, setIsAlerting] = useState<boolean>(false);
   const [bannerAlert, setBannerAlert] = useState<{ id: string; codigo: string; cliente: string; producto: string } | null>(null);
 
   const isDark = theme === 'dark';
+
+  const userInitials = user?.nombre
+    ? user.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+    : 'SP';
+  const userName = user?.nombre || 'Supervisor de Producción';
+  const userRoleDisplay = user?.role === 'PRODUCCION_ALMACEN' ? 'SUPERVISOR DE PRODUCCIÓN' : user?.role || 'PRODUCCIÓN & QA';
 
   const cargarBadgeCount = async () => {
     try {
@@ -347,14 +353,14 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
           >
             <div className="flex items-center gap-2.5 overflow-hidden text-left">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#00F2C3]/20 text-[#00F2C3] font-bold text-xs border border-[#00F2C3]/30">
-                SP
+                {userInitials}
               </div>
               <div className="overflow-hidden text-left">
                 <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
-                  Supervisor Planta
+                  {userName}
                 </p>
                 <p className="text-[9px] text-[#00F2C3] font-mono font-bold truncate uppercase">
-                  PRODUCCIÓN & QA
+                  {userRoleDisplay}
                 </p>
               </div>
             </div>

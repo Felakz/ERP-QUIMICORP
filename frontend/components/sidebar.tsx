@@ -7,30 +7,47 @@ import {
   CreditCard,
   Package,
   AlertTriangle,
+  Factory,
+  UserCheck,
+  History,
+  ShoppingCart,
+  BookOpen,
 } from 'lucide-react';
 
 export const adminSidebarItems = [
   {
-    category: 'GESTIÓN COMERCIAL',
+    category: '1. ADMINISTRACIÓN Y FINANZAS',
     items: [
-      { label: 'Dashboard Comercial', icon: LayoutDashboard, href: '/administracion/dashboard' },
-      { label: 'Pedidos Comerciales', icon: FileText, href: '/administracion/pedidos', badge: 3 },
-      { label: 'Catálogo & Cotizador', icon: Beaker, href: '/administracion/formulas' },
-    ],
-  },
-  {
-    category: 'CLIENTES & FACTURACIÓN',
-    items: [
+      { label: 'Dashboard Gerencial', icon: LayoutDashboard, href: '/administracion/dashboard' },
       { label: 'Cartera de Clientes', icon: Building2, href: '/administracion/clientes' },
-      { label: 'Documentos & Facturas', icon: Receipt, href: '/administracion/facturacion' },
-      { label: 'Cuentas por Cobrar', icon: CreditCard, href: '/administracion/cobranzas' },
+      { label: 'Cuentas por Cobrar y Pagar', icon: CreditCard, href: '/administracion/cobranzas' },
     ],
   },
   {
-    category: 'ALMACÉN & COMPRAS',
+    category: '2. GESTIÓN COMERCIAL Y VENTAS',
     items: [
-      { label: 'Stock Comercial', icon: Package, href: '/administracion/inventario' },
-      { label: 'Alertas de Materia Prima', icon: AlertTriangle, href: '/administracion/alertas-stock' },
+      { label: 'Catálogo y Cotizador', icon: ShoppingCart, href: '/administracion/cotizador' },
+      { label: 'Pedidos Comerciales', icon: FileText, href: '/administracion/pedidos', badge: 3 },
+    ],
+  },
+  {
+    category: '3. PRODUCCIÓN Y PLANTA',
+    items: [
+      { label: 'Control de Producción & QA', icon: Factory, href: '/administracion/control-produccion' },
+      { label: 'Sistema Maestro de Fórmulas', icon: Beaker, href: '/administracion/formulas' },
+    ],
+  },
+  {
+    category: '4. ALMACÉN Y LOGÍSTICA',
+    items: [
+      { label: 'Inventario y Kardex', icon: Package, href: '/administracion/inventario' },
+      { label: 'Alertas de Materia Prima y Stock', icon: AlertTriangle, href: '/administracion/alertas-stock' },
+    ],
+  },
+  {
+    category: '5. ASISTENCIA Y RRHH',
+    items: [
+      { label: 'Asistencia y Biometría', icon: UserCheck, href: '/administracion/asistencia' },
     ],
   },
 ];

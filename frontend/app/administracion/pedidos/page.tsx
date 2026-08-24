@@ -71,6 +71,15 @@ export default function AdministracionPedidosComercialesPage() {
   const [isCreatingOrder, setIsCreatingOrder] = useState<boolean>(false);
   const [creationDefaultMode, setCreationDefaultMode] = useState<'COTIZACION' | 'PEDIDO'>('COTIZACION');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const getTodayISO = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayISO());
   const [selectedTab, setSelectedTab] = useState<string>('TODOS');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -82,10 +91,46 @@ export default function AdministracionPedidosComercialesPage() {
   const [convertModalItem, setConvertModalItem] = useState<PedidoEmitido | null>(null);
   const [isConverting, setIsConverting] = useState<boolean>(false);
 
+  // Navegación de fecha por días
+  const handlePrevDay = () => {
+    if (selectedDate === 'TODOS') {
+      setSelectedDate(getTodayISO());
+      return;
+    }
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() - 1);
+    const ny = dateObj.getFullYear();
+    const nm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const nd = String(dateObj.getDate()).padStart(2, '0');
+    setSelectedDate(`${ny}-${nm}-${nd}`);
+  };
+
+  const handleNextDay = () => {
+    if (selectedDate === 'TODOS') {
+      setSelectedDate(getTodayISO());
+      return;
+    }
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() + 1);
+    const ny = dateObj.getFullYear();
+    const nm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const nd = String(dateObj.getDate()).padStart(2, '0');
+    setSelectedDate(`${ny}-${nm}-${nd}`);
+  };
+
+  const formatFechaVisual = (fechaISO: string) => {
+    if (fechaISO === 'TODOS') return 'Histórico Completo';
+    const [y, m, d] = fechaISO.split('-');
+    return `${d}/${m}/${y}`;
+  };
+
   // Cargar pedidos desde la API real de PostgreSQL con apiFetch
   const cargarPedidos = async () => {
     try {
-      const { data, ok } = await apiFetch<any[]>('/pedidos-admin');
+      const url = `/pedidos-admin${selectedDate ? `?fecha=${selectedDate}` : ''}`;
+      const { data, ok } = await apiFetch<any[]>(url);
       if (ok && Array.isArray(data)) {
         const mapped: PedidoEmitido[] = data.map((p: any) => ({
           id: p.id,
@@ -120,6 +165,10 @@ export default function AdministracionPedidosComercialesPage() {
       setLoadingPedidos(false);
     }
   };
+
+  useEffect(() => {
+    cargarPedidos();
+  }, [selectedDate]);
 
 
   useEffect(() => {
@@ -371,14 +420,91 @@ export default function AdministracionPedidosComercialesPage() {
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 flex items-center gap-2"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Nueva Cotización / Pedido</span>
+            <span>Nueva Cotización / Pedido</span>
           </button>
         </div>
       </div>
 
 
-      {/* Tabla Completa con Barra de Búsqueda y Tabs */}
+      {/* Tabla Completa con Barra de Búsqueda, Filtro por Día y Tabs */}
       <div className={`rounded-2xl p-6 border space-y-5 shadow-sm ${cardBg}`}>
+        {/* BARRA NAVEGADORA DE FECHA POR DÍA */}
+        <div className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 font-sans ${
+          isDark ? 'bg-[#151D2A]/70 border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+              FILTRAR REGISTRO COMERCIAL POR DÍA:
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Botón Día Anterior */}
+            <button
+              type="button"
+              onClick={handlePrevDay}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
+                isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] text-slate-200 hover:border-amber-500/50 hover:bg-[#151D2A]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm'
+              }`}
+            >
+              <span>&lt; Día Anterior</span>
+            </button>
+
+            {/* Selector interactivo con Picker de Fecha */}
+            <div className={`relative flex items-center rounded-xl border px-3 py-1.5 text-xs font-bold font-mono ${
+              selectedDate !== 'TODOS'
+                ? isDark
+                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/20'
+                  : 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm'
+                : isDark
+                ? 'bg-[#0F141C] border-[#1A2232] text-slate-400'
+                : 'bg-white border-slate-300 text-slate-600'
+            }`}>
+              <span>{formatFechaVisual(selectedDate)}</span>
+              <input
+                type="date"
+                value={selectedDate === 'TODOS' ? '' : selectedDate}
+                onChange={(e) => {
+                  if (e.target.value) setSelectedDate(e.target.value);
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+              <Calendar className="w-3.5 h-3.5 ml-2 text-amber-400 pointer-events-none" />
+            </div>
+
+            {/* Botón Día Siguiente */}
+            <button
+              type="button"
+              onClick={handleNextDay}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
+                isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] text-slate-200 hover:border-amber-500/50 hover:bg-[#151D2A]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm'
+              }`}
+            >
+              <span>Día Siguiente &gt;</span>
+            </button>
+
+            {/* Atajo Ver Histórico Completo */}
+            <button
+              type="button"
+              onClick={() => setSelectedDate('TODOS')}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                selectedDate === 'TODOS'
+                  ? 'bg-blue-600 border-blue-500 text-white shadow-md'
+                  : isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] text-slate-400 hover:text-white'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Ver Todo el Histórico
+            </button>
+          </div>
+        </div>
+
         {/* Controls Bar: Search & Filter Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
           {/* Tabs */}

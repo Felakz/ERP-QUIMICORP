@@ -8,15 +8,36 @@ import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { apiFetch } from '@/lib/apiClient';
 import { adminSidebarItems } from '@/components/sidebar';
+import { CampanaAutorizaciones } from '@/components/notifications/CampanaAutorizaciones';
 
 export default function AdministracionLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [timeString, setTimeString] = useState('');
   const [pedidoCount, setPedidoCount] = useState(0);
 
   const isDark = theme === 'dark';
+
+  const userInitials = user?.nombre
+    ? user.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+    : 'EY';
+  const userName = user?.nombre || 'Elvis Edwin Yarleque Arrunategui';
+  const userRoleDisplay =
+    user?.role === 'GERENTE_ADMINISTRATIVO'
+      ? 'GERENTE ADMINISTRATIVO'
+      : user?.role === 'ASISTENTE_ADMINISTRATIVO'
+      ? 'ASISTENTE ADMINISTRATIVO'
+      : user?.role === 'ADMINISTRACION'
+      ? 'ADMINISTRACIÓN & FINANZAS'
+      : user?.role || 'ADMINISTRACIÓN';
+
+  useEffect(() => {
+    if (user?.role === 'PRODUCCION_ALMACEN') {
+      window.location.href = '/produccion/kardex';
+      return;
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -152,14 +173,14 @@ export default function AdministracionLayout({ children }: { children: React.Rea
           >
             <div className="flex items-center gap-2.5 overflow-hidden text-left">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 font-bold text-xs border border-blue-500/30">
-                AT
+                {userInitials}
               </div>
               <div className="overflow-hidden text-left">
                 <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
-                  Ana Torres
+                  {userName}
                 </p>
                 <p className="text-[9px] text-blue-400 font-mono font-bold truncate uppercase">
-                  ADMINISTRACIÓN
+                  {userRoleDisplay}
                 </p>
               </div>
             </div>
@@ -212,8 +233,10 @@ export default function AdministracionLayout({ children }: { children: React.Rea
             </span>
           </div>
 
-          {/* Selector de Tema & Hora */}
+          {/* Selector de Tema, Campaña de Autorizaciones & Hora */}
           <div className="flex items-center gap-3">
+            <CampanaAutorizaciones />
+
             <span className="hidden lg:block text-xs font-mono text-slate-400 mr-2">
               {timeString}
             </span>

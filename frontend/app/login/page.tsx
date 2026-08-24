@@ -4,25 +4,21 @@ import React, { useState } from 'react';
 import { useAuth, UserRole } from '@/lib/AuthContext';
 import { Lock, Mail, ChevronRight, CheckCircle2, ShieldCheck, Factory, Building2, Users } from 'lucide-react';
 
-const QUICK_ROLES: { role: UserRole; label: string; email: string; icon: string; name: string }[] = [
-  { role: 'PRODUCCION_ALMACEN', label: 'Producción & Planta', email: 'produccion@quimicorp.pe', icon: '🏭', name: 'Ing. Mateo Rivas (Planta)' },
-  { role: 'ADMINISTRACION', label: 'Administración & Finanzas', email: 'administracion@quimicorp.pe', icon: '📝', name: 'Ana Torres (Admin)' },
-  { role: 'GERENCIA', label: 'Gerencia General', email: 'gerencia@quimicorp.pe', icon: '👑', name: 'Carlos Mendoza (Gerente)' },
-  { role: 'VENTAS_ATENCION_DIGITAL', label: 'Ventas & Atención', email: 'ventas@quimicorp.pe', icon: '🤝', name: 'Elena Gómez (Ventas)' },
-  { role: 'ECOMMERCE_MARKETING', label: 'E-commerce & Marketing', email: 'ecommerce@quimicorp.pe', icon: '🛒', name: 'Diego Castro (Ecommerce)' },
-  { role: 'COMPRAS_PROVEEDORES', label: 'Compras & Proveedores', email: 'compras@quimicorp.pe', icon: '📦', name: 'Laura Paredes (Compras)' },
-  { role: 'RECURSOS_HUMANOS', label: 'Recursos Humanos', email: 'rrhh@quimicorp.pe', icon: '👥', name: 'Sofia Morales (RRHH)' },
-  { role: 'SISTEMAS_TI', label: 'Sistemas & TI (RBAC)', email: 'sistemas@quimicorp.pe', icon: '🛡️', name: 'Alex Salazar (TI)' },
-  { role: 'DISENO_MULTIMEDIA', label: 'Diseño & Multimedia', email: 'diseno@quimicorp.pe', icon: '🎨', name: 'Valeria Rios (Diseño)' },
-  { role: 'ARCHIVO_HISTORICO', label: 'Archivo Histórico', email: 'historico@quimicorp.pe', icon: '🏛️', name: 'Mario Vega (Archivo)' },
+const QUICK_ROLES: { role: UserRole; label: string; email: string; pass: string; icon: string; name: string }[] = [
+  { role: 'GERENTE_ADMINISTRATIVO', label: 'Gerente Admin & Financiero', email: 'administracion@grupoquimicorp.pe', pass: 'adon$Qu1m1corp', icon: '👑', name: 'Elvis Edwin Yarleque Arrunategui' },
+  { role: 'ASISTENTE_ADMINISTRATIVO', label: 'Asistente de Administración', email: 'asistentedeadministracion@grupoquimicorp.pe', pass: 'asonQu1m1corp?', icon: '👤', name: 'Mishelle Barrera Quispe' },
+  { role: 'PRODUCCION_ALMACEN', label: 'Supervisor de Producción', email: 'produccion@grupoquimicorp.pe', pass: 'pron+Qu1m1corp+', icon: '🏭', name: 'Supervisor de Producción' },
+  { role: 'VENTAS_ATENCION_DIGITAL', label: 'Ventas & Atención Digital', email: 'ventas@quimicorp.pe', pass: 'Quimicorp2026!', icon: '🤝', name: 'Elena Gómez (Ventas)' },
+  { role: 'COMPRAS_PROVEEDORES', label: 'Compras & Proveedores', email: 'compras@quimicorp.pe', pass: 'Quimicorp2026!', icon: '📦', name: 'Laura Paredes (Compras)' },
+  { role: 'GERENCIA', label: 'Gerencia General', email: 'gerencia@quimicorp.pe', pass: 'Quimicorp2026!', icon: '💼', name: 'Carlos Mendoza (Gerente)' },
 ];
 
 import { getApiBaseUrl } from '@/lib/apiClient';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('produccion@quimicorp.pe');
-  const [password, setPassword] = useState('Quimicorp2026!');
+  const [email, setEmail] = useState('administracion@grupoquimicorp.pe');
+  const [password, setPassword] = useState('adon$Qu1m1corp');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -36,31 +32,20 @@ export default function LoginPage() {
       body: JSON.stringify({ email: userEmail, password: userPass }),
     })
       .then(async (res) => {
-        if (res.ok) {
-          const { token, user } = await res.json();
-          login(token, user);
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.token && data?.user) {
+          login(data.token, data.user);
         } else {
-          fallbackLocalLogin(userEmail);
+          setErrorMsg(data?.message || '❌ Credenciales incorrectas. Verifica el usuario o la contraseña.');
         }
       })
-      .catch(() => {
-        fallbackLocalLogin(userEmail);
+      .catch((err) => {
+        console.error('Error de autenticación:', err);
+        setErrorMsg('❌ Error de conexión con el servidor backend.');
       })
       .finally(() => {
         setLoading(false);
       });
-  };
-
-  const fallbackLocalLogin = (userEmail: string) => {
-    const matchingRole = QUICK_ROLES.find((r) => r.email.toLowerCase() === userEmail.toLowerCase()) || QUICK_ROLES[0];
-    const dummyToken = `jwt_mock_token_${Date.now()}`;
-    const dummyUser = {
-      id: `usr-${Date.now()}`,
-      email: matchingRole.email,
-      nombre: matchingRole.name,
-      role: matchingRole.role,
-    };
-    login(dummyToken, dummyUser);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -70,7 +55,8 @@ export default function LoginPage() {
 
   const handleQuickSelect = (r: typeof QUICK_ROLES[0]) => {
     setEmail(r.email);
-    executeLogin(r.email, 'Quimicorp2026!');
+    setPassword(r.pass);
+    executeLogin(r.email, r.pass);
   };
 
   return (

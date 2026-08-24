@@ -203,7 +203,9 @@ export default function CarteraClientesPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                          RUC {empresa.ruc}
+                          {empresa.ruc.startsWith('SIN-RUC') || empresa.ruc.startsWith('NO-RUC') || empresa.ruc === '-'
+                            ? 'RUC -'
+                            : `RUC ${empresa.ruc}`}
                         </span>
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                           <ShieldCheck className="w-3 h-3" />

@@ -15,6 +15,7 @@ import {
   ArrowRight,
   TrendingUp,
   MessageSquare,
+  Calendar,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 
@@ -22,7 +23,50 @@ export default function VentasPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
+  const getTodayISO = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayISO());
   const [searchTerm, setSearchTerm] = useState('');
+
+  const handlePrevDay = () => {
+    if (selectedDate === 'TODOS') {
+      setSelectedDate(getTodayISO());
+      return;
+    }
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() - 1);
+    const ny = dateObj.getFullYear();
+    const nm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const nd = String(dateObj.getDate()).padStart(2, '0');
+    setSelectedDate(`${ny}-${nm}-${nd}`);
+  };
+
+  const handleNextDay = () => {
+    if (selectedDate === 'TODOS') {
+      setSelectedDate(getTodayISO());
+      return;
+    }
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    dateObj.setDate(dateObj.getDate() + 1);
+    const ny = dateObj.getFullYear();
+    const nm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const nd = String(dateObj.getDate()).padStart(2, '0');
+    setSelectedDate(`${ny}-${nm}-${nd}`);
+  };
+
+  const formatFechaVisual = (fechaISO: string) => {
+    if (fechaISO === 'TODOS') return 'Histórico Completo';
+    const [y, m, d] = fechaISO.split('-');
+    return `${d}/${m}/${y}`;
+  };
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
@@ -139,6 +183,79 @@ export default function VentasPage() {
 
       {/* Tabla de Cotizaciones y Pipeline */}
       <div className={`rounded-2xl border p-5 space-y-4 ${cardBg}`}>
+        {/* BARRA NAVEGADORA DE FECHA POR DÍA */}
+        <div className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 font-sans ${
+          isDark ? 'bg-[#151D2A]/70 border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+              FILTRAR COTIZACIONES Y PIPELINE POR DÍA:
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrevDay}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
+                isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] text-slate-200 hover:border-emerald-500/50 hover:bg-[#151D2A]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm'
+              }`}
+            >
+              <span>&lt; Día Anterior</span>
+            </button>
+
+            <div className={`relative flex items-center rounded-xl border px-3 py-1.5 text-xs font-bold font-mono ${
+              selectedDate !== 'TODOS'
+                ? isDark
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 ring-1 ring-emerald-500/20'
+                  : 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-sm'
+                : isDark
+                ? 'bg-[#0F141C] border-[#1A2232] text-slate-400'
+                : 'bg-white border-slate-300 text-slate-600'
+            }`}>
+              <span>{formatFechaVisual(selectedDate)}</span>
+              <input
+                type="date"
+                value={selectedDate === 'TODOS' ? '' : selectedDate}
+                onChange={(e) => {
+                  if (e.target.value) setSelectedDate(e.target.value);
+                }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+              <Calendar className="w-3.5 h-3.5 ml-2 text-emerald-400 pointer-events-none" />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNextDay}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
+                isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] text-slate-200 hover:border-emerald-500/50 hover:bg-[#151D2A]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100 shadow-sm'
+              }`}
+            >
+              <span>Día Siguiente &gt;</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedDate('TODOS')}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                selectedDate === 'TODOS'
+                  ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
+                  : isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] text-slate-400 hover:text-white'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Ver Todo el Histórico
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-slate-400" />

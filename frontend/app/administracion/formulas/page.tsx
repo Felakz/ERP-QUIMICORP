@@ -23,6 +23,7 @@ import {
   Users,
   Tag,
   Scale,
+  Pencil,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -33,6 +34,7 @@ import {
   FormulaProducto,
 } from '@/lib/formulasData';
 import { CommercialOrderForm } from '@/components/pedidos/CommercialOrderForm';
+import { ModalSolicitarPermiso } from '@/components/modals/ModalSolicitarPermiso';
 
 interface ClienteAPI {
   id: string;
@@ -58,6 +60,7 @@ interface InsumoDetalleAPI {
 interface VarianteClienteAPI {
   id: string;
   nombre: string;
+  nombreMarca?: string;
   clienteId?: string;
   cliente?: ClienteAPI;
   notas?: string;
@@ -89,10 +92,25 @@ export default function FormulasPage() {
   const [selectedFormulaId, setSelectedFormulaId] = useState<string>('');
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
-  // Estados para Modales
+  // Estados para Modales & Permisos Jerárquicos
   const [isCreatingOrder, setIsCreatingOrder] = useState<boolean>(false);
   const [modalClonar, setModalClonar] = useState<boolean>(false);
   const [modalVariante, setModalVariante] = useState<boolean>(false);
+  const [modalEditar, setModalEditar] = useState<boolean>(false);
+
+  // Permisos Asistente vs Gerente
+  const [modalPermisoOpen, setModalPermisoOpen] = useState<boolean>(false);
+  const [permisoAccion, setPermisoAccion] = useState<'FORMULA_EDIT' | 'FORMULA_CLONE'>('FORMULA_EDIT');
+  const [permisosAprobados, setPermisosAprobados] = useState<Record<string, boolean>>({});
+
+  const esAsistente =
+    user?.role === 'ASISTENTE_ADMINISTRATIVO' ||
+    user?.email?.toLowerCase().includes('asistentedeadministracion');
+
+  // Formulario Editar Fórmula
+  const [editNombreProducto, setEditNombreProducto] = useState<string>('');
+  const [editIngredientes, setEditIngredientes] = useState<Array<{ componente: string; porcentaje: number }>>([]);
+  const [editGuardando, setEditGuardando] = useState<boolean>(false);
 
   // Formulario Clonar
   const [clonNombre, setClonNombre] = useState<string>('');
@@ -224,6 +242,75 @@ export default function FormulasPage() {
     }
   };
 
+  // Manejo de Edición de Fórmula
+  const handleAbrirEditarModal = () => {
+    if (!formulaSeleccionada) return;
+    const permKey = `FORMULA_EDIT_${formulaSeleccionada.id}`;
+
+    if (esAsistente && !permisosAprobados[permKey]) {
+      setPermisoAccion('FORMULA_EDIT');
+      setModalPermisoOpen(true);
+      return;
+    }
+
+    setEditNombreProducto(formulaSeleccionada.nombreProducto);
+    setEditIngredientes(
+      formulaSeleccionada.ingredientes.map(i => ({
+        componente: i.componente,
+        porcentaje: i.porcentaje
+      }))
+    );
+    setModalEditar(true);
+  };
+
+  // Manejo de Clonar Fórmula
+  const handleAbrirClonarModal = () => {
+    if (!formulaSeleccionada) return;
+    const permKey = `FORMULA_CLONE_${formulaSeleccionada.id}`;
+
+    if (esAsistente && !permisosAprobados[permKey]) {
+      setPermisoAccion('FORMULA_CLONE');
+      setModalPermisoOpen(true);
+      return;
+    }
+
+    setClonNombre(`${formulaSeleccionada.nombreProducto} (Exclusiva)`);
+    setClonCodigo('');
+    setModalClonar(true);
+  };
+
+  const handleEditarFormulaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formulaSeleccionada) return;
+    try {
+      setEditGuardando(true);
+      const payload = {
+        nombreProducto: editNombreProducto,
+        detalles: editIngredientes.map(i => ({
+          nombreComponente: i.componente,
+          porcentaje: Number(i.porcentaje) || 0
+        }))
+      };
+
+      const res = await apiFetch(`/formulas/${formulaSeleccionada.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        alert('✅ Formulación actualizada exitosamente en PostgreSQL.');
+        setModalEditar(false);
+        await fetchFormulas();
+      } else {
+        alert(`❌ Error al actualizar fórmula: ${res.error || 'Servidor rechazó el cambio'}`);
+      }
+    } catch (err) {
+      alert('❌ Error de conexión al guardar cambios.');
+    } finally {
+      setEditGuardando(false);
+    }
+  };
+
   // Mapeo unificado para visualización
   const formulasVisual = formulasApi.length > 0
     ? formulasApi.map((f) => ({
@@ -235,7 +322,7 @@ export default function FormulasPage() {
         loteActual: 'LOT-MASTER-01',
         variants: f.variants?.map((v) => ({
           id: v.id,
-          clienteNombre: v.cliente?.razonSocial || 'Cliente Exclusivo',
+          clienteNombre: v.cliente?.razonSocial || v.nombreMarca || v.nombre || 'Cliente Registrado',
           nombreComercial: v.nombre,
           ingredientes: Array.isArray(v.ajustesJson) && v.ajustesJson.length > 0
             ? v.ajustesJson.map((aj: any) => ({
@@ -419,13 +506,22 @@ export default function FormulasPage() {
             </div>
 
             <div className="flex items-center gap-2.5 flex-wrap">
+              {/* BOTÓN EDITAR FÓRMULA */}
+              <button
+                onClick={handleAbrirEditarModal}
+                className={`px-3.5 py-2.5 rounded-xl font-bold font-sans text-xs transition-all flex items-center gap-2 border ${
+                  isDark
+                    ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 hover:bg-amber-900/60'
+                    : 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                <Pencil className="w-4 h-4 text-amber-400" />
+                <span>✏️ Editar Formulación</span>
+              </button>
+
               {/* BOTÓN CLONAR FÓRMULA */}
               <button
-                onClick={() => {
-                  setClonNombre(`${formulaSeleccionada.nombreProducto} (Exclusiva)`);
-                  setClonCodigo('');
-                  setModalClonar(true);
-                }}
+                onClick={handleAbrirClonarModal}
                 className={`px-3.5 py-2.5 rounded-xl font-bold font-sans text-xs transition-all flex items-center gap-2 border ${
                   isDark
                     ? 'bg-purple-950/40 border-purple-500/40 text-purple-300 hover:bg-purple-900/60'
@@ -597,9 +693,19 @@ export default function FormulasPage() {
                             {item.componente}
                           </td>
                           <td className="py-3 px-3">
-                            <span className="rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-slate-800 text-slate-300 border-slate-700">
-                              {item.tipo || 'BASE'}
-                            </span>
+                            {item.tipo === 'ADICIONAL_CLIENTE' ? (
+                              <span className="rounded px-2 py-0.5 text-[10px] font-black border uppercase bg-emerald-950/80 text-emerald-300 border-emerald-500/50 shadow-sm shadow-emerald-500/20">
+                                🌟 + EXCLUSIVO CLIENTE
+                              </span>
+                            ) : item.tipo === 'PROPORCION_AJUSTADA' ? (
+                              <span className="rounded px-2 py-0.5 text-[10px] font-black border uppercase bg-amber-950/80 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20">
+                                ⚡ PROPORCIÓN CLIENTE
+                              </span>
+                            ) : (
+                              <span className="rounded px-2 py-0.5 text-[10px] font-bold border uppercase bg-slate-800 text-slate-300 border-slate-700">
+                                {item.tipo || 'BASE'}
+                              </span>
+                            )}
                           </td>
                           <td className={`py-3 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             {Number(item.porcentaje).toFixed(2)}%
@@ -818,6 +924,145 @@ export default function FormulasPage() {
           </div>
         </div>
       )}
+
+      {/* MODAL DE EDICIÓN DE FÓRMULA */}
+      {modalEditar && formulaSeleccionada && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className={`w-full max-w-2xl rounded-2xl border p-6 space-y-4 shadow-2xl ${cardBg} my-8`}>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-800">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-slate-100 font-sans">
+                  Editar Formulación: {formulaSeleccionada.codigoFM}
+                </h3>
+              </div>
+              <button
+                onClick={() => setModalEditar(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditarFormulaSubmit} className="space-y-4 font-mono text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1">
+                  Nombre del Producto / Fórmula *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editNombreProducto}
+                  onChange={(e) => setEditNombreProducto(e.target.value)}
+                  className={`w-full rounded-xl border p-2.5 text-xs focus:border-amber-500 focus:outline-none ${inputBg}`}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase">
+                    Componentes Químicos e Insumos (%):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditIngredientes([
+                        ...editIngredientes,
+                        { componente: 'NUEVO INSUMO', porcentaje: 1.0 }
+                      ]);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold hover:bg-amber-500/30 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>+ Agregar Insumo</span>
+                  </button>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                  {editIngredientes.map((ing, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 rounded-xl border border-slate-800 bg-[#0F141C]">
+                      <input
+                        type="text"
+                        required
+                        value={ing.componente}
+                        onChange={(e) => {
+                          const updated = [...editIngredientes];
+                          updated[idx].componente = e.target.value;
+                          setEditIngredientes(updated);
+                        }}
+                        className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-slate-200"
+                        placeholder="Nombre de insumo"
+                      />
+                      <div className="flex items-center gap-1 w-28">
+                        <input
+                          type="number"
+                          step="0.001"
+                          required
+                          value={ing.porcentaje}
+                          onChange={(e) => {
+                            const updated = [...editIngredientes];
+                            updated[idx].porcentaje = parseFloat(e.target.value) || 0;
+                            setEditIngredientes(updated);
+                          }}
+                          className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-amber-300 text-right font-bold"
+                        />
+                        <span className="text-[11px] text-slate-400 font-bold">%</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditIngredientes(editIngredientes.filter((_, i) => i !== idx));
+                        }}
+                        className="p-1 rounded text-rose-400 hover:bg-rose-500/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-800/60">
+                <button
+                  type="button"
+                  onClick={() => setModalEditar(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-bold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={editGuardando}
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/30 flex items-center gap-2"
+                >
+                  <Pencil className="w-4 h-4" />
+                  <span>{editGuardando ? 'Guardando Cambios...' : 'Guardar Cambios en Fórmula'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SOLICITAR PERMISO PARA ASISTENTE ADMIN */}
+      <ModalSolicitarPermiso
+        isOpen={modalPermisoOpen}
+        onClose={() => setModalPermisoOpen(false)}
+        accion={permisoAccion}
+        recursoId={formulaSeleccionada?.id}
+        recursoNombre={formulaSeleccionada?.nombreProducto}
+        onPermissionGranted={() => {
+          if (formulaSeleccionada) {
+            const permKey = `${permisoAccion}_${formulaSeleccionada.id}`;
+            setPermisosAprobados((prev) => ({ ...prev, [permKey]: true }));
+            if (permisoAccion === 'FORMULA_EDIT') {
+              handleAbrirEditarModal();
+            } else if (permisoAccion === 'FORMULA_CLONE') {
+              handleAbrirClonarModal();
+            }
+          }
+        }}
+      />
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { getApiBaseUrl } from './apiClient';
 export type UserRole =
   | 'GERENCIA'
   | 'ADMINISTRACION'
+  | 'GERENTE_ADMINISTRATIVO'
+  | 'ASISTENTE_ADMINISTRATIVO'
   | 'FINANZAS'
   | 'VENTAS_ATENCION_DIGITAL'
   | 'ECOMMERCE_MARKETING'
@@ -37,6 +39,8 @@ const ROLE_HOME_MAP: Record<UserRole, string> = {
   PRODUCCION_ALMACEN: '/produccion/kardex',
   GERENCIA: '/gerencia/dashboard',
   ADMINISTRACION: '/administracion/dashboard',
+  GERENTE_ADMINISTRATIVO: '/administracion/dashboard',
+  ASISTENTE_ADMINISTRATIVO: '/administracion/dashboard',
   FINANZAS: '/administracion/dashboard',
   VENTAS_ATENCION_DIGITAL: '/ventas/dashboard',
   ECOMMERCE_MARKETING: '/ventas/dashboard',
@@ -49,11 +53,13 @@ const ROLE_HOME_MAP: Record<UserRole, string> = {
 
 const ROLE_EMAIL_MAP: Record<UserRole, string> = {
   GERENCIA: 'gerencia@quimicorp.pe',
-  ADMINISTRACION: 'administracion@quimicorp.pe',
+  ADMINISTRACION: 'administracion@grupoquimicorp.pe',
+  GERENTE_ADMINISTRATIVO: 'administracion@grupoquimicorp.pe',
+  ASISTENTE_ADMINISTRATIVO: 'asistentedeadministracion@grupoquimicorp.pe',
   FINANZAS: 'finanzas@quimicorp.pe',
   VENTAS_ATENCION_DIGITAL: 'ventas@quimicorp.pe',
   ECOMMERCE_MARKETING: 'ecommerce@quimicorp.pe',
-  PRODUCCION_ALMACEN: 'produccion@quimicorp.pe',
+  PRODUCCION_ALMACEN: 'produccion@grupoquimicorp.pe',
   COMPRAS_PROVEEDORES: 'compras@quimicorp.pe',
   RECURSOS_HUMANOS: 'rrhh@quimicorp.pe',
   SISTEMAS_TI: 'sistemas@quimicorp.pe',
@@ -109,8 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.cookie = `quimicorp_jwt=${newToken}; path=/; max-age=86400; SameSite=Lax`;
     document.cookie = `quimicorp_role=${newUser.role}; path=/; max-age=86400; SameSite=Lax`;
 
-    const targetRoute = ROLE_HOME_MAP[newUser.role] || '/dashboard';
-    router.push(targetRoute);
+    const targetRoute = ROLE_HOME_MAP[newUser.role] || '/administracion/dashboard';
+    if (typeof window !== 'undefined') {
+      window.location.href = targetRoute;
+    } else {
+      router.push(targetRoute);
+    }
   };
 
   const logout = () => {

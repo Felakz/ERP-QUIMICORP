@@ -27,10 +27,16 @@ const VENTAS_SECTIONS = [
 export default function VentasLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [timeString, setTimeString] = useState('');
 
   const isDark = theme === 'dark';
+
+  const userInitials = user?.nombre
+    ? user.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+    : 'VD';
+  const userName = user?.nombre || 'Elena Gómez (Ventas)';
+  const userRoleDisplay = user?.role || 'VENTAS & ATENCIÓN DIGITAL';
 
   useEffect(() => {
     const updateTime = () => {
@@ -143,14 +149,14 @@ export default function VentasLayout({ children }: { children: React.ReactNode }
           >
             <div className="flex items-center gap-2.5 overflow-hidden text-left">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-xs border border-emerald-500/30">
-                VD
+                {userInitials}
               </div>
               <div className="overflow-hidden text-left">
                 <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
-                  Ventas & Digital
+                  {userName}
                 </p>
                 <p className="text-[9px] text-emerald-400 font-mono font-bold truncate uppercase">
-                  ATENCIÓN AL CLIENTE
+                  {userRoleDisplay}
                 </p>
               </div>
             </div>

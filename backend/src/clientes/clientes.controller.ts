@@ -14,6 +14,8 @@ export class ClientesController {
   @Roles(
     Role.GERENCIA,
     Role.ADMINISTRACION,
+    Role.GERENTE_ADMINISTRATIVO,
+    Role.ASISTENTE_ADMINISTRATIVO,
     Role.FINANZAS,
     Role.VENTAS_ATENCION_DIGITAL,
     Role.PRODUCCION_ALMACEN,
@@ -26,6 +28,8 @@ export class ClientesController {
   @Roles(
     Role.GERENCIA,
     Role.ADMINISTRACION,
+    Role.GERENTE_ADMINISTRATIVO,
+    Role.ASISTENTE_ADMINISTRATIVO,
     Role.FINANZAS,
     Role.VENTAS_ATENCION_DIGITAL,
   )

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { FormulasService } from './formulas.service';
 import { CrearFormulaDto } from './dto/crear-formula.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -78,5 +78,23 @@ export class FormulasController {
     @Query('clienteId') clienteId?: string,
   ) {
     return this.formulasService.listarVariantes(id, clienteId);
+  }
+
+  @Put(':id')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  actualizarFormula(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.formulasService.actualizarFormula(id, dto);
+  }
+
+  @Put('variants/:variantId')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  actualizarVariante(
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Body() dto: any,
+  ) {
+    return this.formulasService.actualizarVariante(variantId, dto);
   }
 }

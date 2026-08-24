@@ -22,7 +22,15 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Acceso denegado: Usuario no autenticado');
     }
 
-    const hasRole = requiredRoles.includes(user.role);
+    // Mapeo jerárquico de permisos de administración
+    let userEffectiveRoles: Role[] = [user.role];
+    if (user.role === Role.GERENTE_ADMINISTRATIVO) {
+      userEffectiveRoles.push(Role.ADMINISTRACION, Role.GERENCIA);
+    } else if (user.role === Role.ASISTENTE_ADMINISTRATIVO) {
+      userEffectiveRoles.push(Role.ADMINISTRACION);
+    }
+
+    const hasRole = requiredRoles.some((r) => userEffectiveRoles.includes(r));
     if (!hasRole) {
       throw new ForbiddenException(`Acceso denegado: El rol ${user.role} no tiene permisos para esta ruta`);
     }

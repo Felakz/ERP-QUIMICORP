@@ -34,14 +34,23 @@ export class FormulasService {
   }
 
   async listar(search?: string) {
-    const where: any = {};
+    const where: any = {
+      OR: [
+        { detalles: { some: {} } },
+        { variants: { some: {} } },
+      ],
+    };
     if (search && search.trim()) {
       const q = search.trim();
-      where.OR = [
-        { nombreProducto: { contains: q, mode: 'insensitive' } },
-        { codigoFormula: { contains: q, mode: 'insensitive' } },
-        { variants: { some: { nombre: { contains: q, mode: 'insensitive' } } } },
-        { variants: { some: { cliente: { razonSocial: { contains: q, mode: 'insensitive' } } } } },
+      where.AND = [
+        {
+          OR: [
+            { nombreProducto: { contains: q, mode: 'insensitive' } },
+            { codigoFormula: { contains: q, mode: 'insensitive' } },
+            { variants: { some: { nombre: { contains: q, mode: 'insensitive' } } } },
+            { variants: { some: { cliente: { razonSocial: { contains: q, mode: 'insensitive' } } } } },
+          ],
+        },
       ];
     }
 
@@ -192,6 +201,60 @@ export class FormulasService {
   async eliminarVariante(variantId: string) {
     return this.prisma.formulaVariant.delete({
       where: { id: variantId },
+    });
+  }
+
+  async actualizarFormula(id: string, dto: any) {
+    return this.prisma.$transaction(async (tx) => {
+      const formula = await tx.formulaMaster.findUnique({ where: { id } });
+      if (!formula) throw new BadRequestException('Fórmula no encontrada.');
+
+      await tx.formulaMaster.update({
+        where: { id },
+        data: {
+          nombreProducto: dto.nombreProducto || formula.nombreProducto,
+          densidadTeorica: dto.densidadTeorica ? parseFloat(dto.densidadTeorica) : formula.densidadTeorica,
+        },
+      });
+
+      if (Array.isArray(dto.detalles)) {
+        await tx.formulaDetalle.deleteMany({ where: { formulaId: id } });
+        for (const item of dto.detalles) {
+          const porc = parseFloat(item.porcentaje) || 0;
+          await tx.formulaDetalle.create({
+            data: {
+              formulaId: id,
+              insumoId: item.insumoId || null,
+              nombreComponente: item.nombreComponente || 'Insumo',
+              porcentaje: porc,
+              pesoMasaTeorico: item.pesoMasaTeorico ? parseFloat(item.pesoMasaTeorico) : parseFloat((porc * 10).toFixed(3)),
+            },
+          });
+        }
+      }
+
+      return tx.formulaMaster.findUnique({
+        where: { id },
+        include: {
+          detalles: { include: { insumo: true } },
+          variants: { include: { cliente: true } },
+        },
+      });
+    });
+  }
+
+  async actualizarVariante(variantId: string, dto: any) {
+    const v = await this.prisma.formulaVariant.findUnique({ where: { id: variantId } });
+    if (!v) throw new BadRequestException('Variante no encontrada.');
+
+    return this.prisma.formulaVariant.update({
+      where: { id: variantId },
+      data: {
+        nombre: dto.nombre || v.nombre,
+        clienteId: dto.clienteId !== undefined ? dto.clienteId : v.clienteId,
+        notas: dto.notas !== undefined ? dto.notas : v.notas,
+      },
+      include: { cliente: true },
     });
   }
 

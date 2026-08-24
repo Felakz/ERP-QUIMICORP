@@ -23,6 +23,8 @@ export class AuthService implements OnModuleInit {
     const rolesEnumList: Role[] = [
       Role.GERENCIA,
       Role.ADMINISTRACION,
+      Role.GERENTE_ADMINISTRATIVO,
+      Role.ASISTENTE_ADMINISTRATIVO,
       Role.FINANZAS,
       Role.VENTAS_ATENCION_DIGITAL,
       Role.ECOMMERCE_MARKETING,
@@ -78,7 +80,8 @@ export class AuthService implements OnModuleInit {
 
     // 3. Mapear Permisos por Rol en 'rol_permisos'
     const rolePermissionMapping: Record<Role, string[]> = {
-      GERENCIA: Object.keys(permisosMap), // Acceso total a todo
+      GERENCIA: Object.keys(permisosMap),
+      GERENTE_ADMINISTRATIVO: Object.keys(permisosMap),
       ADMINISTRACION: [
         'inventario:READ', 'inventario:UPDATE',
         'formulas:READ',
@@ -88,6 +91,12 @@ export class AuthService implements OnModuleInit {
         'pedidos-admin:CREATE', 'pedidos-admin:READ', 'pedidos-admin:UPDATE', 'pedidos-admin:DELETE',
         'usuarios:READ', 'usuarios:UPDATE',
         'audit:READ',
+      ],
+      ASISTENTE_ADMINISTRATIVO: [
+        'inventario:READ',
+        'formulas:READ',
+        'pedidos-admin:CREATE', 'pedidos-admin:READ',
+        'usuarios:READ',
       ],
       PRODUCCION_ALMACEN: [
         'inventario:CREATE', 'inventario:READ', 'inventario:UPDATE',
@@ -125,26 +134,23 @@ export class AuthService implements OnModuleInit {
       }
     }
 
-    // 4. Crear los 11 Usuarios iniciales en la tabla 'users' enlazados con su rolId de BD
-    const initialUsers: { email: string; nombre: string; role: Role }[] = [
-      { email: 'gerencia@quimicorp.pe', nombre: 'Carlos Mendoza (Gerente)', role: Role.GERENCIA },
-      { email: 'administracion@quimicorp.pe', nombre: 'Ana Torres (Admin)', role: Role.ADMINISTRACION },
-      { email: 'finanzas@quimicorp.pe', nombre: 'Roberto Silva (Finanzas)', role: Role.FINANZAS },
-      { email: 'ventas@quimicorp.pe', nombre: 'Elena Gómez (Ventas)', role: Role.VENTAS_ATENCION_DIGITAL },
-      { email: 'ecommerce@quimicorp.pe', nombre: 'Diego Castro (Ecommerce)', role: Role.ECOMMERCE_MARKETING },
-      { email: 'produccion@quimicorp.pe', nombre: 'Ing. Mateo Rivas (Jefe Planta)', role: Role.PRODUCCION_ALMACEN },
-      { email: 'compras@quimicorp.pe', nombre: 'Laura Paredes (Compras)', role: Role.COMPRAS_PROVEEDORES },
-      { email: 'rrhh@quimicorp.pe', nombre: 'Sofia Morales (RRHH)', role: Role.RECURSOS_HUMANOS },
-      { email: 'sistemas@quimicorp.pe', nombre: 'Alex Salazar (Sistemas TI)', role: Role.SISTEMAS_TI },
-      { email: 'diseno@quimicorp.pe', nombre: 'Valeria Rios (Diseño)', role: Role.DISENO_MULTIMEDIA },
-      { email: 'historico@quimicorp.pe', nombre: 'Mario Vega (Archivo)', role: Role.ARCHIVO_HISTORICO },
+    // 4. Crear / Actualizar Usuarios oficiales en PostgreSQL
+    const initialUsers: { email: string; nombre: string; role: Role; passRaw: string }[] = [
+      { email: 'administracion@grupoquimicorp.pe', nombre: 'Elvis Edwin Yarleque Arrunategui', role: Role.GERENTE_ADMINISTRATIVO, passRaw: 'adon$Qu1m1corp' },
+      { email: 'asistentedeadministracion@grupoquimicorp.pe', nombre: 'Mishelle Barrera Quispe', role: Role.ASISTENTE_ADMINISTRATIVO, passRaw: 'asonQu1m1corp?' },
+      { email: 'produccion@grupoquimicorp.pe', nombre: 'Supervisor de Producción', role: Role.PRODUCCION_ALMACEN, passRaw: 'pron+Qu1m1corp+' },
+      { email: 'gerencia@quimicorp.pe', nombre: 'Carlos Mendoza (Gerente General)', role: Role.GERENCIA, passRaw: 'Quimicorp2026!' },
+      { email: 'administracion@quimicorp.pe', nombre: 'Ana Torres (Admin)', role: Role.GERENTE_ADMINISTRATIVO, passRaw: 'Quimicorp2026!' },
+      { email: 'finanzas@quimicorp.pe', nombre: 'Roberto Silva (Finanzas)', role: Role.FINANZAS, passRaw: 'Quimicorp2026!' },
+      { email: 'ventas@quimicorp.pe', nombre: 'Elena Gómez (Ventas)', role: Role.VENTAS_ATENCION_DIGITAL, passRaw: 'Quimicorp2026!' },
+      { email: 'compras@quimicorp.pe', nombre: 'Laura Paredes (Compras)', role: Role.COMPRAS_PROVEEDORES, passRaw: 'Quimicorp2026!' },
     ];
-
-    const passwordHash = await bcrypt.hash('Quimicorp2026!', 10);
 
     for (const item of initialUsers) {
       const rolId = dbRolesMap[item.role];
+      const passwordHash = await bcrypt.hash(item.passRaw, 10);
       const existingUser = await this.prisma.user.findUnique({ where: { email: item.email } });
+      
       if (!existingUser) {
         await this.prisma.user.create({
           data: {
@@ -156,10 +162,16 @@ export class AuthService implements OnModuleInit {
             active: true,
           },
         });
-      } else if (!existingUser.rolId && rolId) {
+      } else {
         await this.prisma.user.update({
           where: { id: existingUser.id },
-          data: { rolId },
+          data: {
+            nombre: item.nombre,
+            password: passwordHash,
+            role: item.role,
+            rolId: rolId ?? null,
+            active: true,
+          },
         });
       }
     }
@@ -174,19 +186,19 @@ export class AuthService implements OnModuleInit {
     });
 
     if (!user) {
-      const passwordHash = await bcrypt.hash('Quimicorp2026!', 10);
+      const passwordHash = await bcrypt.hash(password || 'Quimicorp2026!', 10);
       user = await this.prisma.user.create({
         data: {
           email: email.toLowerCase().trim(),
           nombre: email.split('@')[0].toUpperCase(),
           password: passwordHash,
-          role: Role.ADMINISTRACION,
+          role: Role.ASISTENTE_ADMINISTRATIVO,
           active: true,
         },
       });
     }
 
-    // Validar contraseña contra el hash stored en BD o clave oficial de seed
+    // Validar contraseña contra bcrypt hash o clave por defecto
     const isMatch = password === 'Quimicorp2026!' || (await bcrypt.compare(password, user.password).catch(() => false));
     if (!isMatch) {
       throw new UnauthorizedException('Credenciales inválidas');

@@ -32,12 +32,12 @@ export async function getAuthToken(): Promise<string | null> {
 
   const baseUrl = getApiBaseUrl();
 
-  // En entorno de desarrollo, auto-autenticar con credenciales de administración
+  // Auto-autenticar con credenciales oficiales de administración si no hay token activo
   try {
     const authRes = await fetch(`${baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'administracion@quimicorp.pe', password: 'Quimicorp2026!' }),
+      body: JSON.stringify({ email: 'administracion@grupoquimicorp.pe', password: 'adon$Qu1m1corp' }),
     });
 
     if (authRes.ok) {
