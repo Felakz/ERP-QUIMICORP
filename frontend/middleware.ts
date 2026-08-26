@@ -1,35 +1,49 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+const ASISTENTE_RESTRICTED_ROUTES = [
+  '/administracion/dashboard',
+  '/administracion/cobranzas',
+  '/administracion/analisis',
+  '/administracion/proveedores',
+  '/administracion/ordenes',
+  '/administracion/comparador',
+  '/administracion/formulas',
+  '/administracion/asistencia',
+  '/administracion/reportes',
+];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const jwt = request.cookies.get('quimicorp_jwt')?.value;
   const role = request.cookies.get('quimicorp_role')?.value;
 
-  // Si no está autenticado y trata de acceder a módulos protegidos
+  // 1. Si no está autenticado y trata de acceder a módulos protegidos
   if (!jwt) {
     if (
       pathname.startsWith('/administracion') ||
       pathname.startsWith('/produccion') ||
       pathname.startsWith('/ventas') ||
-      pathname.startsWith('/gerencia') ||
-      pathname.startsWith('/compras')
+      pathname.startsWith('/gerencia')
     ) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
-  // Si el usuario es de Producción e intenta entrar a Administración
-  if (role === 'PRODUCCION_ALMACEN') {
-    if (pathname.startsWith('/administracion') || pathname.startsWith('/ventas')) {
-      return NextResponse.redirect(new URL('/produccion/kardex', request.url));
+  // 2. Restricciones para ASISTENTE_ADMINISTRATIVO
+  if (role === 'ASISTENTE_ADMINISTRATIVO') {
+    const isRestricted = ASISTENTE_RESTRICTED_ROUTES.some((route) =>
+      pathname.startsWith(route)
+    );
+    if (isRestricted) {
+      return NextResponse.redirect(new URL('/administracion/pedidos', request.url));
     }
   }
 
-  // Si el usuario es de Ventas e intenta entrar a Administración o Producción no autorizada
-  if (role === 'VENTAS_ATENCION_DIGITAL') {
-    if (pathname.startsWith('/administracion') || pathname.startsWith('/produccion')) {
-      return NextResponse.redirect(new URL('/ventas/dashboard', request.url));
+  // 3. Restricciones para PRODUCCION_ALMACEN
+  if (role === 'PRODUCCION_ALMACEN') {
+    if (pathname.startsWith('/administracion') && !pathname.startsWith('/administracion/control')) {
+      return NextResponse.redirect(new URL('/administracion/control', request.url));
     }
   }
 

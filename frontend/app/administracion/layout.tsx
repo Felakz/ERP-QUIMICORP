@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { apiFetch } from '@/lib/apiClient';
 import { adminSidebarItems } from '@/components/sidebar';
+import { hasPermission } from '@/config/permissions';
 import { CampanaAutorizaciones } from '@/components/notifications/CampanaAutorizaciones';
 
 export default function AdministracionLayout({ children }: { children: React.ReactNode }) {
@@ -107,60 +108,68 @@ export default function AdministracionLayout({ children }: { children: React.Rea
 
           {/* Menú de Admin */}
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5 font-sans">
-            {adminSidebarItems.map((section) => (
-              <div key={section.category} className="space-y-1">
-                <p
-                  className={`px-3 text-[10px] font-bold tracking-widest uppercase mb-1.5 ${
-                    isDark ? 'text-slate-500' : 'text-slate-400'
-                  }`}
-                >
-                  {section.category}
-                </p>
-                <div className="space-y-0.5">
-                  {section.items.map((item) => {
-                    const isActive = pathname === item.href;
-                    const Icon = item.icon;
-                    const isPedidosComerciales = item.href === '/administracion/pedidos';
-                    const hasBadge = isPedidosComerciales ? pedidoCount > 0 : !!item.badge;
-                    const badgeDisplay = isPedidosComerciales ? pedidoCount : item.badge;
+            {adminSidebarItems
+              .map((section) => {
+                const visibleItems = section.items.filter((item) =>
+                  hasPermission(user?.role, item.href)
+                );
+                return { ...section, items: visibleItems };
+              })
+              .filter((section) => section.items.length > 0)
+              .map((section) => (
+                <div key={section.category} className="space-y-1">
+                  <p
+                    className={`px-3 text-[10px] font-bold tracking-widest uppercase mb-1.5 ${
+                      isDark ? 'text-slate-500' : 'text-slate-400'
+                    }`}
+                  >
+                    {section.category}
+                  </p>
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const isActive = pathname === item.href;
+                      const Icon = item.icon;
+                      const isPedidosComerciales = item.href === '/administracion/pedidos';
+                      const hasBadge = isPedidosComerciales ? pedidoCount > 0 : !!item.badge;
+                      const badgeDisplay = isPedidosComerciales ? pedidoCount : item.badge;
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 group ${
-                          isActive
-                            ? isDark
-                              ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold shadow-sm'
-                              : 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
-                            : isDark
-                            ? 'text-slate-400 hover:bg-[#151D2A] hover:text-slate-200'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon
-                            className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${
-                              isActive
-                                ? isDark
-                                  ? 'text-blue-400'
-                                  : 'text-blue-600'
-                                : 'text-slate-400'
-                            }`}
-                          />
-                          <span className="truncate">{item.label}</span>
-                        </div>
-                        {hasBadge && (
-                          <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-white shadow-sm">
-                            {badgeDisplay}
-                          </span>
-                        )}
-                      </Link>
-                    );
-                  })}
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 group ${
+                            isActive
+                              ? isDark
+                                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold shadow-sm'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
+                              : isDark
+                              ? 'text-slate-400 hover:bg-[#151D2A] hover:text-slate-200'
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Icon
+                              className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${
+                                isActive
+                                  ? isDark
+                                    ? 'text-blue-400'
+                                    : 'text-blue-600'
+                                  : 'text-slate-400'
+                              }`}
+                            />
+                            <span className="truncate">{item.label}</span>
+                          </div>
+                          {hasBadge && (
+                            <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-white shadow-sm">
+                              {badgeDisplay}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </nav>
         </div>
 

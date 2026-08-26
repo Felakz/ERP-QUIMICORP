@@ -35,6 +35,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { CommercialOrderForm } from '@/components/pedidos/CommercialOrderForm';
 import { CotizacionPDF, CotizacionData } from '@/components/pdf/CotizacionPDF';
 import { apiFetch } from '@/lib/apiClient';
+import { isGerenteUser } from '@/config/permissions';
 
 interface PedidoEmitido {
   id: string;
@@ -64,7 +65,9 @@ interface PedidoEmitido {
 
 export default function AdministracionPedidosComercialesPage() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const isDark = theme === 'dark';
+  const canApprove = isGerenteUser(user?.role);
 
   const [pedidos, setPedidos] = useState<PedidoEmitido[]>([]);
   const [loadingPedidos, setLoadingPedidos] = useState<boolean>(true);
@@ -755,12 +758,21 @@ export default function AdministracionPedidosComercialesPage() {
                             <>
                               {/* Botón Aceptar Cotización y Pasar a Pedido */}
                               <button
-                                onClick={() => setConvertModalItem(p)}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold tracking-wider flex items-center gap-1 shadow-sm transition-all"
-                                title="Aceptar Cotización y Transmitir como Pedido a Planta"
+                                onClick={() => canApprove && setConvertModalItem(p)}
+                                disabled={!canApprove}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider flex items-center gap-1 shadow-sm transition-all ${
+                                  canApprove
+                                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer'
+                                    : 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                                }`}
+                                title={
+                                  canApprove
+                                    ? 'Aceptar Cotización y Transmitir como Pedido a Planta'
+                                    : 'Requiere aprobación de Gerencia'
+                                }
                               >
                                 <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                <span>Aceptar & Pedido</span>
+                                <span>{canApprove ? 'Aceptar & Pedido' : 'Pendiente Aprobación'}</span>
                               </button>
 
                               {/* Botón Ver PDF Cotización */}
