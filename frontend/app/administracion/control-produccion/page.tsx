@@ -104,7 +104,7 @@ export default function AdministracionControlProduccionPage() {
           fraganciaEspecificada: item.fraganciaEspecificada || item.fragancia || 'SIN FRAGANCIA',
           cantidad: Number(item.cantidad || item.cantidadPlanificada || item.cantidadKgLt) || 0,
           unidadMedida: item.unidadMedida || 'KG',
-          estado: item.estado === 'APROBADO' ? 'TERMINADO' : item.estado === 'EN_PROCESO' ? 'EN PROCESO' : item.estado || 'PENDIENTE',
+          estado: item.estado === 'DESPACHADO' ? 'ENTREGADO' : item.estado === 'EN_ETIQUETADO' ? 'EN ETIQUETADO' : item.estado === 'ETIQUETADO' ? 'ETIQUETADO' : item.estado === 'APROBADO' ? 'TERMINADO' : item.estado === 'EN_PROCESO' ? 'EN PROCESO' : item.estado || 'PENDIENTE',
           operarios: item.operarios || item.responsable || 'Sin Asignar',
           prioridad: item.prioridad || 'NORMAL',
           fechaCreacion: item.fechaCreacion,
@@ -183,7 +183,7 @@ export default function AdministracionControlProduccionPage() {
         <div>
           <h3 className={`text-sm font-bold font-sans flex items-center gap-2 ${textValue}`}>
             <span>QUIMICORP PERU S.A.C.</span>
-            <span className="text-xs text-slate-400 font-mono">· RUC 20614697327</span>
+            <span className="text-xs text-slate-400 font-mono">• RUC 20614697327</span>
           </h3>
           <p className={`text-xs font-sans ${textTitle}`}>
             PROGRAMACIÓN DIARIA DE PRODUCCIÓN — Planilla Digital Inmutable del Turno ({selectedDate})

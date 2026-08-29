@@ -46,7 +46,10 @@ enum EstadoOrdenProduccion {
   EN_PROCESO
   QA_PENDIENTE
   APROBADO
+  EN_ETIQUETADO
+  ETIQUETADO
   RECHAZADO
+  DESPACHADO
 }
 
 enum TipoMovimientoKardex {
@@ -206,6 +209,7 @@ model Insumo {
   kardexCategorizados KardexMovimiento[]
   subAlmacenSobrantes SubAlmacenSobrante[]
   pedidoAditivos      PedidoAditivo[]
+  cotizaciones        CotizacionProveedor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -223,6 +227,7 @@ model FormulaMaster {
   version         Int           @default(1)
   densidadTeorica Decimal       @db.Decimal(10, 4)
   estado          EstadoFormula @default(EN_REVISION)
+  pasosElaboracion Json?        @map("pasos_elaboracion")
 
   detalles          FormulaDetalle[]
   ordenesProduccion OrdenProduccion[]
@@ -363,6 +368,11 @@ model KardexMovimiento {
   cantidadEntrada Float          @default(0) @map("cantidad_entrada")
   cantidadSalida  Float          @default(0) @map("cantidad_salida")
   saldoFinal      Float          @map("saldo_final")
+
+  costoUnitario   Float?         @default(0) @map("costo_unitario")
+  montoEntradaPen Float?         @default(0) @map("monto_entrada_pen")
+  montoSalidaPen  Float?         @default(0) @map("monto_salida_pen")
+  montoSaldoPen   Float?         @default(0) @map("monto_saldo_pen")
 
   insumoId  String?  @map("insumo_id")
   insumo    Insumo?  @relation(fields: [insumoId], references: [id])
@@ -627,6 +637,7 @@ enum EstadoPedidoComercial {
   EN_PRODUCCION
   DEVUELTO
   RECHAZADO
+  ENTREGADO
 }
 
 enum PrioridadPedidoComercial {
@@ -661,6 +672,7 @@ model PedidoComercial {
 
   // Campos nuevos (opcionales para compatibilidad con payloads antiguos)
   docType            String?                  @default("OP") @map("doc_type")   // "COT" | "OP"
+  tipoComprobante    String?                  @map("tipo_comprobante")          // "BOLETA" | "FACTURA" | "NOTA_VENTA" (emitido)
   aroma              String?
   color              String?
   aromaText          String?                  @map("aroma_text")
@@ -714,9 +726,10 @@ model Cliente {
   metodoEnvio   String?
   condicionPago String?  @default("Contado")
 
-  contactos ContactoRepresentante[]
-  pedidos  PedidoComercial[]
-  variantes FormulaVariant[]
+  contactos    ContactoRepresentante[]
+  pedidos      PedidoComercial[]
+  variantes    FormulaVariant[]
+  cuentasCobrar CuentaCobrar[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -756,9 +769,10 @@ model FormulaVariant {
   color         String?
   phObjetivo    Float?        @map("ph_objetivo")
   viscosidad    String?
-  instrucciones String?
-  notas         String?
-  ajustesJson   Json?         @map("ajustes_json")
+  instrucciones   String?
+  notas           String?
+  ajustesJson     Json?               @map("ajustes_json")
+  pasosElaboracion Json?              @map("pasos_elaboracion")
 
   pedidos PedidoComercial[]
 
@@ -769,5 +783,116 @@ model FormulaVariant {
   @@index([clienteId])
   @@map("formula_variants")
 }
+
+model Proveedor {
+  id              String   @id @default(uuid())
+  ruc             String   @unique
+  razonSocial     String   @map("razon_social")
+  contacto        String?
+  telefono        String?
+  correo          String?
+  direccion       String?
+  insumoPrincipal String?  @map("insumo_principal")
+  calificacion    Float    @default(5.0)
+  estado          String   @default("HOMOLOGADO")
+
+  cuentasBancarias CuentaBancariaProveedor[]
+  cotizaciones     CotizacionProveedor[]
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("proveedores")
+}
+
+model CuentaBancariaProveedor {
+  id           String    @id @default(uuid())
+  proveedorId  String    @map("proveedor_id")
+  proveedor    Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  banco        String
+  moneda       String    @default("SOLES")
+  numeroCuenta String    @map("numero_cuenta")
+  cci          String?
+
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([proveedorId])
+  @@map("cuentas_bancarias_proveedores")
+}
+
+model CotizacionProveedor {
+  id                  String    @id @default(uuid())
+  proveedorId         String    @map("proveedor_id")
+  proveedor           Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  insumoId            String    @map("insumo_id")
+  insumo              Insumo    @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  precioUnitario      Decimal   @db.Decimal(14, 4) @map("precio_unitario")
+  moneda              String    @default("SOLES")
+  unidadMedida        String    @default("KG") @map("unidad_medida")
+  numCotizacion       String?   @map("num_cotizacion")
+  fechaCotizacion     DateTime  @default(now()) @map("fecha_cotizacion")
+  variacionPorcentual Decimal?  @db.Decimal(8, 2) @map("variacion_porcentual")
+  observaciones       String?
+  estado              String    @default("VIGENTE")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([proveedorId])
+  @@index([insumoId])
+  @@index([fechaCotizacion])
+  @@map("cotizaciones_proveedores")
+}
+
+model CuentaCobrar {
+  id               String      @id @default(uuid())
+  codigoDoc        String      @unique @map("codigo_doc")
+  clienteId        String?     @map("cliente_id")
+  cliente          Cliente?    @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  clienteNombre    String      @map("cliente_nombre")
+  clienteRuc       String      @map("cliente_ruc")
+  pedidoId         String?     @map("pedido_id")
+  ordenProd        String?     @map("orden_prod")
+  producto         String?
+  montoTotal       Decimal     @db.Decimal(14, 2) @map("monto_total")
+  saldoPendiente   Decimal     @db.Decimal(14, 2) @map("saldo_pendiente")
+  condicionPago    String      @default("Contado") @map("condicion_pago")
+  diasPlazo        Int         @default(0) @map("dias_plazo")
+  fechaEmision     DateTime    @default(now()) @map("fecha_emision")
+  fechaVencimiento DateTime    @map("fecha_vencimiento")
+  fechaPago        DateTime?   @map("fecha_pago")
+  estado           String      @default("PENDIENTE") // PAGADO, PENDIENTE, VENCIDO
+  medioPago        String?     @map("medio_pago")
+  canalBanco       String?     @map("canal_banco")
+
+  pagos            PagoAbono[]
+
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  @@index([clienteRuc])
+  @@index([estado])
+  @@index([fechaVencimiento])
+  @@map("cuentas_cobrar")
+}
+
+model PagoAbono {
+  id             String       @id @default(uuid())
+  cuentaCobrarId String       @map("cuenta_cobrar_id")
+  cuentaCobrar   CuentaCobrar @relation(fields: [cuentaCobrarId], references: [id], onDelete: Cascade)
+  montoAbonado   Decimal      @db.Decimal(14, 2) @map("monto_abonado")
+  fechaAbono     DateTime     @default(now()) @map("fecha_abono")
+  medio          String?
+  banco          String?
+  numOperacion   String?      @map("num_operacion")
+  observaciones  String?
+
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([cuentaCobrarId])
+  @@map("pagos_abonos")
+}
+
 
 

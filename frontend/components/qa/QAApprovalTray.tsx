@@ -61,8 +61,8 @@ export function QAApprovalTray() {
                 <span className="font-normal text-slate-600">{orden.formula.nombreProducto}</span>
               </p>
               <p className="text-xs text-slate-500">
-                Planificado: {Number(orden.cantidadPlanificada).toFixed(2)} · Obtenido:{' '}
-                {orden.cantidadObtenida ? Number(orden.cantidadObtenida).toFixed(2) : '—'} · Supervisor:{' '}
+                Planificado: {Number(orden.cantidadPlanificada).toFixed(2)} • Obtenido:{' '}
+                {orden.cantidadObtenida ? Number(orden.cantidadObtenida).toFixed(2) : '—'} • Supervisor:{' '}
                 {orden.supervisor.nombres} {orden.supervisor.apellidos}
               </p>
             </div>

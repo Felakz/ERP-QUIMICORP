@@ -107,15 +107,18 @@ export function CommercialOrderForm({
 
   // Client states
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
-  const [clientSearchQuery, setClientSearchQuery] = useState(initialData.cliente || 'Farmacias Peruanas S.A.C.');
-  const [clientRuc, setClientRuc] = useState(initialData.ruc || '20381396431');
-  const [contacto, setContacto] = useState(initialData.contacto || 'Ing. Rodrigo Salcedo');
-  const [telefono, setTelefono] = useState(initialData.telefono || '+51 999 234 781');
-  const [direccion, setDireccion] = useState(initialData.direccion || 'Av. Angamos Este 2646, Surquillo, Lima');
-  const [condicionPago, setCondicionPago] = useState(initialData.condicionPago || 'Crédito 30 Días');
+  const [clientSearchQuery, setClientSearchQuery] = useState(initialData.cliente || '');
+  const [clientRuc, setClientRuc] = useState(initialData.ruc || '');
+  const [contacto, setContacto] = useState(initialData.contacto || '');
+  const [telefono, setTelefono] = useState(initialData.telefono || '');
+  const [direccion, setDireccion] = useState(initialData.direccion || '');
+  const [condicionPago, setCondicionPago] = useState(initialData.condicionPago || 'Contado / 30 Días');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientList, setClientList] = useState<Cliente[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+
+  // Dynamic Formulas state
+  const [formulasList, setFormulasList] = useState<FormulaProducto[]>(FORMULAS_MAESTRAS_REALES);
 
   // Multiple Items State
   const initialFormula = FORMULAS_MAESTRAS_REALES.find((f) => f.id === initialData.formulaId) || FORMULAS_MAESTRAS_REALES[0];
@@ -158,7 +161,7 @@ export function CommercialOrderForm({
     const { data, ok } = await apiFetch<Cliente[]>('/clientes');
     if (ok && Array.isArray(data)) {
       setClientList(data);
-      if (data.length > 0 && !selectedClient) {
+      if (data.length > 0 && !selectedClient && (clientRuc || clientSearchQuery)) {
         const matched = data.find((c: Cliente) => c.ruc === clientRuc || c.razonSocial === clientSearchQuery);
         if (matched) {
           setSelectedClient(matched);
@@ -172,8 +175,27 @@ export function CommercialOrderForm({
     }
   };
 
+  // Fetch formulas dynamically from backend API GET /formulas
+  const fetchFormulas = async () => {
+    const { data, ok } = await apiFetch<any[]>('/formulas');
+    if (ok && Array.isArray(data) && data.length > 0) {
+      const mapped: FormulaProducto[] = data.map((f: any) => ({
+        id: f.id,
+        codigoFM: f.codigoFM || f.codigo || 'FM-001',
+        nombreProducto: f.nombreProducto || f.nombre || 'Producto Industrial',
+        categoria: f.categoria || 'DETERGENTES',
+        pesoObjetivo: Number(f.pesoObjetivo) || 1000,
+        loteActual: f.loteActual || 'LOTE-BASE',
+        estadoProceso: f.estadoProceso || 'APROBADO',
+        ingredientes: f.ingredientes || [],
+      }));
+      setFormulasList(mapped);
+    }
+  };
+
   useEffect(() => {
     fetchClientes();
+    fetchFormulas();
   }, []);
 
   const handleSelectClient = (client: Cliente) => {
@@ -206,7 +228,8 @@ export function CommercialOrderForm({
 
   // Item list helpers
   const handleAddItem = () => {
-    const defaultF = FORMULAS_MAESTRAS_REALES[items.length % FORMULAS_MAESTRAS_REALES.length] || FORMULAS_MAESTRAS_REALES[0];
+    const sourceList = formulasList.length > 0 ? formulasList : FORMULAS_MAESTRAS_REALES;
+    const defaultF = sourceList[items.length % sourceList.length] || sourceList[0];
     setItems((prev) => [
       ...prev,
       {
@@ -235,7 +258,8 @@ export function CommercialOrderForm({
       const current = { ...updated[index], [field]: value };
 
       if (field === 'formulaId') {
-        const found = FORMULAS_MAESTRAS_REALES.find((f) => f.id === value);
+        const sourceList = formulasList.length > 0 ? formulasList : FORMULAS_MAESTRAS_REALES;
+        const found = sourceList.find((f) => f.id === value);
         if (found) {
           current.productoNombre = found.nombreProducto;
           current.codigoFM = found.codigoFM;
@@ -580,10 +604,13 @@ export function CommercialOrderForm({
                   onChange={(e) => setCondicionPago(e.target.value)}
                   className={`w-full rounded-xl border p-2.5 font-medium ${inputBg}`}
                 >
-                  <option value="Contado" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Contado / Anticipado</option>
-                  <option value="Crédito 15 Días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 15 Días</option>
-                  <option value="Crédito 30 Días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 30 Días</option>
-                  <option value="Crédito 60 Días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 60 Días</option>
+                  <option value="Contado" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Contado (Pago Inmediato)</option>
+                  <option value="Credito 07 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 07 Días</option>
+                  <option value="Credito 15 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 15 Días</option>
+                  <option value="Credito 20 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 20 Días</option>
+                  <option value="Credito 30 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 30 Días</option>
+                  <option value="Credito 60 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 60 Días</option>
+                  <option value="Anticipo 50% / Saldo Contra Entrega" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Anticipo 50% (Saldo Contra Entrega)</option>
                 </select>
               </div>
             </div>
@@ -691,7 +718,7 @@ export function CommercialOrderForm({
                     onChange={(e) => handleUpdateItem(idx, 'formulaId', e.target.value)}
                     className={`w-full rounded-xl border p-2 text-xs font-bold ${inputBg}`}
                   >
-                    {FORMULAS_MAESTRAS_REALES.map((f) => (
+                    {(formulasList.length > 0 ? formulasList : FORMULAS_MAESTRAS_REALES).map((f) => (
                       <option key={f.id} value={f.id} className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>
                         {f.codigoFM} - {f.nombreProducto} ({f.pesoObjetivo} KG Base)
                       </option>

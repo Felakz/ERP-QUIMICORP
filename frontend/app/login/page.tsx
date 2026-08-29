@@ -17,8 +17,8 @@ import { getApiBaseUrl } from '@/lib/apiClient';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('administracion@grupoquimicorp.pe');
-  const [password, setPassword] = useState('adon$Qu1m1corp');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -76,14 +76,14 @@ export default function LoginPage() {
               QUIMICORP PERÚ S.A.C.
             </h1>
             <p className="text-[10px] text-slate-400 font-sans tracking-widest uppercase">
-              ERP INDUSTRIAL v2.4 · 10 ÁREAS MODULARES
+              ERP INDUSTRIAL v2.4 • 10 ÁREAS MODULARES
             </p>
           </div>
         </div>
 
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-bold font-sans">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span>SISTEMA EN LÍNEA · POSTGRESQL 16</span>
+          <span>SISTEMA EN LÍNEA • POSTGRESQL 16</span>
         </div>
       </div>
 
@@ -103,7 +103,7 @@ export default function LoginPage() {
 
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-sans font-bold flex items-center gap-2 animate-in fade-in duration-200">
-              <span>⚠️</span>
+              <span>??</span>
               <span>{errorMsg}</span>
             </div>
           )}
@@ -197,7 +197,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <div className="text-center text-[10px] text-slate-400 font-sans z-10">
-        © 2026 QUIMICORP PERÚ S.A.C. · Todos los derechos reservados · Sistema Industrial Certificado ISO 9001
+        © 2026 QUIMICORP PERÚ S.A.C. • Todos los derechos reservados • Sistema Industrial Certificado ISO 9001
       </div>
     </div>
   );

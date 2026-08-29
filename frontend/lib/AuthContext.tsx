@@ -46,7 +46,7 @@ const ROLE_HOME_MAP: Record<UserRole, string> = {
   ECOMMERCE_MARKETING: '/ventas/dashboard',
   COMPRAS_PROVEEDORES: '/compras/dashboard',
   RECURSOS_HUMANOS: '/produccion/biometria',
-  SISTEMAS_TI: '/produccion/seguridad',
+  SISTEMAS_TI: '/gerencia/seguridad',
   DISENO_MULTIMEDIA: '/produccion/etiquetas',
   ARCHIVO_HISTORICO: '/produccion/kardex',
 };

@@ -1,214 +1,157 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import {
-  Building2,
-  FileText,
-  Package,
-  Beaker,
-  Send,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  ArrowRight,
-  Plus,
-  RefreshCw,
-} from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
-import { FORMULAS_MAESTRAS_REALES } from '@/lib/formulasData';
+import {
+  CommercialDocument,
+  CommercialOrder,
+  CompactMetric,
+  CurrencyType,
+  DateRangeType,
+  InvoiceAnalyticsTerm,
+  KpiItem,
+  PaymentCategoryPoint,
+  SalesAnalyticsPoint,
+  TopCustomer,
+} from '@/types/dashboard';
 
-export default function AdministracionPage() {
+import { useDashboardData } from '@/hooks/useDashboardData';
+
+// Modular Dashboard Components
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { KpiCardsGrid } from '@/components/dashboard/KpiCardsGrid';
+import { SalesAnalyticsChart } from '@/components/dashboard/SalesAnalyticsChart';
+import { InvoiceAnalyticsChart } from '@/components/dashboard/InvoiceAnalyticsChart';
+import { TopCustomersList } from '@/components/dashboard/TopCustomersList';
+import { CompactMetricsCards } from '@/components/dashboard/CompactMetricsCards';
+import { PaymentCategoriesChart } from '@/components/dashboard/PaymentCategoriesChart';
+import { RecentDocumentsTable } from '@/components/dashboard/RecentDocumentsTable';
+import { RecentOrdersTable } from '@/components/dashboard/RecentOrdersTable';
+
+import { MOCK_KPIS } from './dashboardMockData';
+
+export default function AdministracionDashboardPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [pedidosRecientes, setPedidosRecientes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // --- ESTADOS GLOBALES DE LA VISTA GERENCIAL ---
+  const [includeIgv, setIncludeIgv] = useState<boolean>(false); // false = Neto, true = Con IGV (18%)
+  const [currency, setCurrency] = useState<CurrencyType>('PEN'); // 'PEN' (S/) vs 'USD' ($)
+  const [dateRange, setDateRange] = useState<DateRangeType>('MES_ACTUAL');
+  const [exchangeRateUsd] = useState<number>(3.75); // Tipo de cambio PEN por USD
 
-  const cargarDatos = async () => {
-    try {
-      const { data, ok } = await apiFetch('/pedidos-admin');
-      if (ok && Array.isArray(data)) {
-        setPedidosRecientes(data);
-      }
-    } catch {} finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
-  const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
-  const textValue = isDark ? 'text-white' : 'text-slate-900';
+  // Live API Custom Hook (100% PostgreSQL sin hardcodeo)
+  const {
+    kpis: liveKpis,
+    topCustomers: liveTopCustomers,
+    compactMetrics: liveCompactMetrics,
+    salesAnalytics: liveSalesAnalytics,
+    invoiceTerms: liveInvoiceTerms,
+    paymentCategories: livePaymentCategories,
+    recentDocs: liveRecentDocs,
+    recentOrders: liveRecentOrders,
+    refresh: refreshApi,
+  } = useDashboardData(dateRange);
 
   return (
-    <div className="space-y-6 font-mono min-h-screen">
-      {/* Header Banner del Área de Administración */}
-      <div className={`rounded-2xl p-6 border flex flex-wrap items-center justify-between gap-4 ${cardBg}`}>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm border border-blue-500/30">
-              📝
-            </div>
-            <div>
-              <h2 className={`text-lg font-bold font-sans tracking-tight ${textValue}`}>
-                PANEL PRINCIPAL DE ADMINISTRACIÓN & VENTAS
-              </h2>
-              <p className="text-xs text-slate-400 font-sans">
-                Gestión comercial, vinculación con Fórmulas Maestras y despacho a Planta de Producción
-              </p>
-            </div>
-          </div>
+    <div className="space-y-6 font-sans pb-12">
+      {/* 1. CABECERA & CONTROLES GLOBALES */}
+      <DashboardHeader
+        includeIgv={includeIgv}
+        onToggleIgv={setIncludeIgv}
+        currency={currency}
+        onChangeCurrency={setCurrency}
+        dateRange={dateRange}
+        onChangeDateRange={setDateRange}
+        onRefresh={refreshApi}
+      />
+
+      {/* 2. TARJETAS SUPERIORES (KPIs GERENCIALES) */}
+      <KpiCardsGrid
+        kpis={liveKpis}
+        includeIgv={includeIgv}
+        currency={currency}
+        exchangeRateUsd={exchangeRateUsd}
+      />
+
+      {/* 3. FILA DE ANALÍTICA SUPERIOR (GRÁFICOS RECHARTS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Columna Izquierda (60% - 7 Cols) */}
+        <div className="lg:col-span-7">
+          <SalesAnalyticsChart
+            data={liveSalesAnalytics}
+            includeIgv={includeIgv}
+            currency={currency}
+            exchangeRateUsd={exchangeRateUsd}
+          />
         </div>
 
-        <div className="flex items-center gap-3 font-sans">
-          <Link
-            href="/administracion/formulas"
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00F2C3] to-cyan-500 text-slate-950 font-bold text-xs tracking-wider uppercase hover:opacity-90 transition-all shadow-lg shadow-[#00F2C3]/20 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Crear Pedido Comercial</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* KPI Cards rápidas de Administración */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className={`rounded-xl p-5 border space-y-2 ${cardBg}`}>
-          <span className={`text-[10px] font-bold tracking-widest uppercase block ${textTitle}`}>
-            PEDIDOS COMERCIALES ACTIVOS
-          </span>
-          <div className={`text-2xl font-black font-mono ${isDark ? 'text-[#00F2C3]' : 'text-teal-700'}`}>
-            {pedidosRecientes.length || 4} <span className={`text-xs font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Órdenes</span>
-          </div>
-          <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>En proceso de revisión y despacho a planta</p>
-        </div>
-
-        <div className={`rounded-xl p-5 border space-y-2 ${cardBg}`}>
-          <span className={`text-[10px] font-bold tracking-widest uppercase block ${textTitle}`}>
-            FÓRMULAS MAESTRAS VINCULADAS
-          </span>
-          <div className={`text-2xl font-black font-mono ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
-            {FORMULAS_MAESTRAS_REALES.length} <span className={`text-xs font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Registradas</span>
-          </div>
-          <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Listas para escalar pedidos por Lote / KG</p>
-        </div>
-
-        <div className={`rounded-xl p-5 border space-y-2 ${cardBg}`}>
-          <span className={`text-[10px] font-bold tracking-widest uppercase block ${textTitle}`}>
-            ESTADO DE INTERFAZ ADMIN
-          </span>
-          <div className="flex items-center gap-2 pt-1 font-sans">
-            <span className="h-3 w-3 rounded-full bg-emerald-400 animate-ping" />
-            <span className={`text-xs font-bold font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>CONEXIÓN DIRECTA A PLANTA</span>
-          </div>
-          <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Sincronización mediante WebSockets activa</p>
+        {/* Columna Derecha (40% - 5 Cols) */}
+        <div className="lg:col-span-5">
+          <InvoiceAnalyticsChart
+            terms={liveInvoiceTerms}
+            includeIgv={includeIgv}
+            currency={currency}
+            exchangeRateUsd={exchangeRateUsd}
+          />
         </div>
       </div>
 
-      {/* Accesos Directos a las 3 Secciones de Administración */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link
-          href="/administracion/formulas"
-          className={`p-5 rounded-2xl border transition-all hover:border-[#00F2C3] group ${cardBg}`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className={`p-3 rounded-xl border ${isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' : 'bg-teal-50 text-teal-700 border-teal-200'}`}>
-              <Beaker className="w-6 h-6" />
-            </div>
-            <ArrowRight className={`w-5 h-5 transition-colors ${isDark ? 'text-slate-500 group-hover:text-[#00F2C3]' : 'text-slate-400 group-hover:text-teal-700'}`} />
-          </div>
-          <h3 className={`text-sm font-bold font-sans ${textValue}`}>📋 Catálogo de Fórmulas</h3>
-          <p className={`text-xs font-sans mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Explora las Fórmulas Maestras y genera nuevos Pedidos Comerciales calculados.
-          </p>
-        </Link>
-
-        <Link
-          href="/produccion/stock"
-          className={`p-5 rounded-2xl border transition-all hover:border-[#00F2C3] group ${cardBg}`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className={`p-3 rounded-xl border ${isDark ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-              <Package className="w-6 h-6" />
-            </div>
-            <ArrowRight className={`w-5 h-5 transition-colors ${isDark ? 'text-slate-500 group-hover:text-[#00F2C3]' : 'text-slate-400 group-hover:text-teal-700'}`} />
-          </div>
-          <h3 className={`text-sm font-bold font-sans ${textValue}`}>📦 Inventario & Stock</h3>
-          <p className={`text-xs font-sans mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Consulta el stock disponible de materias primas y productos terminados.
-          </p>
-        </Link>
-
-        <Link
-          href="/administracion/pedidos"
-          className={`p-5 rounded-2xl border transition-all hover:border-[#00F2C3] group ${cardBg}`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className={`p-3 rounded-xl border ${isDark ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-              <FileText className="w-6 h-6" />
-            </div>
-            <ArrowRight className={`w-5 h-5 transition-colors ${isDark ? 'text-slate-500 group-hover:text-[#00F2C3]' : 'text-slate-400 group-hover:text-teal-700'}`} />
-          </div>
-          <h3 className={`text-sm font-bold font-sans ${textValue}`}>📑 Pedidos Comerciales</h3>
-          <p className={`text-xs font-sans mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            Visualiza el estado de las órdenes enviadas a la Bandeja de Entrada de Planta.
-          </p>
-        </Link>
-      </div>
-
-      {/* Lista de Pedidos Recientes Enviados a Planta */}
-      <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
-        <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800/80' : 'border-slate-100'}`}>
-          <h3 className={`text-xs font-bold tracking-widest uppercase ${textTitle}`}>
-            ÚLTIMOS PEDIDOS ENVIADOS A BANDEJA DE PRODUCCIÓN
-          </h3>
-          <Link href="/administracion/pedidos" className={`text-xs hover:underline font-sans font-bold ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
-            Ver Todos →
-          </Link>
+      {/* 4. FILA MEDIA (INTELIGENCIA COMERCIAL Y FLUJO DE COBRANZAS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Top 10 Clientes (4 Cols - ~33%) */}
+        <div className="lg:col-span-4">
+          <TopCustomersList
+            customers={liveTopCustomers}
+            includeIgv={includeIgv}
+            currency={currency}
+            exchangeRateUsd={exchangeRateUsd}
+          />
         </div>
 
-        {loading ? (
-          <div className="py-8 text-center text-xs text-slate-400">
-            <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-400" />
-            Cargando órdenes...
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {pedidosRecientes.slice(0, 3).map((ped) => (
-              <div
-                key={ped.id}
-                className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-4 font-mono text-xs ${
-                  isDark ? 'border-slate-800/80 bg-[#151D2A]' : 'border-slate-200 bg-slate-50'
-                }`}
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-bold ${isDark ? 'text-cyan-400' : 'text-blue-700'}`}>{ped.codigoOrden}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                      isDark ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-amber-100 text-amber-900 border border-amber-300'
-                    }`}>
-                      {ped.estado || 'PENDIENTE_REVISION_PLANTA'}
-                    </span>
-                  </div>
-                  <h4 className={`font-bold font-sans mt-1 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ped.productoNombre}</h4>
-                  <p className={`text-[11px] font-sans ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Cliente: {ped.clienteNombre}</p>
-                </div>
+        {/* Resumen Compacto Cuentas por Cobrar (4 Cols - ~33%) */}
+        <div className="lg:col-span-4">
+          <CompactMetricsCards
+            metrics={liveCompactMetrics}
+            includeIgv={includeIgv}
+            currency={currency}
+            exchangeRateUsd={exchangeRateUsd}
+          />
+        </div>
 
-                <div className="text-right font-sans">
-                  <div className={`text-sm font-bold font-mono ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                    S/ {Number(ped.montoTotal).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-                  </div>
-                  <span className={`text-[10px] block font-mono ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>{ped.cantidadSolicitada} {ped.unidadMedida}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Métodos de Pago & Cobranza Radar Chart (4 Cols - ~33%) */}
+        <div className="lg:col-span-4">
+          <PaymentCategoriesChart
+            categories={livePaymentCategories}
+            includeIgv={includeIgv}
+            currency={currency}
+            exchangeRateUsd={exchangeRateUsd}
+          />
+        </div>
+      </div>
+
+      {/* 5. TABLAS INFERIORES CON FILTRADO RÁPIDO */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Tabla 1: Documentos Comerciales Recientes (7 Cols) */}
+        <div className="lg:col-span-7">
+          <RecentDocumentsTable
+            documents={liveRecentDocs}
+            includeIgv={includeIgv}
+            currency={currency}
+            exchangeRateUsd={exchangeRateUsd}
+          />
+        </div>
+
+        {/* Tabla 2: Órdenes y Cotizaciones Emitidas (5 Cols) */}
+        <div className="lg:col-span-5">
+          <RecentOrdersTable
+            orders={liveRecentOrders}
+            includeIgv={includeIgv}
+            currency={currency}
+            exchangeRateUsd={exchangeRateUsd}
+          />
+        </div>
       </div>
     </div>
   );

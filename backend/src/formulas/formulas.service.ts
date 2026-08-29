@@ -209,11 +209,20 @@ export class FormulasService {
       const formula = await tx.formulaMaster.findUnique({ where: { id } });
       if (!formula) throw new BadRequestException('Fórmula no encontrada.');
 
+      // Validar suma de porcentajes = 100% al actualizar (paridad con la creación).
+      if (Array.isArray(dto.detalles) && dto.detalles.length > 0) {
+        const suma = dto.detalles.reduce((acc: number, d: any) => acc + (parseFloat(d.porcentaje) || 0), 0);
+        if (Math.abs(suma - 100) > 0.01) {
+          throw new BadRequestException('La suma de porcentajes de los componentes debe ser 100%.');
+        }
+      }
+
       await tx.formulaMaster.update({
         where: { id },
         data: {
           nombreProducto: dto.nombreProducto || formula.nombreProducto,
           densidadTeorica: dto.densidadTeorica ? parseFloat(dto.densidadTeorica) : formula.densidadTeorica,
+          pasosElaboracion: dto.pasosElaboracion !== undefined ? dto.pasosElaboracion : formula.pasosElaboracion,
         },
       });
 
@@ -253,6 +262,7 @@ export class FormulasService {
         nombre: dto.nombre || v.nombre,
         clienteId: dto.clienteId !== undefined ? dto.clienteId : v.clienteId,
         notas: dto.notas !== undefined ? dto.notas : v.notas,
+        pasosElaboracion: dto.pasosElaboracion !== undefined ? dto.pasosElaboracion : v.pasosElaboracion,
       },
       include: { cliente: true },
     });

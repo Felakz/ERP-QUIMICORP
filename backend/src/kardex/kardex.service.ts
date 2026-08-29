@@ -136,12 +136,35 @@ export class KardexService {
       ],
     };
 
-    return this.prisma.kardexMovimiento.findMany({
+    const movimientos = await this.prisma.kardexMovimiento.findMany({
       where: whereCondition,
       orderBy: { fecha: 'desc' },
       take,
       skip,
       include: { insumo: true },
+    });
+
+    // Montos reales: usar los montos del movimiento; si están en 0 pero el
+    // insumo vinculado tiene costo unitario, calcularlos (dato real, no inventado).
+    return movimientos.map((m) => {
+      const costoReal = Number(
+        m.costoUnitario || m.insumo?.costoUnitario || 0
+      );
+      const cEntrada = Number(m.cantidadEntrada || 0);
+      const cSalida = Number(m.cantidadSalida || 0);
+      const saldo = Number(m.saldoFinal || 0);
+
+      const montoEntrada = Number(m.montoEntradaPen || 0) || cEntrada * costoReal;
+      const montoSalida = Number(m.montoSalidaPen || 0) || cSalida * costoReal;
+      const montoSaldo = Number(m.montoSaldoPen || 0) || saldo * costoReal;
+
+      return {
+        ...m,
+        costoUnitario: costoReal,
+        montoEntradaPen: montoEntrada,
+        montoSalidaPen: montoSalida,
+        montoSaldoPen: montoSaldo,
+      };
     });
   }
 

@@ -11,6 +11,10 @@ import { PedidosAdminModule } from './pedidos-admin/pedidos-admin.module';
 import { AuthModule } from './auth/auth.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { AutorizacionesModule } from './autorizaciones/autorizaciones.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { ProveedoresModule } from './proveedores/proveedores.module';
+import { CotizacionesProveedoresModule } from './cotizaciones-proveedores/cotizaciones-proveedores.module';
+import { CobranzasModule } from './cobranzas/cobranzas.module';
 
 @Module({
   imports: [
@@ -26,6 +30,10 @@ import { AutorizacionesModule } from './autorizaciones/autorizaciones.module';
     PedidosAdminModule,
     ClientesModule,
     AutorizacionesModule,
+    DashboardModule,
+    ProveedoresModule,
+    CotizacionesProveedoresModule,
+    CobranzasModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

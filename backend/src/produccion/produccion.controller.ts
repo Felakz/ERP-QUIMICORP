@@ -96,4 +96,10 @@ export class ProduccionController {
     return this.produccionService.obtenerColaDespacho();
   }
 
+  @Post('etiquetas/despachar')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  despacharEtiqueta(@Body('colaId') colaId: string) {
+    return this.produccionService.despacharEtiqueta(colaId);
+  }
+
 }

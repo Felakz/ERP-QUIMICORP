@@ -1,0 +1,1 @@
+ALTER TABLE "formula_variants" ADD COLUMN "pasos_elaboracion" JSONB;

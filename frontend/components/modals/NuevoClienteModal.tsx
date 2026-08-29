@@ -269,16 +269,16 @@ export function NuevoClienteModal({
           </div>
 
           {/* Sección de Representantes / Contactos (1:N) */}
-          <div className="pt-2 border-t border-slate-800/80 space-y-2.5">
+          <div className={`pt-2 border-t space-y-2.5 ${isDark ? 'border-slate-800/80' : 'border-slate-200'}`}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
                 <User className="w-3.5 h-3.5" />
                 <span>Representantes & Contactos ({contactos.length})</span>
               </span>
               <button
                 type="button"
                 onClick={handleAddContacto}
-                className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[10px] font-bold flex items-center gap-1"
+                className="px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 text-[10px] font-bold flex items-center gap-1 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 <span>Añadir Contacto</span>
@@ -287,14 +287,18 @@ export function NuevoClienteModal({
 
             <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
               {contactos.map((cont, idx) => (
-                <div key={idx} className="p-3 rounded-xl bg-[#151D2A] border border-[#1A2232] grid grid-cols-12 gap-2 items-center">
+                <div key={idx} className={`p-3 rounded-xl border grid grid-cols-12 gap-2 items-center ${
+                  isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200 shadow-sm'
+                }`}>
                   <div className="col-span-5">
                     <input
                       type="text"
                       placeholder="Nombre Representante"
                       value={cont.nombre}
                       onChange={(e) => handleContactoChange(idx, 'nombre', e.target.value)}
-                      className="w-full bg-[#0F141C] border border-slate-700/60 rounded-lg p-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      className={`w-full border rounded-lg p-1.5 text-xs focus:outline-none ${
+                        isDark ? 'bg-[#0F141C] border-slate-700/60 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
                     />
                   </div>
                   <div className="col-span-4">
@@ -303,7 +307,9 @@ export function NuevoClienteModal({
                       placeholder="Cargo (Ej: Dueño 1)"
                       value={cont.cargo || ''}
                       onChange={(e) => handleContactoChange(idx, 'cargo', e.target.value)}
-                      className="w-full bg-[#0F141C] border border-slate-700/60 rounded-lg p-1.5 text-xs text-slate-300 placeholder-slate-500 focus:outline-none"
+                      className={`w-full border rounded-lg p-1.5 text-xs focus:outline-none ${
+                        isDark ? 'bg-[#0F141C] border-slate-700/60 text-slate-300 placeholder-slate-500' : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400'
+                      }`}
                     />
                   </div>
                   <div className="col-span-2">
@@ -312,7 +318,9 @@ export function NuevoClienteModal({
                       placeholder="Teléfono"
                       value={cont.telefono || ''}
                       onChange={(e) => handleContactoChange(idx, 'telefono', e.target.value)}
-                      className="w-full bg-[#0F141C] border border-slate-700/60 rounded-lg p-1.5 text-xs font-mono text-emerald-400 placeholder-slate-500 focus:outline-none"
+                      className={`w-full border rounded-lg p-1.5 text-xs font-mono focus:outline-none ${
+                        isDark ? 'bg-[#0F141C] border-slate-700/60 text-emerald-400 placeholder-slate-500' : 'bg-white border-slate-300 text-emerald-600 placeholder-slate-400'
+                      }`}
                     />
                   </div>
                   <div className="col-span-1 text-center">
@@ -320,7 +328,7 @@ export function NuevoClienteModal({
                       <button
                         type="button"
                         onClick={() => handleRemoveContacto(idx)}
-                        className="p-1 rounded text-rose-400 hover:bg-rose-500/20"
+                        className="p-1 rounded text-rose-500 hover:bg-rose-500/20 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

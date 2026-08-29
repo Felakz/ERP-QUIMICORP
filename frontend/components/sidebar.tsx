@@ -92,7 +92,7 @@ export const adminSidebarItems: SidebarSection[] = [
       {
         label: 'Comparador de Precios',
         icon: Scale,
-        href: '/administracion/comparador',
+        href: '/administracion/comparador-precios',
         restrictedForAsistente: true,
       },
     ],

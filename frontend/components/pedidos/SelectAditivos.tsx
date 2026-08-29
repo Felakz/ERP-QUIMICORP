@@ -171,22 +171,22 @@ export function SelectAditivos({
                 <div
                   key={ad.insumoId}
                   className={`p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2 ${
-                    isDark ? 'bg-[#0B0F17]/80 border-purple-500/30' : 'bg-white border-purple-200'
+                    isDark ? 'bg-[#0B0F17]/80 border-purple-500/30' : 'bg-white border-purple-200 shadow-sm'
                   }`}
                 >
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-100">{ad.nombre}</span>
-                      <span className="text-[10px] font-mono text-purple-400">[{ad.codigo}]</span>
+                      <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ad.nombre}</span>
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>[{ad.codigo}]</span>
                     </div>
-                    <div className="text-[10px] font-mono text-slate-400">
-                      Masa calculada: <strong className="text-purple-400">{gramos.toFixed(1)} g</strong> en {cantidadKg} KG
+                    <div className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Masa calculada: <strong className={isDark ? 'text-purple-400' : 'text-purple-700'}>{gramos.toFixed(1)} g</strong> en {cantidadKg} KG
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Dosificación:</label>
+                      <label className={`text-[10px] font-bold uppercase ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Dosificación:</label>
                       <input
                         type="number"
                         step="0.1"
@@ -199,14 +199,14 @@ export function SelectAditivos({
                           isDark ? 'bg-[#151D2A] border-purple-500/40 text-purple-300' : 'bg-slate-50 border-purple-300 text-purple-800'
                         }`}
                       />
-                      <span className="font-mono text-purple-400 font-bold">%</span>
+                      <span className={`font-mono font-bold ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>%</span>
                     </div>
 
                     {!disabled && (
                       <button
                         type="button"
                         onClick={() => handleRemoveAditivo(ad.insumoId)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors"
+                        className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
                         title="Quitar fragancia"
                       >
                         <X className="w-4 h-4" />
@@ -225,11 +225,13 @@ export function SelectAditivos({
       {/* ── PIGMENTOS / COLORANTES ── */}
       <div className={`p-3 rounded-xl border space-y-2.5 ${cardBg}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 font-bold text-amber-400">
+          <div className={`flex items-center gap-1.5 font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
             <Palette className="w-3.5 h-3.5" />
             <span className="text-[11px] uppercase tracking-wider">Pigmento / Colorante</span>
           </div>
-          <span className="text-[10px] font-mono text-amber-400/80 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+            isDark ? 'text-amber-400/80 bg-amber-500/10 border-amber-500/20' : 'text-amber-800 bg-amber-100 border-amber-300'
+          }`}>
             Default: 0.50% ({((Number(cantidadKg) || 100) * 5).toFixed(1)} g)
           </span>
         </div>
@@ -268,22 +270,22 @@ export function SelectAditivos({
                 <div
                   key={ad.insumoId}
                   className={`p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2 ${
-                    isDark ? 'bg-[#0B0F17]/80 border-amber-500/30' : 'bg-white border-amber-200'
+                    isDark ? 'bg-[#0B0F17]/80 border-amber-500/30' : 'bg-white border-amber-200 shadow-sm'
                   }`}
                 >
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-100">{ad.nombre}</span>
-                      <span className="text-[10px] font-mono text-amber-400">[{ad.codigo}]</span>
+                      <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ad.nombre}</span>
+                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>[{ad.codigo}]</span>
                     </div>
-                    <div className="text-[10px] font-mono text-slate-400">
-                      Masa calculada: <strong className="text-amber-400">{gramos.toFixed(1)} g</strong> en {cantidadKg} KG
+                    <div className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Masa calculada: <strong className={isDark ? 'text-amber-400' : 'text-amber-700'}>{gramos.toFixed(1)} g</strong> en {cantidadKg} KG
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Dosificación:</label>
+                      <label className={`text-[10px] font-bold uppercase ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Dosificación:</label>
                       <input
                         type="number"
                         step="0.05"
@@ -296,14 +298,14 @@ export function SelectAditivos({
                           isDark ? 'bg-[#151D2A] border-amber-500/40 text-amber-300' : 'bg-slate-50 border-amber-300 text-amber-800'
                         }`}
                       />
-                      <span className="font-mono text-amber-400 font-bold">%</span>
+                      <span className={`font-mono font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>%</span>
                     </div>
 
                     {!disabled && (
                       <button
                         type="button"
                         onClick={() => handleRemoveAditivo(ad.insumoId)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors"
+                        className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
                         title="Quitar pigmento"
                       >
                         <X className="w-4 h-4" />

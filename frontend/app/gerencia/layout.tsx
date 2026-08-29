@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   Award,
+  FlaskConical,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -20,6 +21,12 @@ const GERENCIA_SECTIONS = [
     title: 'DIRECCIÓN EJECUTIVA & KPIS',
     items: [
       { href: '/gerencia/dashboard', label: 'Panel de Control Gerencial', icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'FORMULACIÓN & PROCESO',
+    items: [
+      { href: '/gerencia/formulas', label: 'Fórmulas y Pasos de Elaboración', icon: FlaskConical },
     ],
   },
 ];

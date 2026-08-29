@@ -1,0 +1,1 @@
+ALTER TABLE "pedidos_comerciales" ADD COLUMN "tipo_comprobante" VARCHAR(20);

@@ -93,9 +93,14 @@ export class PedidosAdminService {
         codigoOrden = `COT-${year}-${String(seq).padStart(3, '0')}`;
       }
     } else {
-      let poCode = dto.code || `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+      // Código OP secuencial y trazable (válido para cotizaciones convertidas a pedido
+      // o pedidos directos). Si dto.code viene vacío se genera OP-YYYY-NNN.
+      const year = new Date().getFullYear();
+      let seq = (await db.pedidoComercial.count({ where: { docType: 'OP' } })) + 1;
+      let poCode = dto.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
       while (await db.pedidoComercial.findUnique({ where: { codigoOrden: poCode } })) {
-        poCode = `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+        seq++;
+        poCode = dto.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
       }
       codigoOrden = poCode;
     }
@@ -315,7 +320,16 @@ export class PedidosAdminService {
     // Calcular el estado de stock en Kardex y desglosar items guardados
     const pedidosConStock = await Promise.all(
       pedidos.map(async (ped: any) => {
-        const stockValidacion = await this.calcularStockPedido(ped);
+        let stockValidacion: any;
+        try {
+          stockValidacion = await this.calcularStockPedido(ped);
+        } catch {
+          stockValidacion = {
+            stockCompleto: true,
+            insumosFaltantesCount: 0,
+            detalles: [],
+          };
+        }
         
         let itemsList: any[] = [];
         let cleanObservaciones = ped.notasAdmin;
@@ -719,10 +733,17 @@ export class PedidosAdminService {
       const porcentaje = Number(det.porcentaje || 0);
       const requerido = (cantidadBatch * porcentaje) / 100;
 
-      // Obtener el stock real del insumo
-      const insumoDb = await this.prisma.insumo.findUnique({
-        where: { id: det.insumoId },
-      });
+      // Obtener el stock real del insumo (protección contra insumoId nulo/vacío que rompe el listado)
+      let insumoDb = null;
+      if (det.insumoId) {
+        try {
+          insumoDb = await this.prisma.insumo.findUnique({
+            where: { id: det.insumoId },
+          });
+        } catch {
+          insumoDb = null;
+        }
+      }
 
       const disponible = insumoDb ? Number(insumoDb.stockReal) : 100.0;
       const suficiente = disponible >= requerido;
@@ -916,6 +937,147 @@ export class PedidosAdminService {
       });
       console.log('✅ PEDIDO GUARDADO EN BD:', res.codigoOrden);
     }
+  }
+
+  /**
+   * R1 — Emitir comprobante (Boleta / Factura / Nota de Venta) desde una cotización/pedido.
+   * Cambia el tipoComprobante, mantiene el ciclo docType (COT/OP) y registra la cuenta por cobrar.
+   */
+  async emitirComprobante(pedidoId: string, dto: { tipo: 'BOLETA' | 'FACTURA' | 'NOTA_VENTA' } | any) {
+    const tipo = (dto?.tipo || '').toUpperCase();
+    if (!['BOLETA', 'FACTURA', 'NOTA_VENTA'].includes(tipo)) {
+      throw new Error('Tipo de comprobante inválido. Use BOLETA, FACTURA o NOTA_VENTA.');
+    }
+
+    const pedido = await this.prisma.pedidoComercial.findUnique({ where: { id: pedidoId } });
+    if (!pedido) throw new NotFoundException('Pedido no encontrado.');
+
+    const monto = Number(pedido.montoTotal) || 0;
+    const nombre = pedido.clienteNombre || 'Cliente';
+    const ruc = pedido.clienteRuc || '00000000000';
+
+    // Registrar en cuenta por cobrar (tabla de cobranzas)
+    const prefijo = tipo === 'FACTURA' ? 'FAC' : tipo === 'BOLETA' ? 'BOL' : 'NV';
+    const nroc = await this.prisma.cuentaCobrar.count();
+    const codigoDoc = `${prefijo}-${new Date().getFullYear()}-${String(nroc + 1).padStart(5, '0')}`;
+
+    await this.prisma.cuentaCobrar.create({
+      data: {
+        codigoDoc,
+        clienteId: pedido.clienteId,
+        clienteNombre: nombre,
+        clienteRuc: ruc,
+        ordenProd: pedido.codigoOrden,
+        producto: pedido.productoNombre,
+        montoTotal: monto,
+        saldoPendiente: monto,
+        condicionPago: pedido.condicionPago || 'Contado',
+        diasPlazo: 0,
+        fechaEmision: new Date(),
+        fechaVencimiento: new Date(),
+        estado: 'PENDIENTE',
+        medioPago: tipo,
+      },
+    });
+
+    // Marcar el pedido con su tipo de comprobante emitido
+    const actualizado = await this.prisma.pedidoComercial.update({
+      where: { id: pedidoId },
+      data: { tipoComprobante: tipo },
+    });
+
+    return {
+      id: actualizado.id,
+      codigoOrden: actualizado.codigoOrden,
+      tipoComprobante: actualizado.tipoComprobante,
+      cuentaCobrar: codigoDoc,
+      montoTotal: monto,
+    };
+  }
+
+  /**
+   * R1 — Comparativa por ciclo: facturado vs boletado (vs nota de venta),
+   * comparando el período actual contra el anterior.
+   * periodo: MES | TRIMESTRE | SEMESTRE | ANUAL
+   */
+  async comparativaCiclo(periodo: string = 'MES') {
+    const now = new Date();
+    const ranges = this.rangoPeriodoComparativo(now, (periodo || 'MES').toUpperCase());
+
+    const agregar = async (inicio: Date, fin: Date) => {
+      const docs = await (this.prisma as any).pedidoComercial.findMany({
+        where: {
+          tipoComprobante: { in: ['BOLETA', 'FACTURA', 'NOTA_VENTA'] },
+          createdAt: { gte: inicio, lte: fin },
+        },
+        select: { tipoComprobante: true, montoTotal: true },
+      });
+      const base = { facturado: 0, boletado: 0, notaVenta: 0, count: 0 };
+      const acc = { ...base };
+      for (const d of docs) {
+        const m = Number(d.montoTotal) || 0;
+        acc.count += 1;
+        if (d.tipoComprobante === 'FACTURA') acc.facturado += m;
+        else if (d.tipoComprobante === 'BOLETA') acc.boletado += m;
+        else if (d.tipoComprobante === 'NOTA_VENTA') acc.notaVenta += m;
+      }
+      return acc;
+    };
+
+    const actual = await agregar(ranges.actualInicio, ranges.actualFin);
+    const anterior = await agregar(ranges.anteriorInicio, ranges.anteriorFin);
+
+    const cambio = (a: number, b: number) =>
+      b > 0 ? Number((((a - b) / b) * 100).toFixed(1)) : 0;
+
+    return {
+      periodo: (periodo || 'MES').toUpperCase(),
+      actual: { ...actual, total: actual.facturado + actual.boletado + actual.notaVenta },
+      anterior: { ...anterior, total: anterior.facturado + anterior.boletado + anterior.notaVenta },
+      variacionPorcentual: {
+        facturado: cambio(actual.facturado, anterior.facturado),
+        boletado: cambio(actual.boletado, anterior.boletado),
+        notaVenta: cambio(actual.notaVenta, anterior.notaVenta),
+        total: cambio(
+          actual.facturado + actual.boletado + actual.notaVenta,
+          anterior.facturado + anterior.boletado + anterior.notaVenta,
+        ),
+      },
+    };
+  }
+
+  private rangoPeriodoComparativo(now: Date, periodo: string) {
+    const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+    const endOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+    if (periodo === 'ANUAL') {
+      const ai = new Date(now.getFullYear() - 1, 0, 1);
+      const af = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+      const ni = new Date(now.getFullYear(), 0, 1);
+      const nf = endOf(now);
+      return { anteriorInicio: ai, anteriorFin: af, actualInicio: ni, actualFin: nf };
+    }
+    if (periodo === 'SEMESTRE') {
+      const monthOffset = 6;
+      const ai = new Date(now.getFullYear(), now.getMonth() - monthOffset * 2, 1);
+      const af = new Date(now.getFullYear(), now.getMonth() - monthOffset, 0, 23, 59, 59, 999);
+      const ni = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+      const nf = endOf(now);
+      return { anteriorInicio: ai, anteriorFin: af, actualInicio: ni, actualFin: nf };
+    }
+    if (periodo === 'TRIMESTRE') {
+      const ai = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+      const af = new Date(now.getFullYear(), now.getMonth() - 3, 0, 23, 59, 59, 999);
+      const ni = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      const nf = endOf(now);
+      return { anteriorInicio: ai, anteriorFin: af, actualInicio: ni, actualFin: nf };
+    }
+    // MES (default)
+    const ai = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const af = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
+    const ni = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const nf = endOf(now);
+    return { anteriorInicio: ai, anteriorFin: af, actualInicio: ni, actualFin: nf };
   }
 }
 

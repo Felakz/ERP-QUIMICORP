@@ -51,7 +51,7 @@ export function SubAlmacenPanel() {
                 </span>
               </p>
               <p className="text-xs text-slate-500">
-                {Number(item.pesoDisponible).toFixed(2)} {item.insumoSubproducto.unidadMedida} · Ubicación:{' '}
+                {Number(item.pesoDisponible).toFixed(2)} {item.insumoSubproducto.unidadMedida} • Ubicación:{' '}
                 {item.ubicacion}
               </p>
             </div>

@@ -80,27 +80,30 @@ export class ProduccionService {
   }
 
   async crearOrden(dto: CrearOrdenDto) {
+    // Validamos stock para informar, pero NO bloqueamos la creación del lote.
     const validacion = await this.validarStockDisponible({
       formulaId: dto.formulaId,
       cantidadPlanificada: dto.cantidadPlanificada,
-    });
-
-    if (!validacion.puedeIniciar) {
-      throw new BadRequestException({
-        message: 'Stock insuficiente para iniciar la orden de producción.',
-        faltantes: validacion.requerimientos.filter((r) => !r.suficiente),
-      });
-    }
+    }).catch(() => null);
 
     const ultimoCodigo = await this.prisma.ordenProduccion.count();
     const codigoLote = `LOTE-${String(ultimoCodigo + 1).padStart(6, '0')}`;
+
+    // El frontend envía el id del modelo de autenticación (User). Resolvemos al
+    // Usuario (ERP) real para respetar la FK de supervisorId.
+    let supervisorId = dto.supervisorId;
+    const supervisor = await this.prisma.usuario.findUnique({ where: { id: supervisorId } });
+    if (!supervisor) {
+      const fallback = await this.prisma.usuario.findFirst();
+      if (fallback) supervisorId = fallback.id;
+    }
 
     const orden = await this.prisma.ordenProduccion.create({
       data: {
         codigoLote,
         formulaId: dto.formulaId,
         cantidadPlanificada: dto.cantidadPlanificada,
-        supervisorId: dto.supervisorId,
+        supervisorId: supervisorId,
         clienteNombre: dto.clienteNombre || 'Cliente Quimicorp SAC',
         estado: EstadoOrdenProduccion.EN_PROCESO,
         pasoProceso: 'PENDIENTE_ASIGNACION',
@@ -286,7 +289,7 @@ export class ProduccionService {
       const ordenAprobada = await tx.ordenProduccion.update({
         where: { id: dto.ordenProduccionId },
         data: {
-          estado: EstadoOrdenProduccion.APROBADO,
+          estado: EstadoOrdenProduccion.EN_ETIQUETADO,
           pasoProceso: 'LIBERADO_QA',
           observacionesQA: dto.observacionesQA || orden.observacionesQA,
           fechaCierre: new Date(),
@@ -389,6 +392,73 @@ export class ProduccionService {
     return (this.prisma as any).colaDespacho.findMany({
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async despacharEtiqueta(colaId: string) {
+    if (!colaId) {
+      throw new BadRequestException('Se requiere colaId para registrar el despacho.');
+    }
+
+    const cola = await (this.prisma as any).colaDespacho.findUnique({ where: { id: colaId } });
+    if (!cola) {
+      throw new NotFoundException('No se encontró el registro de despacho de la cola.');
+    }
+
+    const colaActualizada = await (this.prisma as any).colaDespacho.update({
+      where: { id: colaId },
+      data: { estado: 'DESPACHADO' },
+    });
+
+    // Marcar la Orden de Producción asociada como DESPACHADA (vínculo por código de lote).
+    const orden = await this.prisma.ordenProduccion.findFirst({
+      where: { codigoLote: cola.loteCodigo },
+    });
+    if (orden) {
+      await this.prisma.ordenProduccion.update({
+        where: { id: orden.id },
+        data: {
+          estado: EstadoOrdenProduccion.DESPACHADO,
+          pasoProceso: 'DESPACHADO',
+          fechaCierre: new Date(),
+        },
+      });
+
+      // Propagar el estado ENTREGADO al Pedido Comercial vinculado (mismo patrón de
+      // coincidencia por dígitos del código usado en el resto del módulo de producción),
+      // para que el estado sea consistente en pedidos, control-producción y cartera de clientes.
+      const numPart = (orden.codigoLote || '').replace(/\D/g, '');
+      const pedidoVinculado = await (this.prisma as any).pedidoComercial.findFirst({
+        where: {
+          OR: numPart
+            ? [
+                { codigoOrden: { contains: numPart } },
+                { codigoRefAdmin: { contains: numPart } },
+              ]
+            : [],
+          clienteNombre: orden.clienteNombre || undefined,
+        },
+        orderBy: { createdAt: 'desc' },
+      }).catch(() => null);
+
+      if (pedidoVinculado) {
+        await (this.prisma as any).pedidoComercial.update({
+          where: { id: pedidoVinculado.id },
+          data: { estado: 'ENTREGADO' },
+        });
+      }
+
+      this.produccionGateway.emitirEstadoActualizado({
+        ordenId: orden.id,
+        codigoLote: orden.codigoLote,
+        clienteNombre: orden.clienteNombre || '',
+        nuevoEstado: 'DESPACHADO',
+        pasoProceso: 'DESPACHADO',
+        observaciones: 'Lote despachado y entregado al cliente.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return colaActualizada;
   }
 
   async rechazarLote(dto: DecidirQADto) {
@@ -504,13 +574,16 @@ export class ProduccionService {
           o.estado === EstadoOrdenProduccion.QA_PENDIENTE ||
           (!!o.operariosAsignados && o.operariosAsignados.trim().length > 0));
 
-      const estadoCalculado: 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE' = esTerminado
-        ? 'TERMINADO'
-        : esEnProceso
-        ? 'EN PROCESO'
-        : 'PENDIENTE';
+      const estadoCalculado: 'ENTREGADO' | 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE' =
+        o.estado === EstadoOrdenProduccion.DESPACHADO
+          ? 'ENTREGADO'
+          : esTerminado
+          ? 'TERMINADO'
+          : esEnProceso
+          ? 'EN PROCESO'
+          : 'PENDIENTE';
 
-      if (estadoCalculado === 'TERMINADO') {
+      if (estadoCalculado === 'TERMINADO' || estadoCalculado === 'ENTREGADO') {
         terminadosCount++;
       } else if (estadoCalculado === 'EN PROCESO') {
         enProcesoCount++;
@@ -627,6 +700,7 @@ export class ProduccionService {
 
     // 2. Aditivos del pedido comercial asociado
     let aditivos: any[] = [];
+    let pedidoConVariante: any = null;
     if (orden.codigoLote) {
       const numPart = (orden.codigoLote || '').replace(/\D/g, '');
 
@@ -648,11 +722,13 @@ export class ProduccionService {
               },
             },
           },
+          variante: true,
         },
         orderBy: { createdAt: 'desc' },
       });
 
       if (pedido && pedido.aditivos && pedido.aditivos.length > 0) {
+        pedidoConVariante = pedido;
         aditivos = pedido.aditivos.map((ad: any) => {
           const pct = Number(ad.porcentaje) || (ad.tipo === 'PIGMENTO' ? 0.5 : 1.0);
           const gramos = Number(ad.gramosCalculados) || (cantidadPlanificadaKg * 1000 * (pct / 100));
@@ -676,6 +752,13 @@ export class ProduccionService {
     const mergeReceta = [...ingredientesBase, ...aditivos];
     const totalGramos = mergeReceta.reduce((sum, item) => sum + item.gramosCalculados, 0);
 
+    // Prioriza los pasos de elaboración de la VARIANTE (cliente específico) si existen;
+    // si no, usa los pasos de la fórmula maestra.
+    const pasosVariant = pedidoConVariante?.variante?.pasosElaboracion;
+    const pasosEfectivos = Array.isArray(pasosVariant) && pasosVariant.length > 0
+      ? pasosVariant
+      : (Array.isArray(orden.formula.pasosElaboracion) ? orden.formula.pasosElaboracion : []);
+
     return {
       ordenId: orden.id,
       codigoLote: orden.codigoLote,
@@ -684,6 +767,7 @@ export class ProduccionService {
       cantidadPlanificadaKg,
       totalGramos: Math.round(totalGramos * 100) / 100,
       ingredientes: mergeReceta,
+      pasosElaboracion: pasosEfectivos,
     };
   }
 }

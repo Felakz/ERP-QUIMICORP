@@ -61,6 +61,7 @@ interface PedidoEmitido {
   notasAdmin?: string | null;
   observacionesClean?: string | null;
   itemsList?: any[];
+  tipoComprobante?: string | null;
 }
 
 export default function AdministracionPedidosComercialesPage() {
@@ -74,6 +75,13 @@ export default function AdministracionPedidosComercialesPage() {
   const [isCreatingOrder, setIsCreatingOrder] = useState<boolean>(false);
   const [creationDefaultMode, setCreationDefaultMode] = useState<'COTIZACION' | 'PEDIDO'>('COTIZACION');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // R1 — Emisión de comprobante (Boleta / Factura / Nota de Venta)
+  const [emitModalItem, setEmitModalItem] = useState<PedidoEmitido | null>(null);
+  const [emitTipo, setEmitTipo] = useState<'BOLETA' | 'FACTURA' | 'NOTA_VENTA'>('FACTURA');
+  const [emitLoading, setEmitLoading] = useState<boolean>(false);
+  const [emitError, setEmitError] = useState<string>('');
+  const [emitResult, setEmitResult] = useState<string>('');
   const getTodayISO = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -84,6 +92,8 @@ export default function AdministracionPedidosComercialesPage() {
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayISO());
   const [selectedTab, setSelectedTab] = useState<string>('TODOS');
+  // R4 — Filtro por etiqueta (tipo de comprobante emitido)
+  const [filtroTipo, setFiltroTipo] = useState<string>('TODOS');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // PDF Preview State
@@ -143,13 +153,13 @@ export default function AdministracionPedidosComercialesPage() {
           cliente: p.clienteNombre,
           ruc: p.clienteRuc,
           producto: p.productoNombre,
-          cantidad: Number(p.cantidadSolicitada) || 100,
+          cantidad: Number(p.cantidadSolicitada) || 0,
           unidad: p.unidadMedida || 'KG',
-          precioUnitario: p.cantidadSolicitada && Number(p.cantidadSolicitada) > 0 ? Number(p.montoTotal) / Number(p.cantidadSolicitada) : 34.5,
+          precioUnitario: p.cantidadSolicitada && Number(p.cantidadSolicitada) > 0 ? Number(p.montoTotal) / Number(p.cantidadSolicitada) : 0,
           montoTotal: Number(p.montoTotal) || 0,
           prioridad: p.prioridad || 'NORMAL',
           condicionPago: p.condicionPago || 'Crédito 30 días',
-          fechaPrometida: p.fechaPrometida ? new Date(p.fechaPrometida).toLocaleDateString('es-PE') : '12/08/2026',
+          fechaPrometida: p.fechaPrometida ? new Date(p.fechaPrometida).toLocaleDateString('es-PE') : '',
           estado: p.estado || 'NUEVO',
           aroma: p.aroma,
           color: p.color,
@@ -159,6 +169,7 @@ export default function AdministracionPedidosComercialesPage() {
           notasAdmin: p.notasAdmin,
           itemsList: p.itemsList,
           observacionesClean: p.observacionesClean,
+          tipoComprobante: p.tipoComprobante || null,
         }));
         setPedidos(mapped);
       }
@@ -270,6 +281,16 @@ export default function AdministracionPedidosComercialesPage() {
     return true;
   });
 
+  // R4 — Conteos y filtrado por etiqueta (tipo de comprobante)
+  const countByTipo = (tipo: string) =>
+    pedidos.filter((p) => (tipo === 'SIN_EMITIR' ? !p.tipoComprobante : p.tipoComprobante === tipo)).length;
+
+  const filteredPedidosConEtiqueta = filteredPedidos.filter((p) => {
+    if (filtroTipo === 'TODOS') return true;
+    if (filtroTipo === 'SIN_EMITIR') return !p.tipoComprobante;
+    return p.tipoComprobante === filtroTipo;
+  });
+
   const handleOpenPdfForOrder = (p: PedidoEmitido) => {
     const isCot = p.docType === 'COT' || p.codigoOrden.startsWith('COT');
     
@@ -376,6 +397,31 @@ export default function AdministracionPedidosComercialesPage() {
     );
   }
 
+  // ── R1: Emitir comprobante (Boleta / Factura / Nota de Venta) ──
+  const handleEmitirComprobante = async () => {
+    if (!emitModalItem) return;
+    setEmitLoading(true);
+    setEmitError('');
+    setEmitResult('');
+    try {
+      const res = await apiFetch(`/pedidos-admin/${emitModalItem.id}/emitir-comprobante`, {
+        method: 'POST',
+        body: JSON.stringify({ tipo: emitTipo }),
+      });
+      if (res.ok) {
+        setEmitResult(`Comprobante emitido: ${res.data?.tipoComprobante} • ${res.data?.cuentaCobrar}`);
+        setEmitModalItem(null);
+        cargarPedidos();
+      } else {
+        setEmitError(res.error || 'No se pudo emitir el comprobante.');
+      }
+    } catch {
+      setEmitError('Error de conexión al emitir el comprobante.');
+    } finally {
+      setEmitLoading(false);
+    }
+  };
+
   // ── VISTA PRINCIPAL: TABLA DE PEDIDOS & COTIZACIONES A PANTALLA COMPLETA ──
   return (
     <div className="space-y-6 font-sans min-h-screen">
@@ -436,8 +482,10 @@ export default function AdministracionPedidosComercialesPage() {
           isDark ? 'bg-[#151D2A]/70 border-[#1A2232]' : 'bg-slate-50 border-slate-200'
         }`}>
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+            <Calendar className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+            <span className={`text-xs font-bold uppercase tracking-wider ${
+              isDark ? 'text-slate-300' : 'text-slate-700'
+            }`}>
               FILTRAR REGISTRO COMERCIAL POR DÍA:
             </span>
           </div>
@@ -567,6 +615,46 @@ export default function AdministracionPedidosComercialesPage() {
             </button>
           </div>
 
+          {/* R4 — Filtro por etiqueta (Tipo de Comprobante) */}
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs mt-3 pt-3 border-t border-slate-800/10">
+            {[
+              { key: 'TODOS', label: 'Todas las etiquetas', count: pedidos.length },
+              { key: 'SIN_EMITIR', label: 'Sin emitir', count: countByTipo('SIN_EMITIR') },
+              { key: 'BOLETA', label: 'Boleta', count: countByTipo('BOLETA') },
+              { key: 'FACTURA', label: 'Factura', count: countByTipo('FACTURA') },
+              { key: 'NOTA_VENTA', label: 'Nota de Venta', count: countByTipo('NOTA_VENTA') },
+            ].map((f) => {
+              const active = filtroTipo === f.key;
+              const color =
+                f.key === 'FACTURA'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                  : f.key === 'BOLETA'
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : f.key === 'NOTA_VENTA'
+                  ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                  : f.key === 'SIN_EMITIR'
+                  ? 'bg-slate-500/10 text-slate-400 border-slate-500/30'
+                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => setFiltroTipo(f.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold font-sans transition-all border flex items-center gap-1.5 ${
+                    active
+                      ? `${color} shadow-sm`
+                      : isDark
+                      ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-900'
+                  }`}
+                >
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>{f.label}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-black/10 text-[10px]">{f.count}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Search Bar */}
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -600,7 +688,7 @@ export default function AdministracionPedidosComercialesPage() {
             <tbody className={`divide-y text-xs ${
               isDark ? 'divide-slate-800/60' : 'divide-slate-100'
             }`}>
-              {filteredPedidos.length === 0 ? (
+              {filteredPedidosConEtiqueta.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center">
                     <Inbox className="w-10 h-10 mx-auto mb-2 text-slate-400 opacity-60" />
@@ -613,7 +701,7 @@ export default function AdministracionPedidosComercialesPage() {
                   </td>
                 </tr>
               ) : (
-                filteredPedidos.map((p) => {
+                filteredPedidosConEtiqueta.map((p) => {
                   const isCot = p.docType === 'COT' || p.codigoOrden.startsWith('COT');
                   return (
                     <tr key={p.id} className={`transition-colors ${
@@ -629,7 +717,7 @@ export default function AdministracionPedidosComercialesPage() {
                           }`}>
                             {isCot ? 'COTIZACIÓN' : 'ORDEN OP'}
                           </span>
-                          <span className={isDark ? 'text-slate-200' : 'text-slate-900'}>
+                          <span className={isDark ? 'text-slate-200' : 'text-slate-900 font-bold'}>
                             {p.codigoOrden}
                           </span>
                         </div>
@@ -637,6 +725,17 @@ export default function AdministracionPedidosComercialesPage() {
                           <div className="text-[10px] text-slate-500 font-mono">
                             Origen: {p.codigoRefAdmin}
                           </div>
+                        )}
+                        {p.tipoComprobante && (
+                          <span className={`mt-1 inline-block px-2 py-0.5 rounded text-[9px] font-black border ${
+                            p.tipoComprobante === 'FACTURA'
+                              ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                              : p.tipoComprobante === 'BOLETA'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                          }`}>
+                            {p.tipoComprobante === 'FACTURA' ? 'FACTURA' : p.tipoComprobante === 'BOLETA' ? 'BOLETA' : 'NOTA VENTA'}
+                          </span>
                         )}
                       </td>
 
@@ -646,7 +745,7 @@ export default function AdministracionPedidosComercialesPage() {
                           {p.cliente}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono">
-                          RUC: {p.ruc} · {p.condicionPago}
+                          RUC: {p.ruc} • {p.condicionPago}
                         </div>
                       </td>
 
@@ -656,7 +755,7 @@ export default function AdministracionPedidosComercialesPage() {
                           <div className="space-y-1">
                             {p.itemsList.map((it: any, i: number) => (
                               <div key={i} className="text-xs flex items-center gap-1.5 font-medium">
-                                <span className="text-[10px] font-mono text-amber-500 font-bold">#{i + 1}</span>
+                                <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-amber-500' : 'text-amber-700'}`}>#{i + 1}</span>
                                 <span className={`font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
                                   {it.productoNombre || it.descripcion}
                                 </span>
@@ -667,7 +766,7 @@ export default function AdministracionPedidosComercialesPage() {
                             ))}
                           </div>
                         ) : (
-                          <div className={`font-medium ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                          <div className={`font-medium ${isDark ? 'text-slate-200' : 'text-slate-900 font-semibold'}`}>
                             {p.producto?.replace(/\s*\(\+\d+\s*adicionales\)/i, '')}
                           </div>
                         )}
@@ -684,8 +783,8 @@ export default function AdministracionPedidosComercialesPage() {
                                 key={adIdx}
                                 className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
                                   ad.tipo === 'FRAGANCIA'
-                                    ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
-                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    ? isDark ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-purple-50 text-purple-800 border-purple-200'
+                                    : isDark ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-amber-50 text-amber-800 border-amber-200'
                                 }`}
                                 title={`${ad.insumo?.nombre || 'Aditivo'}: ${ad.porcentaje}% (${ad.gramosCalculados ? (ad.gramosCalculados / 1000).toFixed(2) + ' KG' : ''})`}
                               >
@@ -697,12 +796,16 @@ export default function AdministracionPedidosComercialesPage() {
                         ) : (p.aroma || p.color || p.aromaText || p.colorText) ? (
                           <div className="flex flex-wrap gap-1">
                             {(p.aromaText || p.aroma) && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+                                isDark ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-purple-50 text-purple-800 border-purple-200'
+                              }`}>
                                 🌸 {p.aromaText || p.aroma}
                               </span>
                             )}
                             {(p.colorText || p.color) && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+                                isDark ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-amber-50 text-amber-800 border-amber-200'
+                              }`}>
                                 🎨 {p.colorText || p.color}
                               </span>
                             )}
@@ -713,27 +816,33 @@ export default function AdministracionPedidosComercialesPage() {
                       </td>
 
                       {/* Cantidad */}
-                      <td className="py-3 px-3 text-right font-mono font-bold text-teal-500">
+                      <td className={`py-3 px-3 text-right font-mono font-bold ${
+                        isDark ? 'text-teal-400' : 'text-teal-700'
+                      }`}>
                         {p.cantidad.toLocaleString()} {p.unidad}
                       </td>
 
                       {/* Monto Total */}
-                      <td className="py-3 px-3 text-right font-mono font-black text-emerald-400">
+                      <td className={`py-3 px-3 text-right font-mono font-black ${
+                        isDark ? 'text-emerald-400' : 'text-emerald-700'
+                      }`}>
                         S/ {p.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                       </td>
 
                       {/* Estado */}
                       <td className="py-3 px-3 text-center">
                         {isCot ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase font-mono bg-orange-500/10 border border-orange-500/30 text-orange-400">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase font-mono border ${
+                            isDark ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-orange-50 border-orange-200 text-orange-800 font-bold'
+                          }`}>
                             COTIZACIÓN EMITIDA
                           </span>
                         ) : (
                           <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase font-mono ${
-                            p.estado === 'APROBADO' || p.estado === 'COMPLETADO'
+                            p.estado === 'APROBADO' || p.estado === 'COMPLETADO' || p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO'
                               ? isDark
-                                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                                : 'bg-emerald-100 border border-emerald-300 text-emerald-800 font-black'
+                                ? 'bg-sky-500/10 border border-sky-500/30 text-sky-400'
+                                : 'bg-sky-100 border border-sky-300 text-sky-800 font-black'
                               : p.estado === 'EN_PRODUCCION'
                               ? isDark
                                 ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
@@ -746,7 +855,7 @@ export default function AdministracionPedidosComercialesPage() {
                               ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
                               : 'bg-blue-100 border border-blue-300 text-blue-800 font-black'
                           }`}>
-                            {p.estado}
+                            {p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO' || p.estado === 'COMPLETADO' ? 'ENTREGADO' : p.estado}
                           </span>
                         )}
                       </td>
@@ -787,6 +896,20 @@ export default function AdministracionPedidosComercialesPage() {
                               >
                                 <FileText className="w-4 h-4" />
                               </button>
+
+                              {/* Botón Emitir comprobante (R1) */}
+                              <button
+                                onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-colors ${
+                                  isDark
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-500'
+                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                }`}
+                                title="Emitir Boleta / Factura / Nota de Venta"
+                              >
+                                <Receipt className="w-3.5 h-3.5" />
+                                <span>Emitir Comp.</span>
+                              </button>
                             </>
                           ) : (
                             <>
@@ -802,6 +925,20 @@ export default function AdministracionPedidosComercialesPage() {
                               >
                                 <Receipt className="w-3.5 h-3.5" />
                                 <span>Ver Boleta</span>
+                              </button>
+
+                              {/* Botón Emitir comprobante (R1) */}
+                              <button
+                                onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-colors ${
+                                  isDark
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-500'
+                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                }`}
+                                title="Emitir Boleta / Factura / Nota de Venta"
+                              >
+                                <Receipt className="w-3.5 h-3.5" />
+                                <span>Emitir Comp.</span>
                               </button>
                             </>
                           )}
@@ -820,46 +957,52 @@ export default function AdministracionPedidosComercialesPage() {
       {convertModalItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 font-sans animate-in fade-in duration-200">
           <div className={`w-full max-w-lg rounded-2xl p-6 border space-y-4 shadow-2xl ${cardBg}`}>
-            <div className="flex items-center gap-3 border-b pb-3 text-emerald-400">
+            <div className={`flex items-center gap-3 border-b pb-3 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
               <CheckCircle2 className="w-6 h-6" />
               <div>
-                <h3 className="text-sm font-bold text-slate-100">Aprobar Cotización y Convertir a Pedido de Planta</h3>
-                <p className="text-xs text-slate-400">El cliente ha aceptado la cotización. Se emitirá la Orden de Producción (OP).</p>
+                <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Aprobar Cotización y Convertir a Pedido de Planta</h3>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>El cliente ha aceptado la cotización. Se emitirá la Orden de Producción (OP).</p>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs font-mono">
+            <div className={`p-4 rounded-xl border space-y-2 text-xs font-mono ${
+              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
               <div className="flex justify-between">
-                <span className="text-slate-400">Cotización:</span>
-                <strong className="text-orange-400 font-bold">{convertModalItem.codigoOrden}</strong>
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Cotización:</span>
+                <strong className={`font-bold ${isDark ? 'text-orange-400' : 'text-orange-700'}`}>{convertModalItem.codigoOrden}</strong>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Cliente:</span>
-                <strong className="text-slate-200">{convertModalItem.cliente}</strong>
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Cliente:</span>
+                <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>{convertModalItem.cliente}</strong>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Producto:</span>
-                <strong className="text-slate-200">{convertModalItem.producto}</strong>
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Producto:</span>
+                <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>{convertModalItem.producto}</strong>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Cantidad:</span>
-                <strong className="text-teal-400 font-bold">{convertModalItem.cantidad} {convertModalItem.unidad}</strong>
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Cantidad:</span>
+                <strong className={`font-bold ${isDark ? 'text-teal-400' : 'text-teal-700'}`}>{convertModalItem.cantidad} {convertModalItem.unidad}</strong>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Monto Total:</span>
-                <strong className="text-emerald-400 font-black">S/ {convertModalItem.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Monto Total:</span>
+                <strong className={`font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>S/ {convertModalItem.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
               </div>
             </div>
 
-            <p className="text-xs text-slate-300">
+            <p className={`text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
               Al confirmar, se generará el código de Orden de Producción formal y la solicitud viajará de inmediato a la bandeja de Pedidos Entrantes en Planta.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <div className={`flex items-center justify-end gap-3 pt-3 border-t ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}>
               <button
                 type="button"
                 onClick={() => setConvertModalItem(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 text-xs font-bold hover:bg-slate-800"
+                className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors ${
+                  isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
               >
                 Cancelar
               </button>
@@ -867,7 +1010,7 @@ export default function AdministracionPedidosComercialesPage() {
                 type="button"
                 disabled={isConverting}
                 onClick={handleConfirmConvert}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
               >
                 <Send className="w-4 h-4" />
                 <span>{isConverting ? 'Procesando...' : 'Confirmar & Enviar a Planta'}</span>
@@ -884,6 +1027,100 @@ export default function AdministracionPedidosComercialesPage() {
           onClose={() => setIsPdfModalOpen(false)}
           data={selectedPdfData}
         />
+      )}
+
+      {/* ── MODAL EMITIR COMPROBANTE (R1) ── */}
+      {emitModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 font-sans animate-in fade-in duration-200">
+          <div className={`w-full max-w-md rounded-2xl p-6 border space-y-4 shadow-2xl ${cardBg}`}>
+            <div className={`flex items-center gap-3 border-b pb-3 ${isDark ? 'text-rose-400' : 'text-rose-700'}`}>
+              <Receipt className="w-6 h-6" />
+              <div>
+                <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Emitir Comprobante</h3>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Seleccione el tipo de comprobante a generar.</p>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-xl border space-y-1 text-xs font-mono ${
+              isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex justify-between">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Documento:</span>
+                <strong className={`font-bold ${isDark ? 'text-orange-400' : 'text-orange-700'}`}>{emitModalItem.codigoOrden}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Cliente:</span>
+                <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>{emitModalItem.cliente}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Monto Total:</span>
+                <strong className={`font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>S/ {emitModalItem.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className={`text-[11px] font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Tipo de comprobante</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(['BOLETA', 'FACTURA', 'NOTA_VENTA'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setEmitTipo(t)}
+                    className={`py-2 rounded-xl border text-xs font-bold transition-all ${
+                      emitTipo === t
+                        ? 'bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20'
+                        : isDark
+                        ? 'border-slate-700 text-slate-300 hover:bg-slate-800'
+                        : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {t === 'BOLETA' ? 'Boleta' : t === 'FACTURA' ? 'Factura' : 'Nota de Venta'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {emitError && (
+              <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
+              }`}>
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {emitError}
+              </div>
+            )}
+            {emitResult && (
+              <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                isDark ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              }`}>
+                <Check className="w-4 h-4 shrink-0" />
+                {emitResult}
+              </div>
+            )}
+
+            <div className={`flex items-center justify-end gap-3 pt-3 border-t ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}>
+              <button
+                type="button"
+                onClick={() => setEmitModalItem(null)}
+                className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors ${
+                  isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={emitLoading}
+                onClick={handleEmitirComprobante}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
+              >
+                <Receipt className="w-4 h-4" />
+                <span>{emitLoading ? 'Emitiendo...' : 'Emitir Comprobante'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

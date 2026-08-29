@@ -30,30 +30,6 @@ export async function getAuthToken(): Promise<string | null> {
     return token;
   }
 
-  const baseUrl = getApiBaseUrl();
-
-  // Auto-autenticar con credenciales oficiales de administración si no hay token activo
-  try {
-    const authRes = await fetch(`${baseUrl}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'administracion@grupoquimicorp.pe', password: 'adon$Qu1m1corp' }),
-    });
-
-    if (authRes.ok) {
-      const authData = await authRes.json();
-      if (authData.token) {
-        localStorage.setItem('quimicorp_jwt', authData.token);
-        if (authData.user) {
-          localStorage.setItem('quimicorp_user', JSON.stringify(authData.user));
-        }
-        return authData.token;
-      }
-    }
-  } catch (err) {
-    console.error('Error auto-autenticando en apiClient:', err);
-  }
-
   return token;
 }
 

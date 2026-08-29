@@ -71,6 +71,23 @@ export class PedidosAdminController {
     return this.pedidosAdminService.convertirCotizacionAPedido(id, dto);
   }
 
+  @Post(':id/emitir-comprobante')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL)
+  emitirComprobante(
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    return this.pedidosAdminService.emitirComprobante(id, dto);
+  }
+
+  @Get('comparativa-ciclo')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL)
+  comparativaCiclo(@Query('periodo') periodo?: string) {
+    return this.pedidosAdminService.comparativaCiclo(periodo);
+  }
+
   @Post('limpiar-datos')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)

@@ -1,0 +1,28 @@
+export const ROUTES = {
+  DASHBOARD: '/administracion/dashboard',
+  CLIENTES: '/administracion/clientes',
+  CLIENTE_DETAIL: (id: string) => `/administracion/clientes/${id}`,
+  PEDIDOS: '/administracion/pedidos',
+  PEDIDOS_HISTORIAL: '/administracion/pedidos/historial',
+  COTIZADOR: '/administracion/cotizador',
+  COBRANZAS: '/administracion/cobranzas',
+  ANALISIS: '/administracion/analisis',
+  ANALISIS_VENTAS: '/administracion/analisis-ventas',
+  PROVEEDORES: '/administracion/proveedores',
+  ORDENES: '/administracion/ordenes',
+  CONTROL_PRODUCCION: '/administracion/control',
+  FORMULAS: '/administracion/formulas',
+  DESPACHOS: '/administracion/despachos',
+  INCIDENCIAS: '/administracion/incidencias',
+  INVENTARIO_KARDEX: '/administracion/inventario-kardex',
+  ALERTAS: '/administracion/alertas',
+  ALERTAS_STOCK: '/administracion/alertas-stock',
+  ASISTENCIA: '/administracion/asistencia',
+  REPORTES: '/administracion/reportes',
+  COMPARADOR: '/administracion/comparador',
+  PRODUCCION_ETIQUETAS: '/produccion/etiquetas',
+  GERENCIA_SEGURIDAD: '/gerencia/seguridad',
+  LOGIN: '/login',
+} as const;
+
+export type AppRoute = typeof ROUTES[keyof typeof ROUTES];

@@ -320,9 +320,9 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
                         <div className="font-bold text-slate-900">{item.descripcion}</div>
                         <div className="text-[11px] text-slate-500 font-mono">
                           Código: <strong>{item.codigo || 'FM-0001'}</strong>
-                          {item.variante && ` · ${item.variante}`}
-                          {item.aroma && ` · Aroma: ${item.aroma}`}
-                          {item.color && ` · Color: ${item.color}`}
+                          {item.variante && ` • ${item.variante}`}
+                          {item.aroma && ` • Aroma: ${item.aroma}`}
+                          {item.color && ` • Color: ${item.color}`}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-center font-mono font-medium text-slate-800 border-r border-slate-200">

@@ -35,7 +35,7 @@ interface PedidoHistorialItem {
   fechaCreacion: string;
   fechaPrometida: string;
   prioridad: string;
-  estado: 'NUEVO' | 'APROBADO' | 'EN_PRODUCCION' | 'COMPLETADO' | 'DEVUELTO';
+  estado: 'NUEVO' | 'APROBADO' | 'EN_PRODUCCION' | 'COMPLETADO' | 'DEVUELTO' | 'ENTREGADO' | 'DESPACHADO';
   notasAdmin?: string;
   lineaTiempo: {
     etapa: string;
@@ -243,11 +243,11 @@ export default function HistorialPedidosPage() {
                         {p.codigoOrden}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase font-mono ${
-                        p.estado === 'COMPLETADO'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        p.estado === 'COMPLETADO' || p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO'
+                          ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
                           : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                       }`}>
-                        {p.estado}
+                        {p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO' || p.estado === 'COMPLETADO' ? 'ENTREGADO' : p.estado}
                       </span>
                     </div>
 
