@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { InventarioService } from './inventario.service';
 import { CrearInsumoDto } from './dto/crear-insumo.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -31,6 +31,24 @@ export class InventarioController {
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.ECOMMERCE_MARKETING, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES)
   listarFamilias() {
     return this.inventarioService.listarFamilias();
+  }
+
+  @Post('familias')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION)
+  crearFamilia(@Body('nombre') nombre: string) {
+    return this.inventarioService.crearFamilia(nombre);
+  }
+
+  @Patch('insumos/:id')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  actualizar(@Param('id', ParseUUIDPipe) id: string, @Body() dto: Partial<CrearInsumoDto> & { nombre?: string }) {
+    return this.inventarioService.actualizarInsumo(id, dto);
+  }
+
+  @Post('insumos/:id/eliminar')
+  @Roles(Role.GERENCIA)
+  eliminar(@Param('id', ParseUUIDPipe) id: string) {
+    return this.inventarioService.eliminarInsumo(id);
   }
 
   @Get('insumos/:id')

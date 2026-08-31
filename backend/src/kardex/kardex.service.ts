@@ -30,11 +30,21 @@ export class KardexService {
     return this.prisma.$transaction(
       async (tx) => {
         const insumoRows = await tx.$queryRaw<
-          { id: string; stockReal: Prisma.Decimal }[]
-        >`SELECT id, "stockReal" FROM insumos WHERE id = ${dto.insumoId}::uuid FOR UPDATE`;
+          { id: string; stockReal: Prisma.Decimal; unidadMedida: string }[]
+        >`SELECT id, "stockReal", "unidadMedida" FROM insumos WHERE id = ${dto.insumoId}::uuid FOR UPDATE`;
 
         if (!insumoRows.length) {
           throw new NotFoundException(`Insumo ${dto.insumoId} no encontrado.`);
+        }
+
+        if (dto.unidadMedida) {
+          const unidadInsumo = String((insumoRows[0] as any)?.unidadMedida || '').toUpperCase();
+          const unidadDto = String(dto.unidadMedida).toUpperCase();
+          if (unidadInsumo && unidadDto && unidadInsumo !== unidadDto) {
+            throw new BadRequestException(
+              `Unidad no permitida: el insumo se maneja en ${unidadInsumo}, no en ${unidadDto}. No se puede ingresar en LITROS y dar salida en KG.`,
+            );
+          }
         }
 
         const stockAnterior = new Prisma.Decimal(insumoRows[0].stockReal);

@@ -409,11 +409,17 @@ model Usuario {
   dni              String         @unique
   nombres          String
   apellidos        String
+  cargo            String?
   rolId            String
   rol              Rol            @relation(fields: [rolId], references: [id])
   passwordHash     String
   codigoBiometrico String?        @unique
   estado           EstadoGenerico @default(ACTIVO)
+
+  sucursalId String?  @map("sucursal_id")
+  sucursal   Sucursal? @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
+  turnoId    String?  @map("turno_id")
+  turno      Turno?   @relation(fields: [turnoId], references: [id], onDelete: SetNull)
 
   ordenesSupervisadas     OrdenProduccion[]      @relation("SupervisorOrdenes")
   ajustesFinosRegistrados AjusteFino[]           @relation("RegistroAjustesFinos")
@@ -431,6 +437,8 @@ model Usuario {
   updatedAt DateTime @updatedAt
 
   @@index([rolId])
+  @@index([sucursalId])
+  @@index([turnoId])
   @@map("usuarios")
 }
 
@@ -455,11 +463,72 @@ model Asistencia {
   minutosTardanza  Int              @default(0)
   estadoAsistencia EstadoAsistencia @default(PUNTUAL)
 
+  turnoId       String? @map("turno_id")
+  turno         Turno?  @relation(fields: [turnoId], references: [id], onDelete: SetNull)
+  horaEntrada   String? @map("hora_entrada") // HH:mm
+  horaSalida    String? @map("hora_salida")  // HH:mm
+  estadoAlmuerzo String @default("PENDIENTE") @map("estado_almuerzo") // PENDIENTE, EN_ALMUERZO, OBLIGADO_ALMORZAR, COMPLETO, EXCEDIDO
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([usuarioId, fecha])
+  @@index([fecha])
+  @@index([turnoId])
   @@map("asistencias")
+}
+
+model Sucursal {
+  id            String   @id @default(uuid())
+  nombre        String   @unique
+  direccion     String?
+  dispositivoId String?  @unique @map("dispositivo_id") // serial del huellero ZKTeco
+  ip            String?  @map("ip")                    // IP fija LAN del huellero
+  port          Int      @default(4370)
+
+  usuarios Usuario[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sucursales")
+}
+
+model Turno {
+  id               String   @id @default(uuid())
+  nombre           String   @unique
+  horaInicio       String   @map("hora_inicio")    // HH:mm
+  horaFin          String   @map("hora_fin")       // HH:mm
+  toleranciaMinutos Int     @default(15) @map("tolerancia_minutos")
+  almuerzoTope     String   @default("14:00") @map("almuerzo_tope") // HH:mm — pasada esta hora se obliga a comer
+
+  usuarios    Usuario[]
+  asistencias Asistencia[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("turnos")
+}
+
+// Marcaciones que llegan del huellero con un codigoBiometrico aún no vinculado a ningún Usuario.
+// Nunca se inventa un empleado: gerencia los asigna desde la cola.
+model MarcacionPendiente {
+  id               String   @id @default(uuid())
+  dispositivoId    String   @map("dispositivo_id")
+  codigoBiometrico String   @map("codigo_biometrico")
+  tipoMarcacion    String   @map("tipo_marcacion") // ENTRADA, SALIDA_ALMUERZO, RETORNO_ALMUERZO, SALIDA
+  timestamp        DateTime @default(now())
+  procesada        Boolean  @default(false)
+
+  vinculadoAId String? @map("vinculado_a_id") // Usuario.id cuando se vincula/manual
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([procesada])
+  @@index([dispositivoId, timestamp])
+  @@map("marcaciones_pendientes")
 }
 
 model VentanaAlmuerzoQA {
@@ -534,6 +603,7 @@ model ColaDespacho {
   codigoQR         String   @map("codigo_qr")
   codigoBarras     String   @map("codigo_barras")
   estado           String   @default("LISTO_PARA_IMPRIMIR")
+  numeroGuia       String?  @map("numero_guia")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

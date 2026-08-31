@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
+import { useSocket } from '@/lib/socketContext';
 import {
   Factory,
   Search,
@@ -48,6 +48,7 @@ interface ProgramacionResumen {
 
 export default function AdministracionControlProduccionPage() {
   const { theme } = useTheme();
+  const { socket } = useSocket();
   const isDark = theme === 'dark';
 
   const [selectedDate, setSelectedDate] = useState<string>(
@@ -123,28 +124,20 @@ export default function AdministracionControlProduccionPage() {
 
   useEffect(() => {
     fetchProgramacion();
-
-    // 📡 Conexión WebSockets en Tiempo Real
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001', {
-      transports: ['websocket', 'polling'],
-    });
-
-    socket.on('lote:estado_actualizado', () => {
-      fetchProgramacion();
-    });
-
-    socket.on('pedido:aprobado', () => {
-      fetchProgramacion();
-    });
-
-    socket.on('order:created_to_plant', () => {
-      fetchProgramacion();
-    });
-
-    return () => {
-      socket.disconnect();
-    };
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onRefresh = () => fetchProgramacion();
+    socket.on('lote:estado_actualizado', onRefresh);
+    socket.on('pedido:aprobado', onRefresh);
+    socket.on('order:created_to_plant', onRefresh);
+    return () => {
+      socket.off('lote:estado_actualizado', onRefresh);
+      socket.off('pedido:aprobado', onRefresh);
+      socket.off('order:created_to_plant', onRefresh);
+    };
+  }, [socket, selectedDate]);
 
   const ordenesFiltradas = ordenes.filter((o) => {
     const q = searchQuery.toLowerCase().trim();

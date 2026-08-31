@@ -14,6 +14,7 @@ export class InventarioService {
         nombre: dto.nombre,
         familiaId: dto.familiaId,
         unidadMedida: dto.unidadMedida,
+        tipo: (dto as any).tipo ?? 'OTRO',
         stockMinimo: dto.stockMinimo ?? 0,
         costoUnitario: dto.costoUnitario ?? 0,
       },
@@ -48,6 +49,34 @@ export class InventarioService {
 
   listarFamilias() {
     return this.prisma.familiaInsumo.findMany({ orderBy: { nombre: 'asc' } });
+  }
+
+  crearFamilia(nombre: string) {
+    const n = String(nombre || '').trim();
+    if (!n) throw new Error('Nombre de categoría requerido');
+    return this.prisma.familiaInsumo.create({ data: { nombre: n } });
+  }
+
+  actualizarInsumo(id: string, dto: any) {
+    const data: any = {};
+    if (dto.nombre !== undefined) data.nombre = String(dto.nombre).trim();
+    if (dto.codigo !== undefined) data.codigo = String(dto.codigo).trim();
+    if (dto.familiaId) data.familiaId = dto.familiaId;
+    if (dto.unidadMedida) data.unidadMedida = dto.unidadMedida;
+    if (dto.tipo) data.tipo = dto.tipo;
+    if (dto.stockMinimo !== undefined) data.stockMinimo = dto.stockMinimo;
+    if (dto.costoUnitario !== undefined) data.costoUnitario = dto.costoUnitario;
+    return this.prisma.insumo.update({ where: { id }, data, include: { familia: true } });
+  }
+
+  async eliminarInsumo(id: string) {
+    const usoFormula = await this.prisma.formulaDetalle.count({ where: { insumoId: id } });
+    const usoKardex = await this.prisma.kardexMovimiento.count({ where: { insumoId: id } });
+    if (usoFormula > 0 || usoKardex > 0) {
+      // No borrar físico si está vinculado — pasar a INACTIVO para no romper historial
+      return this.prisma.insumo.update({ where: { id }, data: { estado: 'INACTIVO' as any } });
+    }
+    return this.prisma.insumo.delete({ where: { id } });
   }
 
   obtenerPorId(id: string) {

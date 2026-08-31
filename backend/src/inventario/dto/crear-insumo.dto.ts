@@ -1,5 +1,5 @@
 import { IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
-import { UnidadMedida } from '@prisma/client';
+import { TipoInsumo, UnidadMedida } from '@prisma/client';
 
 export class CrearInsumoDto {
   @IsString()
@@ -13,6 +13,10 @@ export class CrearInsumoDto {
 
   @IsEnum(UnidadMedida)
   unidadMedida: UnidadMedida;
+
+  @IsOptional()
+  @IsEnum(TipoInsumo)
+  tipo?: TipoInsumo;
 
   @IsOptional()
   @IsNumber()

@@ -649,21 +649,30 @@ export default function KardexPage() {
                         )}
                       </td>
 
-                      {/* Tipo Operacin */}
+                      {/* Tipo Operación — tipificado por gerente: verde ENTRADA, naranja SALIDA CONSUMO, rojo MERMA */}
                       <td className="py-3.5 px-3 font-mono whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
-                            isStockInicial
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : esEntrada
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                              : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                          }`}
-                        >
-                          {isStockInicial
-                            ? 'ENTRADA COMPRA'
-                            : m.tipoOperacion.replace(/_/g, ' ')}
-                        </span>
+                        {(() => {
+                          const tipo = String(m.tipoOperacion || '');
+                          let cls = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                          let label = tipo.replace(/_/g, ' ');
+                          if (isStockInicial || tipo.includes('ENTRADA')) {
+                            cls = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                            label = tipo === 'ENTRADA_PRODUCCION' ? 'ENTRADA PRODUCCIÓN' : label;
+                          } else if (tipo.includes('SALIDA_CONSUMO')) {
+                            cls = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+                            label = 'SALIDA POR CONSUMO';
+                          } else if (tipo.includes('MERMA') || tipo.includes('DESCARTE')) {
+                            cls = 'bg-rose-600/20 text-rose-500 border-rose-600/40';
+                            label = 'MERMA / DESCARTE';
+                          } else if (tipo.includes('DEVOLU')) {
+                            cls = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
+                          }
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${cls}`}>
+                              {isStockInicial ? 'ENTRADA COMPRA' : label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Familia & Categora */}

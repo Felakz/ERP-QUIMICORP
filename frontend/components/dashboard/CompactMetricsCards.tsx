@@ -9,7 +9,7 @@ import {
   FileSpreadsheet,
   ArrowUpRight,
   ArrowDownRight,
-  ExternalLink,
+  ArrowRight,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { CompactMetric, CurrencyType } from '@/types/dashboard';
@@ -52,6 +52,21 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
     }
   };
 
+  const getActionLabel = (type: string) => {
+    switch (type) {
+      case 'AMOUNT_DUE':
+        return 'Ver Cuentas por Cobrar';
+      case 'CUSTOMERS':
+        return 'Ver Directorio Clientes';
+      case 'INVOICES':
+        return 'Ver Registro Invoices';
+      case 'ESTIMATES':
+        return 'Generar Cotización';
+      default:
+        return 'Ver Detalle';
+    }
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'AMOUNT_DUE':
@@ -75,6 +90,7 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
           ? formatCurrency(item.valuePenNeto, includeIgv, currency, exchangeRateUsd)
           : (item.valuePenNeto ?? 0).toLocaleString('es-PE');
         const targetRoute = getTargetRoute(item.type);
+        const actionLabel = getActionLabel(item.type);
 
         return (
           <div
@@ -83,24 +99,29 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
             className={`p-5 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all group ${cardBg}`}
             title={`Ir a ${item.title}`}
           >
-            <div className="flex items-center justify-between">
-              <div
-                className={`p-2.5 rounded-xl border ${
-                  isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                {getIcon(item.type)}
+            <div>
+              <div className="flex items-center justify-between">
+                <div
+                  className={`p-2.5 rounded-xl border ${
+                    isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  {getIcon(item.type)}
+                </div>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ArrowRight className="w-4 h-4 text-blue-400" />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <span className="text-xs font-bold text-slate-400 block">{item.title}</span>
+                <h3 className={`text-xl font-black mt-1 font-mono tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {displayValue}
+                </h3>
               </div>
             </div>
 
-            <div className="mt-3">
-              <span className="text-xs font-bold text-slate-400 block">{item.title}</span>
-              <h3 className={`text-lg font-black mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {displayValue}
-              </h3>
-            </div>
-
-            <div className="mt-3 pt-2 border-t border-slate-800/10 flex items-center gap-1 text-[11px] font-bold">
+            <div className="mt-4 pt-2.5 border-t border-slate-800/40 flex items-center justify-between text-[11px] font-bold">
               <span
                 className={`flex items-center gap-0.5 ${
                   item.isPositive ? 'text-emerald-500' : 'text-rose-500'
@@ -113,8 +134,12 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
                 )}
                 {item.isPositive ? '+' : ''}
                 {item.changePercent.toFixed(1)}%
+                <span className="text-slate-500 font-normal ml-0.5">vs mes ant.</span>
               </span>
-              <span className="text-slate-500 font-medium">vs mes anterior</span>
+
+              <span className="text-[10px] text-blue-400/80 group-hover:text-blue-400 font-semibold hidden xl:inline-block">
+                {actionLabel}
+              </span>
             </div>
           </div>
         );

@@ -311,14 +311,18 @@ export class ProduccionService {
           data: { stockReal: nuevoSaldo },
         });
 
-        const esMateriaPrima = detalle.insumo.familia?.nombre.toLowerCase().includes('ácido') ||
-                               detalle.insumo.familia?.nombre.toLowerCase().includes('solvente');
+        // Categorización por tipo real del insumo (provenance), no por nombre de familia
+        const fam = detalle.insumo.familia?.nombre?.toLowerCase() || '';
+        const tipo = detalle.insumo.tipo as string;
+        let categoriaKardex: CategoriaKardex = CategoriaKardex.INSUMO;
+        if (tipo === 'BASE') categoriaKardex = CategoriaKardex.MATERIA_PRIMA;
+        else if (tipo === 'ENVASE') categoriaKardex = CategoriaKardex.ENVASE;
+        else if (tipo === 'OTRO' && (fam.includes('embalaje') || fam.includes('caja') || fam.includes('etiqueta') || fam.includes('embal'))) categoriaKardex = CategoriaKardex.EMBALAJE;
+        else if (tipo === 'FRAGANCIA' || tipo === 'PIGMENTO') categoriaKardex = CategoriaKardex.INSUMO;
 
         await tx.kardexMovimiento.create({
           data: {
-            categoriaKardex: esMateriaPrima
-              ? CategoriaKardex.MATERIA_PRIMA
-              : CategoriaKardex.INSUMO,
+            categoriaKardex,
             productoNombre: detalle.insumo.nombre,
             familia: detalle.insumo.familia?.nombre || 'General',
             categoriaNombre: detalle.insumo.familia?.nombre || 'Químicos Base',
@@ -394,7 +398,7 @@ export class ProduccionService {
     });
   }
 
-  async despacharEtiqueta(colaId: string) {
+  async despacharEtiqueta(colaId: string, numeroGuia?: string) {
     if (!colaId) {
       throw new BadRequestException('Se requiere colaId para registrar el despacho.');
     }
@@ -406,7 +410,10 @@ export class ProduccionService {
 
     const colaActualizada = await (this.prisma as any).colaDespacho.update({
       where: { id: colaId },
-      data: { estado: 'DESPACHADO' },
+      data: {
+        estado: 'DESPACHADO',
+        numeroGuia: numeroGuia?.trim() ? numeroGuia.trim() : null,
+      },
     });
 
     // Marcar la Orden de Producción asociada como DESPACHADA (vínculo por código de lote).
@@ -519,7 +526,10 @@ export class ProduccionService {
 
     return this.prisma.ordenProduccion.findMany({
       where: whereCondition,
-      include: { formula: true, supervisor: { select: { nombres: true, apellidos: true } } },
+      include: {
+        formula: { include: { detalles: { include: { insumo: { include: { familia: true } } } } } },
+        supervisor: { select: { nombres: true, apellidos: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -535,7 +545,7 @@ export class ProduccionService {
         },
       },
       include: {
-        formula: true,
+        formula: { include: { detalles: { include: { insumo: { include: { familia: true } } } } } },
         supervisor: { select: { nombres: true, apellidos: true } },
       },
       orderBy: { createdAt: 'desc' },

@@ -27,11 +27,12 @@ import {
   Play,
   Sparkles,
 } from 'lucide-react';
-import { io } from 'socket.io-client';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { DateNavigatorToolbar } from '@/components/produccion/DateNavigatorToolbar';
+import { apiFetch } from '@/lib/apiClient';
+import { useSocket } from '@/lib/socketContext';
 
 export interface InsumoValidacion {
   codigo: string;
@@ -82,6 +83,7 @@ export interface PedidoComercialUI {
 
 export default function ProduccionPedidosRecepcionPage() {
   const { theme } = useTheme();
+  const { socket } = useSocket();
   const isDark = theme === 'dark';
   const router = useRouter();
 
@@ -135,43 +137,18 @@ export default function ProduccionPedidosRecepcionPage() {
     try {
       setLoading(true);
       const fechaQuery = fechaParam || fechaFiltro;
-      let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      if (!savedToken || savedToken.startsWith('jwt_mock')) {
-        try {
-          const authRes = await fetch('http://localhost:3001/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'produccion@quimicorp.pe', password: 'Quimicorp2026!' }),
-          });
-          if (authRes.ok) {
-            const authData = await authRes.json();
-            savedToken = authData.token;
-            localStorage.setItem('quimicorp_jwt', authData.token);
-          }
-        } catch {}
-      }
-
-      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
-
-      const [resKpis, resList] = await Promise.all([
-        fetch(`http://localhost:3001/api/v1/pedidos-admin/kpis?fecha=${fechaQuery}`, { headers: authHeader }).catch(() => null),
-        fetch(`http://localhost:3001/api/v1/pedidos-admin?docType=OP&fecha=${fechaQuery}`, { headers: authHeader }).catch(() => null),
+      const [kpisRes, listRes] = await Promise.all([
+        apiFetch<any>(`/pedidos-admin/kpis?fecha=${fechaQuery}`),
+        apiFetch<any[]>(`/pedidos-admin?docType=OP&fecha=${fechaQuery}`),
       ]);
-
-      if (resKpis && resKpis.ok) {
-        const kpiData = await resKpis.json();
-        setKpis(kpiData);
-      }
-
-      if (resList && resList.ok) {
-        const listData = await resList.json();
-        if (Array.isArray(listData) && listData.length > 0) {
-          // Filtrar estrictamente solo pedidos OP (no cotizaciones)
-          const soloOps = listData.filter((p: any) => p.docType !== 'COT' && !p.codigoOrden?.startsWith('COT') && p.estado !== 'COTIZACION_EMITIDA');
-          setPedidos(soloOps);
-        } else {
-          setPedidos([]);
-        }
+      if (kpisRes.ok && kpisRes.data) setKpis(kpisRes.data);
+      if (listRes.ok && Array.isArray(listRes.data)) {
+        const soloOps = (listRes.data as any[]).filter(
+          (p: any) => p.docType !== 'COT' && !p.codigoOrden?.startsWith('COT') && p.estado !== 'COTIZACION_EMITIDA'
+        );
+        setPedidos(soloOps);
+      } else if (listRes.ok) {
+        setPedidos([]);
       }
     } catch (e) {
       console.error(e);
@@ -182,120 +159,55 @@ export default function ProduccionPedidosRecepcionPage() {
 
   useEffect(() => {
     cargarPedidos(fechaFiltro);
-
-    let socket: any = null;
-    try {
-      socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
-      socket.on('order:created_to_plant', (nuevoPedido: any) => {
-        if (nuevoPedido && nuevoPedido.docType !== 'COT' && !nuevoPedido.codigoOrden?.startsWith('COT')) {
-          setToastMsg({ tipo: 'success', texto: `Nuevo Pedido Comercial #${nuevoPedido.codigoOrden || ''} recibido en Planta!` });
-        }
-        cargarPedidos(fechaFiltro);
-      });
-
-      socket.on('order:status_updated', () => cargarPedidos(fechaFiltro));
-      socket.on('order:accepted_by_plant', () => cargarPedidos(fechaFiltro));
-      socket.on('order:devolucion', () => cargarPedidos(fechaFiltro));
-    } catch {}
-
-    return () => {
-      if (socket) socket.disconnect();
-    };
   }, [fechaFiltro]);
+
+  // Sincronización en tiempo real vía SocketProvider centralizado
+  useEffect(() => {
+    if (!socket) return;
+    const onCreated = (nuevoPedido: any) => {
+      if (nuevoPedido && nuevoPedido.docType !== 'COT' && !nuevoPedido.codigoOrden?.startsWith('COT')) {
+        setToastMsg({ tipo: 'success', texto: `Nuevo Pedido Comercial #${nuevoPedido.codigoOrden || ''} recibido en Planta!` });
+      }
+      cargarPedidos(fechaFiltro);
+    };
+    const onRefresh = () => cargarPedidos(fechaFiltro);
+    socket.on('order:created_to_plant', onCreated);
+    socket.on('order:status_updated', onRefresh);
+    socket.on('order:accepted_by_plant', onRefresh);
+    socket.on('order:devolucion', onRefresh);
+    return () => {
+      socket.off('order:created_to_plant', onCreated);
+      socket.off('order:status_updated', onRefresh);
+      socket.off('order:accepted_by_plant', onRefresh);
+      socket.off('order:devolucion', onRefresh);
+    };
+  }, [socket, fechaFiltro]);
 
   const handleAprobarLote = async (pedido: PedidoComercialUI) => {
     try {
       setActionLoading(true);
-    let currentUserId: string | null = null;
-      let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      if (!savedToken || savedToken.startsWith('jwt_mock')) {
-        try {
-          const authRes = await fetch('http://localhost:3001/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'produccion@quimicorp.pe', password: 'Quimicorp2026!' }),
-          });
-          if (authRes.ok) {
-            const authData = await authRes.json();
-            savedToken = authData.token;
-            localStorage.setItem('quimicorp_jwt', authData.token);
-          }
-        } catch {}
+      const me = await apiFetch<any>('/auth/me');
+      const currentUserId: string | null = (me.data?.user?.id as string) || (me.data?.id as string) || null;
+
+      const aprobar = await apiFetch(`/pedidos-admin/${pedido.id}/aprobar`, { method: 'POST' });
+      if (!aprobar.ok) throw new Error(aprobar.error || 'No se pudo aprobar el pedido');
+
+      // Persistir la Orden de Producción REAL en el backend (pedido -> lote) — BD es la fuente de verdad
+      if (pedido.formulaId) {
+        await apiFetch('/produccion/ordenes', {
+          method: 'POST',
+          body: JSON.stringify({
+            formulaId: pedido.formulaId,
+            cantidadPlanificada: Number(pedido.cantidadSolicitada) || 100,
+            supervisorId: currentUserId || pedido.id,
+            clienteNombre: pedido.clienteNombre,
+          }),
+        });
       }
-
-      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
-
-      if (!currentUserId && savedToken) {
-        try {
-          const meRes = await fetch('http://localhost:3001/api/v1/auth/me', { headers: authHeader });
-          if (meRes.ok) {
-            const meData = await meRes.json();
-            currentUserId = (meData?.user?.id) || (meData?.id) || null;
-          }
-        } catch {}
-      }
-
-      const res = await fetch(`http://localhost:3001/api/v1/pedidos-admin/${pedido.id}/aprobar`, {
-        method: 'POST',
-        headers: authHeader,
-      });
-
-      // Crear el registro de Lote en localStorage para sincronizacin reactiva inmediata en /produccion/qa
-      try {
-        // Persistir la Orden de Producción REAL en el backend (pedido -> lote)
-        let ordenRealId = pedido.id;
-        let codigoLoteReal = `LOT-2024-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`;
-
-        if (pedido.formulaId) {
-          try {
-            const resOrd = await fetch('http://localhost:3001/api/v1/produccion/ordenes', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...authHeader },
-              body: JSON.stringify({
-                formulaId: pedido.formulaId,
-                cantidadPlanificada: Number(pedido.cantidadSolicitada) || 100,
-                supervisorId: currentUserId || pedido.id,
-                clienteNombre: pedido.clienteNombre,
-              }),
-            });
-            if (resOrd.ok) {
-              const ord = await resOrd.json();
-              ordenRealId = ord.id;
-              codigoLoteReal = ord.codigoLote;
-            }
-          } catch {}
-        }
-        const nuevoLoteQA = {
-          id: ordenRealId,
-          codigoQA: `QA-${codigoLoteReal.replace(/\D/g, '') || '0841'}`,
-          nombreProducto: pedido.productoNombre,
-          codigoLoteReal,
-          clienteNombre: pedido.clienteNombre,
-          rendimiento: `${Number(pedido.cantidadSolicitada).toLocaleString()} ${pedido.unidadMedida || 'KG'}`,
-          mermaPercentage: '0.8%',
-          operarios: [],
-          fechaEnvio: 'Hoy, ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-          pasoProceso: 'PENDIENTE_ASIGNACION',
-          estado: 'PENDIENTE',
-          observacionesQA: 'Lote aprobado desde Recepcin de Planta. Listo para asignación manual de operarios y pesaje en reactores.',
-          formula: [
-            { sku: 'INS-001', componente: 'Agua Desionizada', porcentaje: 60.5, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.605 },
-            { sku: 'INS-002', componente: 'LESS 70% (Lauril ter)', porcentaje: 15.0, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.15 },
-            { sku: 'INS-003', componente: 'Dietanolamida de Coco', porcentaje: 5.0, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.05 },
-            { sku: 'INS-004', componente: 'cido Ctrico Anhidro', porcentaje: 0.5, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.005 },
-            { sku: 'INS-005', componente: 'Fragancia Concentrada', porcentaje: 1.0, pesoTeorico: Number(pedido.cantidadSolicitada) * 0.01 },
-          ],
-        };
-
-        const lotesPrevios = JSON.parse(localStorage.getItem('quimicorp_produccion_lotes_custom') || '[]');
-        const lotesActualizados = [nuevoLoteQA, ...lotesPrevios.filter((l: any) => l.codigoLote !== codigoLoteReal)];
-        localStorage.setItem('quimicorp_produccion_lotes_custom', JSON.stringify(lotesActualizados));
-        localStorage.setItem('quimicorp_sync_event', JSON.stringify({ action: 'order_approved', id: ordenRealId, time: Date.now() }));
-      } catch {}
 
       setToastMsg({
         tipo: 'success',
-        texto: `?? Lote ${pedido.codigoOrden} aprobado con xito. Transfiriendo a Control de Producción & Reactores...`,
+        texto: `✅ Lote ${pedido.codigoOrden} aprobado con éxito. Transfiriendo a Control de Producción & Reactores...`,
       });
 
       setPedidos((prev) =>
@@ -305,11 +217,8 @@ export default function ProduccionPedidosRecepcionPage() {
       setTimeout(() => {
         router.push('/produccion/qa');
       }, 1200);
-    } catch (e) {
-      setToastMsg({ tipo: 'success', texto: `Lote ${pedido.codigoOrden} programado en reactor.` });
-      setTimeout(() => {
-        router.push('/produccion/qa');
-      }, 1200);
+    } catch (e: any) {
+      setToastMsg({ tipo: 'error', texto: e.message || `No se pudo aprobar ${pedido.codigoOrden}` });
     } finally {
       setActionLoading(false);
     }
@@ -317,7 +226,7 @@ export default function ProduccionPedidosRecepcionPage() {
 
   const pedidosFiltrados = useMemo(() => {
     return pedidos.filter((p) => {
-      // Excluir cualquier cotizacin
+      // Excluir cualquier cotización
       if ((p as any).docType === 'COT' || (p.codigoOrden && p.codigoOrden.startsWith('COT')) || (p.estado as string) === 'COTIZACION_EMITIDA') {
         return false;
       }
@@ -352,7 +261,7 @@ export default function ProduccionPedidosRecepcionPage() {
               : 'bg-rose-500/20 border-rose-500/40 text-rose-300'
           }`}
         >
-          <span>{toastMsg.tipo === 'success' ? '?' : '??'}</span>
+          <span>{toastMsg.tipo === 'success' ? '✅' : '⚠️'}</span>
           <span>{toastMsg.texto}</span>
           <button onClick={() => setToastMsg(null)} className="ml-2 text-slate-400 hover:text-white">
             <X className="w-4 h-4" />
@@ -360,12 +269,12 @@ export default function ProduccionPedidosRecepcionPage() {
         </div>
       )}
 
-      {/* Header Superior: Pedidos Entrantes / Recepcin de Planta */}
+      {/* Header Superior: Pedidos Entrantes / Recepción de Planta */}
       <div className={`rounded-2xl p-5 border flex flex-wrap items-center justify-between gap-4 transition-all shadow-sm ${cardBg}`}>
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className={`text-lg font-black font-sans tracking-tight ${textValue}`}>
-              Pedidos Entrantes / Recepcin de Planta
+              Pedidos Entrantes / Recepción de Planta
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-wider font-mono bg-[#00F2C3]/10 border border-[#00F2C3]/30 text-[#00F2C3] uppercase flex items-center gap-1.5">
               <Zap className="w-3 h-3 animate-pulse" />
@@ -715,7 +624,7 @@ export default function ProduccionPedidosRecepcionPage() {
                           <span className={`px-2 py-0.5 rounded-md border font-bold inline-flex items-center gap-1 ${
                             isDark ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' : 'bg-amber-50 text-amber-900 border-amber-300'
                           }`}>
-                            <span>??</span>
+                            <span>🌸</span>
                             {p.aroma || (p as any).aromaText || 'SIN FRAGANCIA'}
                           </span>
                         </div>

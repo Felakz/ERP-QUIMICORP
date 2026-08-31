@@ -28,3 +28,35 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* Reglas de Impresión Aislada para Etiquetas Industriales (10x15cm) */
+@media print {
+  @page {
+    size: 100mm 150mm;
+    margin: 0;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ocultar barra lateral, cabeceras, botones y paneles de navegación */
+  aside,
+  header,
+  nav,
+  button,
+  .no-print,
+  #sidebar {
+    display: none !important;
+  }
+
+  /* Forzar colores exactos de fondo y texto */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

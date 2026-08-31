@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
+import { useSocket } from '@/lib/socketContext';
 import { CommercialOrderForm } from '@/components/pedidos/CommercialOrderForm';
 import { CotizacionPDF, CotizacionData } from '@/components/pdf/CotizacionPDF';
 import { apiFetch } from '@/lib/apiClient';
@@ -67,6 +68,7 @@ interface PedidoEmitido {
 export default function AdministracionPedidosComercialesPage() {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { socket } = useSocket();
   const isDark = theme === 'dark';
   const canApprove = isGerenteUser(user?.role);
 
@@ -184,72 +186,46 @@ export default function AdministracionPedidosComercialesPage() {
     cargarPedidos();
   }, [selectedDate]);
 
-
   useEffect(() => {
-    cargarPedidos();
-
-    let socket: any = null;
-    try {
-      const { io } = require('socket.io-client');
-      socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
-
-      socket.on('order:created_to_plant', () => {
-        cargarPedidos();
-      });
-
-      socket.on('order:status_updated', (payload: any) => {
-        if (payload && (payload.ordenId || payload.codigoOrden)) {
-          setPedidos((prev) =>
-            prev.map((p) =>
-              p.id === payload.ordenId || p.codigoOrden === payload.codigoOrden
-                ? { ...p, estado: payload.estado || 'APROBADO' }
-                : p
-            )
-          );
-        }
-        cargarPedidos();
-      });
-
-      socket.on('order:accepted_by_plant', (payload: any) => {
-        if (payload && (payload.ordenId || payload.codigoOrden)) {
-          setPedidos((prev) =>
-            prev.map((p) =>
-              p.id === payload.ordenId || p.codigoOrden === payload.codigoOrden
-                ? { ...p, estado: payload.estado || 'APROBADO' }
-                : p
-            )
-          );
-        }
-        cargarPedidos();
-      });
-
-      socket.on('lote:estado_actualizado', (payload: any) => {
-        if (payload && (payload.ordenId || payload.codigoLote)) {
-          setPedidos((prev) =>
-            prev.map((p) =>
-              p.id === payload.ordenId || payload.codigoLote.includes(p.codigoOrden.replace(/\D/g, ''))
-                ? { ...p, estado: (payload.nuevoEstado || 'APROBADO') as any }
-                : p
-            )
-          );
-        }
-        cargarPedidos();
-      });
-
-      socket.on('order:devolucion', () => cargarPedidos());
-    } catch {}
-
-    const handleStorageSync = () => cargarPedidos();
-    window.addEventListener('storage', handleStorageSync);
-
-    const interval = setInterval(cargarPedidos, 3000);
-
-    return () => {
-      if (socket) socket.disconnect();
-      window.removeEventListener('storage', handleStorageSync);
-      clearInterval(interval);
+    if (!socket) return;
+    const onCreated = () => cargarPedidos();
+    const onStatus = (payload: any) => {
+      if (payload && (payload.ordenId || payload.codigoOrden)) {
+        setPedidos((prev) =>
+          prev.map((p) =>
+            p.id === payload.ordenId || p.codigoOrden === payload.codigoOrden
+              ? { ...p, estado: payload.estado || 'APROBADO' }
+              : p
+          )
+        );
+      }
+      cargarPedidos();
     };
-  }, []);
+    const onLote = (payload: any) => {
+      if (payload && (payload.ordenId || payload.codigoLote)) {
+        setPedidos((prev) =>
+          prev.map((p) =>
+            p.id === payload.ordenId || payload.codigoLote.includes(p.codigoOrden.replace(/\D/g, ''))
+              ? { ...p, estado: (payload.nuevoEstado || 'APROBADO') as any }
+              : p
+          )
+        );
+      }
+      cargarPedidos();
+    };
+    socket.on('order:created_to_plant', onCreated);
+    socket.on('order:status_updated', onStatus);
+    socket.on('order:accepted_by_plant', onStatus);
+    socket.on('lote:estado_actualizado', onLote);
+    socket.on('order:devolucion', onCreated);
+    return () => {
+      socket.off('order:created_to_plant', onCreated);
+      socket.off('order:status_updated', onStatus);
+      socket.off('order:accepted_by_plant', onStatus);
+      socket.off('lote:estado_actualizado', onLote);
+      socket.off('order:devolucion', onCreated);
+    };
+  }, [socket]);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const inputBg = isDark

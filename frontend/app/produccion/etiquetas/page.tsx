@@ -29,8 +29,11 @@ import {
   X,
   Sliders,
   Calendar,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
 import { ModalFichaTecnicaInsumos, FichaTecnicaData } from '@/components/produccion/ModalFichaTecnicaInsumos';
 
 export interface PedidoEtiquetaItem {
@@ -38,6 +41,8 @@ export interface PedidoEtiquetaItem {
   idPedido: string;
   numeroPedido: string;
   codigoLote: string;
+  colaId?: string;
+  numeroGuia?: string;
   nombreProducto: string;
   clienteNombre: string;
   clienteRuc: string;
@@ -209,16 +214,101 @@ export default function EtiquetasDespachoPage() {
   // Estados de Despacho
   const [destino, setDestino] = useState<string>('Almacén Central Despachos');
   const [responsable, setResponsable] = useState<string>('Carlos Quispe');
+  const [numeroGuia, setNumeroGuia] = useState<string>('');
+  const [despachando, setDespachando] = useState<boolean>(false);
+  const [backendConectado, setBackendConectado] = useState<boolean>(false);
+
+  // Cargar la cola de despacho REAL desde el backend y fusionarla con la vista
+  useEffect(() => {
+    let activo = true;
+    const cargarCola = async () => {
+      try {
+        const { data, ok } = await apiFetch<any>('/produccion/etiquetas/cola');
+        if (activo && ok && Array.isArray(data) && data.length > 0) {
+          setBackendConectado(true);
+          const reales: PedidoEtiquetaItem[] = data
+            .filter((c: any) => c && (c.loteCodigo || c.id) && (c.estado === 'LISTO_PARA_IMPRIMIR' || !c.estado))
+            .map((c: any) => {
+              const cantidadStr = c.cantidad ? String(c.cantidad) : '';
+              const kilosMatch = cantidadStr.match(/([\d.,]+)/);
+              const valor = kilosMatch ? parseFloat(kilosMatch[1].replace(',', '.')) : 20;
+              // KG/L: el peso real viene de balanza (ajuste manual), no por densidad
+              const contenido = valor;
+              return {
+                id: `cola-${c.id}`,
+                colaId: c.id,
+                idPedido: (c.loteCodigo || c.id || 'PED').replace(/[^A-Za-z0-9-]/g, '').slice(0, 14) || 'PED-REAL',
+                numeroPedido: (c.loteCodigo || c.id || 'ORD').replace(/[^0-9]/g, '').slice(-6) || '000001',
+                codigoLote: c.loteCodigo || c.id,
+                numeroGuia: c.numeroGuia || '',
+                nombreProducto: c.productoNombre || 'PRODUCTO QUIMICORP',
+                clienteNombre: c.clienteNombre || 'CLIENTE',
+                clienteRuc: '',
+                cantidadKilosDisplay: cantidadStr || '— ',
+                contenidoNetoKg: contenido,
+                unidadesPedidas: kilosMatch ? Math.max(1, parseInt(kilosMatch[1], 10)) : 1,
+                sku: 'QRM-REAL-001',
+                fechaFab: new Date(c.fechaFabricacion || c.createdAt).toISOString().split('T')[0],
+                fechaVenc: '',
+                codigoBarras: c.codigoBarras || '',
+                ruc: '20612434124',
+                advertenciaGHS: 'Manipular con equipo de protección.',
+                codigoGHS: 'GHS07',
+                tipoPeligro: 'ATENCIÓN (GHS07)',
+                aprobadoQA: true,
+                estadoImpresion: c.estado || 'LISTO_PARA_IMPRIMIR',
+                tipoEnvase: 'Bidón PEAD 5 Galones',
+                taraGramos: 650,
+                phMedido: 6.5,
+                phRango: '6.0 - 7.0',
+                viscosidadMedida: '—',
+                densidadMedida: '—',
+                aspecto: 'Según especificación del lote',
+                color: 'Según producto',
+                olor: 'Característico',
+                insumos: [],
+              };
+            });
+
+          setPedidosCola((prev) => {
+            const mapa = new Map<string, PedidoEtiquetaItem>();
+            prev.forEach((p) => mapa.set(p.codigoLote.trim().toLowerCase(), p));
+            reales.forEach((r) => {
+              const key = r.codigoLote.trim().toLowerCase();
+              const existente = mapa.get(key);
+              if (existente) {
+                mapa.set(key, { ...r, ...existente, colaId: r.colaId || existente.colaId, numeroGuia: existente.numeroGuia || r.numeroGuia });
+              } else {
+                mapa.set(key, r);
+              }
+            });
+            return Array.from(mapa.values());
+          });
+        }
+      } catch {
+        // Sin backend de cola: se mantienen los pedidos de ejemplo
+      }
+    };
+    cargarCola();
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   // Pedido Actual
   const pedidoActivo = useMemo(() => {
     return pedidosCola.find((p) => p.id === selectedPedidoId) || pedidosCola[0];
   }, [pedidosCola, selectedPedidoId]);
 
-  // Cálculos Metrológicos Dinámicos por Pedido
+  // Cálculos Metrológicos Dinámicos por Pedido — KG/L validado (peso real de balanza)
   const taraKg = (pedidoActivo?.taraGramos ?? 985) / 1000;
   const contenidoNeto = pedidoActivo?.contenidoNetoKg ?? 19.014;
   const pesoBrutoTotalKg = contenidoNeto + taraKg;
+  const cantidadDisplay = pedidoActivo?.cantidadKilosDisplay || '';
+  const esLitros = /LITRO/i.test(cantidadDisplay);
+  const litrosMatch = cantidadDisplay.match(/([\d.,]+)/);
+  const litrosValor = esLitros && litrosMatch ? parseFloat(litrosMatch[1].replace(',', '.')) : null;
+  const netoMl = litrosValor !== null ? Math.round(litrosValor * 1000) : null;
 
   // Generador de QR Real 100% Escaneable
   useEffect(() => {
@@ -267,22 +357,199 @@ export default function EtiquetasDespachoPage() {
   };
 
   const handleImprimir = () => {
-    window.print();
+    const etiquetaElement = document.getElementById('etiqueta-hightech-industrial');
+    if (!etiquetaElement) {
+      window.print();
+      return;
+    }
+
+    // Crear iframe invisible para impresión limpia y aislada de solo la etiqueta
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    const etiquetaHtml = etiquetaElement.outerHTML;
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Etiqueta - ${pedidoActivo.codigoLote} - ${pedidoActivo.nombreProducto}</title>
+          <meta charset="utf-8" />
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @page {
+              size: 100mm 150mm;
+              margin: 0;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              box-sizing: border-box;
+            }
+            body {
+              margin: 0;
+              padding: 6mm;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              background: #ffffff;
+              min-height: 100vh;
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            }
+            #etiqueta-hightech-industrial {
+              width: 100% !important;
+              max-width: 96mm !important;
+              margin: 0 auto !important;
+              box-shadow: none !important;
+              border: 1.5px solid #1A2232 !important;
+              background: #090C10 !important;
+              color: #f8fafc !important;
+              page-break-inside: avoid;
+              border-radius: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          ${etiquetaHtml}
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.focus();
+                window.print();
+                setTimeout(function() {
+                  window.frameElement.remove();
+                }, 500);
+              }, 300);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    doc.close();
   };
 
-  const handleConfirmarDespacho = () => {
-    alert(
-      `✅ ¡DESPACHO REGISTRADO CON ÉXITO!\n\n` +
-      `• Pedido: ${pedidoActivo.idPedido} (${pedidoActivo.numeroPedido})\n` +
-      `• Cliente: ${pedidoActivo.clienteNombre}\n` +
-      `• Producto: ${pedidoActivo.nombreProducto}\n` +
-      `• Lote: ${pedidoActivo.codigoLote}\n` +
-      `• Bultos: ${pedidoActivo.unidadesPedidas} (${pedidoActivo.cantidadKilosDisplay})\n` +
-      `• Peso Neto Total: ${(contenidoNeto * pedidoActivo.unidadesPedidas).toFixed(3)} kg\n` +
-      `• Peso Bruto Total: ${(pesoBrutoTotalKg * pedidoActivo.unidadesPedidas).toFixed(3)} kg\n` +
-      `• Destino: ${destino}\n` +
-      `• Responsable: ${responsable}`
-    );
+  // Sincronizar el número de guía con el pedido activo seleccionado
+  useEffect(() => {
+    const g = pedidoActivo?.numeroGuia || '';
+    setNumeroGuia(g);
+  }, [pedidoActivo?.id]);
+  const guardarGuiaLocal = (valor: string) => {
+    setNumeroGuia(valor);
+    handleUpdatePedidoField('numeroGuia', valor);
+  };
+
+  // Generador ZPL real para impresora Zebra ZT411 (4 x 6 pulgadas) — KG/L validado
+  const generarZPL = () => {
+    const p = pedidoActivo;
+    const netoTotal = (contenidoNeto * p.unidadesPedidas).toFixed(3);
+    const brutoTotal = (pesoBrutoTotalKg * p.unidadesPedidas).toFixed(3);
+    const tara = (p.taraGramos / 1000).toFixed(3);
+    const guia = numeroGuia || p.numeroGuia || 'S/N';
+    const cantDisplay = p.cantidadKilosDisplay || `${netoTotal} KG`;
+    const esLitrosZpl = /LITRO/i.test(cantDisplay);
+    const src: string[] = [];
+    src.push(`^XA`);
+    src.push(`^CI28`);
+    src.push(`^PW812^LL1218^LS0`);
+    src.push(`^FO40,40^GB732,6^FS`);
+    src.push(`^FO40,56^A0N,34,34^FDQUIMICORP PERU S.A.C.^FS`);
+    src.push(`^FO40,96^A0N,24,24^FDRUC 20612434124  /  GUIA: ${guia}^FS`);
+    src.push(`^FO40,136^A0N,28,28^FDPRODUCTO: ${p.nombreProducto}^FS`);
+    src.push(`^FO40,176^A0N,24,24^FDCLIENTE: ${p.clienteNombre}^FS`);
+    src.push(`^FO40,212^A0N,24,24^FDLOTE: ${p.codigoLote}  /  PEDIDO: ${p.idPedido}^FS`);
+    src.push(`^FO40,248^A0N,24,24^FDF. FAB: ${p.fechaFab}  F. VENC: ${p.fechaVenc || '-'}^FS`);
+    src.push(`^FO40,284^GB732,2^FS`);
+    // KG/L: si es litros, ZPL muestra ambos (ej. 14.555 kg = 16.000ml)
+    if (esLitrosZpl && netoMl !== null) {
+      src.push(`^FO40,300^A0N,26,26^FDCONTENIDO NETO: ${netoTotal} KG = (${(netoMl * p.unidadesPedidas).toLocaleString()}ml)^FS`);
+    } else {
+      src.push(`^FO40,300^A0N,26,26^FDCONTENIDO NETO: ${netoTotal} KG^FS`);
+    }
+    src.push(`^FO40,336^A0N,26,26^FDPESO BRUTO TOTAL: ${brutoTotal} KG  (TARA ${tara} KG)^FS`);
+    src.push(`^FO40,376^A0N,22,22^FDCANT.: ${cantDisplay}  /  BULTOS: ${p.unidadesPedidas}  /  RESPONSABLE: ${responsable}^FS`);
+    src.push(`^FO40,420^A0N,20,20^FD${(p.advertenciaGHS || '').toUpperCase()}^FS`);
+    src.push(`^FO40,490^BQN,2,5^FDQA,${p.idPedido} ${p.nombreProducto} ${p.codigoLote}^FS`);
+    src.push(`^FO40,660^A0N,18,18^FD www.quimicorp.com  |  ERP QUIMICORP - ETIQUETA INDUSTRIAL^FS`);
+    src.push(`^XZ`);
+    return src.join('\n');
+  };
+
+  const descargarZPL = () => {
+    const zpl = generarZPL();
+    const blob = new Blob([zpl], { type: 'application/zpl' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `etiqueta_${pedidoActivo.codigoLote.replace(/[^A-Za-z0-9]/g, '_')}.zpl`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleConfirmarDespacho = async () => {
+    const p = pedidoActivo;
+    if (!p || !p.colaId) {
+      alert('Este lote no pertenece a la cola de despacho real del backend. Registre el lote en producción para poder despacharlo.');
+      return;
+    }
+
+    setDespachando(true);
+    try {
+      const { ok, error } = await apiFetch<{ id: string }>('/produccion/etiquetas/despachar', {
+        method: 'POST',
+        body: JSON.stringify({
+          colaId: p.colaId,
+          numeroGuia: numeroGuia?.trim() || p.numeroGuia || null,
+        }),
+      });
+
+      if (!ok) {
+        throw new Error(error || 'Error al registrar el despacho.');
+      }
+
+      // Sacar de la cola de Etiquetas (solo quedan LISTO_PARA_IMPRIMIR) — queda en historial del cliente como ENTREGADO
+      setPedidosCola((prev) => prev.filter((it) => it.id !== p.id));
+      setSelectedPedidoId((curr) => {
+        if (curr === p.id) {
+          const restantes = pedidosCola.filter((it) => it.id !== p.id);
+          return restantes[0]?.id || '';
+        }
+        return curr;
+      });
+
+      alert(
+        `✅ DESPACHO REGISTRADO CON ÉXITO\n\n` +
+          `• Pedido: ${p.idPedido} (${p.numeroPedido})\n` +
+          `• Cliente: ${p.clienteNombre}\n` +
+          `• Producto: ${p.nombreProducto}\n` +
+          `• Lote: ${p.codigoLote}\n` +
+          `• N° Guía: ${numeroGuia?.trim() || 'S/N'}\n` +
+          `• Bultos: ${p.unidadesPedidas} (${p.cantidadKilosDisplay})\n` +
+          `• Peso Neto Total: ${(contenidoNeto * p.unidadesPedidas).toFixed(3)} kg\n` +
+          `• Peso Bruto Total: ${(pesoBrutoTotalKg * p.unidadesPedidas).toFixed(3)} kg\n` +
+          `• Destino: ${destino}\n` +
+          `• Responsable: ${responsable}\n\n` +
+          `El estado del pedido quedó actualizado en todo el sistema (Planta, Administración y Cartera de Clientes).`
+      );
+    } catch (err: any) {
+      alert(`❌ No se pudo registrar el despacho: ${err.message || 'Error de conexión'}`);
+    } finally {
+      setDespachando(false);
+    }
   };
 
   // Datos para Modal Ficha Técnica
@@ -444,7 +711,7 @@ export default function EtiquetasDespachoPage() {
                   <span className="text-[10px] text-slate-400">Los cambios actualizan el QR y los pesos al instante</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-sans">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-sans">
                   <div>
                     <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Producto</label>
                     <input
@@ -476,13 +743,14 @@ export default function EtiquetasDespachoPage() {
                   </div>
 
                   <div>
-                    <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Contenido Neto (Kg)</label>
+                    <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Peso Real (Balanza) — Kg</label>
                     <input
                       type="number"
                       step="0.001"
                       value={pedidoActivo.contenidoNetoKg}
                       onChange={(e) => handleUpdatePedidoField('contenidoNetoKg', parseFloat(e.target.value) || 0)}
                       className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
+                      title="Peso neto real pesado en balanza — queda registrado para este lote"
                     />
                   </div>
 
@@ -559,7 +827,9 @@ export default function EtiquetasDespachoPage() {
                       </div>
                       <div className="flex justify-between text-slate-300 text-[11px]">
                         <span>CONTENIDO NETO:</span>
-                        <strong className="text-blue-400 font-mono">{contenidoNeto.toFixed(3)} kg</strong>
+                        <strong className="text-blue-400 font-mono">
+                          {contenidoNeto.toFixed(3)} kg{esLitros && netoMl !== null ? ` = (${netoMl.toLocaleString()}ml)` : ''}
+                        </strong>
                       </div>
                       <div className="flex justify-between text-xs pt-1.5 border-t border-[#1A2232] font-black">
                         <span className="text-slate-200">PESO TOTAL (BRUTO):</span>
@@ -599,23 +869,6 @@ export default function EtiquetasDespachoPage() {
                       Escanee para ver fórmula y QA
                     </span>
                   </div>
-                </div>
-
-                {/* Código de Barras GS1 con Barras Visuales */}
-                <div className="my-3 text-center border-t border-b border-[#1A2232] py-2.5">
-                  <div className="flex h-7 items-center justify-center gap-0.5">
-                    {[1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 1, 4, 3, 1, 2, 4, 1, 3, 2, 4, 1, 2, 3, 1, 4, 2, 1, 3, 2, 4, 1].map((h, i) => (
-                      <div
-                        key={i}
-                        className={`w-1 rounded-sm ${
-                          i % 4 === 0 ? 'bg-[#00F2C3] h-7' : 'bg-slate-400 h-5'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-[10px] tracking-widest text-slate-300 font-bold block mt-1 font-mono">
-                    {pedidoActivo.codigoBarras} · SKU: {pedidoActivo.sku}
-                  </span>
                 </div>
 
                 {/* Footer Warning Badge GHS07 & Metadata */}
@@ -680,6 +933,17 @@ export default function EtiquetasDespachoPage() {
                     className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
                   />
                 </div>
+
+                <div>
+                  <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>N° Guía de Remisión</label>
+                  <input
+                    type="text"
+                    value={numeroGuia}
+                    onChange={(e) => guardarGuiaLocal(e.target.value)}
+                    placeholder="Ej. G001-000456"
+                    className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
+                  />
+                </div>
               </div>
 
               {/* Botones de Impresión y Despacho */}
@@ -693,13 +957,39 @@ export default function EtiquetasDespachoPage() {
                 </button>
 
                 <button
-                  onClick={handleConfirmarDespacho}
-                  className="flex-1 px-5 py-2.5 rounded-xl bg-[#00F2C3] hover:bg-[#00d8ad] text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-[#00F2C3]/20 transition-all cursor-pointer"
+                  onClick={descargarZPL}
+                  className="px-5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-slate-700/20 transition-all cursor-pointer"
+                  title="Genera el archivo ZPL para imprimir en la Zebra ZT411"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirmar Despacho para {pedidoActivo.clienteNombre}</span>
+                  <Download className="w-4 h-4" />
+                  <span>Descargar ZPL (Zebra ZT411)</span>
+                </button>
+
+                <button
+                  onClick={handleConfirmarDespacho}
+                  disabled={despachando}
+                  className="flex-1 px-5 py-2.5 rounded-xl bg-[#00F2C3] hover:bg-[#00d8ad] text-slate-950 text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-[#00F2C3]/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {despachando ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  <span>{despachando ? 'Registrando...' : `Confirmar Despacho para ${pedidoActivo.clienteNombre}`}</span>
                 </button>
               </div>
+
+              {backendConectado ? (
+                <div className="flex items-center gap-2 pt-1 text-[9px] font-bold text-emerald-500 uppercase tracking-widest">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Cola de despacho conectada al backend ({pedidosCola.filter((p: any) => p.colaId).length || 0} lotes reales)
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 pt-1 text-[9px] font-bold text-amber-500 uppercase tracking-widest">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Sin cola de despacho en el backend: usando pedidos de ejemplo
+                </div>
+              )}
             </div>
           </div>
         </div>

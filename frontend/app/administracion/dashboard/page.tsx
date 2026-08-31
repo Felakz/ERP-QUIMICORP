@@ -99,9 +99,9 @@ export default function AdministracionDashboardPage() {
       </div>
 
       {/* 4. FILA MEDIA (INTELIGENCIA COMERCIAL Y FLUJO DE COBRANZAS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Top 10 Clientes (4 Cols - ~33%) */}
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 h-full flex flex-col">
           <TopCustomersList
             customers={liveTopCustomers}
             includeIgv={includeIgv}
@@ -111,7 +111,7 @@ export default function AdministracionDashboardPage() {
         </div>
 
         {/* Resumen Compacto Cuentas por Cobrar (4 Cols - ~33%) */}
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 h-full flex flex-col">
           <CompactMetricsCards
             metrics={liveCompactMetrics}
             includeIgv={includeIgv}
@@ -121,7 +121,7 @@ export default function AdministracionDashboardPage() {
         </div>
 
         {/* Métodos de Pago & Cobranza Radar Chart (4 Cols - ~33%) */}
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 h-full flex flex-col">
           <PaymentCategoriesChart
             categories={livePaymentCategories}
             includeIgv={includeIgv}

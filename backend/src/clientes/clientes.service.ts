@@ -362,22 +362,51 @@ export class ClientesService {
             metodo: 'TRANSFERENCIA BCP',
           }));
 
-    // 4. Historial de Despachos & Logística
-    const despachosHistory = tieneCuentas
-      ? cliente.cuentasCobrar.map((cc) => ({
-          guia: `EG01-${cc.codigoDoc.replace('E001-', '').replace('EB01-', '') || cc.id.substring(0, 6)}`,
-          fecha: new Date(cc.fechaEmision).toISOString().split('T')[0],
-          transporte: cliente.metodoEnvio || 'TRANSPORTE LOGÍSTICA QUIMICORP',
-          destino: cliente.direccion || 'Planta Principal / Lima',
-          estado: cc.estado === 'PAGADO' ? 'ENTREGADO' : 'EN_RUTA',
-        }))
-      : (cliente.pedidos || []).map((p: any) => ({
-          guia: `EG01-${p.id.substring(0, 6).toUpperCase()}`,
-          fecha: new Date(p.createdAt).toISOString().split('T')[0],
-          transporte: cliente.metodoEnvio || 'INDRIVER EXPRESS',
-          destino: cliente.direccion || 'Planta Principal',
-          estado: p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO' ? 'ENTREGADO' : 'PENDIENTE',
-        }));
+    // 4. Historial de Despachos & Logística (fuente REAL: cola_despacho del módulo de producción)
+    const nombresCliente = Array.from(
+      new Set(
+        [
+          (cliente as any).razonSocial,
+          ...(cliente.pedidos || []).map((p: any) => p.clienteNombre),
+        ]
+          .map((n: any) => (n ? String(n).trim() : ''))
+          .filter(Boolean)
+      )
+    );
+    const despachosReales = await db.colaDespacho
+      .findMany({
+        where: {
+          estado: 'DESPACHADO',
+          OR: [{ clienteNombre: { in: nombresCliente, mode: 'insensitive' } }],
+        },
+        orderBy: { updatedAt: 'desc' },
+      })
+      .catch(() => [] as any[]);
+
+    const despachosHistory =
+      despachosReales.length > 0
+        ? despachosReales.map((c: any) => ({
+            guia: c.numeroGuia ? String(c.numeroGuia) : `L${c.loteCodigo}`,
+            fecha: new Date(c.updatedAt).toISOString().split('T')[0],
+            transporte: cliente.metodoEnvio || 'LOGÍSTICA QUIMICORP',
+            destino: cliente.direccion || 'Planta Principal / Lima',
+            estado: 'ENTREGADO',
+          }))
+        : tieneCuentas
+          ? cliente.cuentasCobrar.map((cc) => ({
+              guia: `EG01-${cc.codigoDoc.replace('E001-', '').replace('EB01-', '') || cc.id.substring(0, 6)}`,
+              fecha: new Date(cc.fechaEmision).toISOString().split('T')[0],
+              transporte: cliente.metodoEnvio || 'TRANSPORTE LOGÍSTICA QUIMICORP',
+              destino: cliente.direccion || 'Planta Principal / Lima',
+              estado: cc.estado === 'PAGADO' ? 'ENTREGADO' : 'EN_RUTA',
+            }))
+          : (cliente.pedidos || []).map((p: any) => ({
+              guia: `EG01-${p.id.substring(0, 6).toUpperCase()}`,
+              fecha: new Date(p.createdAt).toISOString().split('T')[0],
+              transporte: cliente.metodoEnvio || 'INDRIVER EXPRESS',
+              destino: cliente.direccion || 'Planta Principal',
+              estado: p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO' ? 'ENTREGADO' : 'PENDIENTE',
+            }));
 
     return {
       ...cliente,

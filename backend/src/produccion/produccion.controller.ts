@@ -98,8 +98,8 @@ export class ProduccionController {
 
   @Post('etiquetas/despachar')
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
-  despacharEtiqueta(@Body('colaId') colaId: string) {
-    return this.produccionService.despacharEtiqueta(colaId);
-  }
+despacharEtiqueta(@Body() body: { colaId: string; numeroGuia?: string }) {
+return this.produccionService.despacharEtiqueta(body?.colaId, body?.numeroGuia);
+}
 
 }

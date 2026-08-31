@@ -15,6 +15,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ProveedoresModule } from './proveedores/proveedores.module';
 import { CotizacionesProveedoresModule } from './cotizaciones-proveedores/cotizaciones-proveedores.module';
 import { CobranzasModule } from './cobranzas/cobranzas.module';
+import { AsistenciaModule } from './asistencia/asistencia.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { CobranzasModule } from './cobranzas/cobranzas.module';
     ProveedoresModule,
     CotizacionesProveedoresModule,
     CobranzasModule,
+    AsistenciaModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

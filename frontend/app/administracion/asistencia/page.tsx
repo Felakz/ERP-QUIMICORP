@@ -1,32 +1,45 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Fingerprint,
-  Clock,
   Calendar,
-  UserCheck,
-  UserX,
   Search,
   CheckCircle2,
   AlertTriangle,
-  FileText,
   Filter,
-  ShieldCheck,
   RefreshCw,
+  Wifi,
+  WifiOff,
+  Link2,
+  Users,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
 
-interface MarcacionBiometrica {
+interface AsistenciaEmpleado {
   id: string;
   dni: string;
   nombre: string;
   cargo: string;
-  horaIngreso: string;
-  horaSalida?: string;
+  sucursal: string;
+  sucursalId: string | null;
+  turnoId: string | null;
   turno: string;
-  estado: 'PUNTUAL' | 'TARDANZA' | 'AUSENTE';
+  horaIngreso: string;
+  horaSalida: string;
+  minutosTardanza: number;
+  horasTrabajadas: number;
+  estado: string;
+  estadoAlmuerzo: string;
   huellaVerificada: boolean;
+}
+
+interface PendienteCola {
+  codigoBiometrico: string;
+  dispositivoId: string;
+  primeraMarca: string;
+  cantidad: number;
 }
 
 export default function AdministracionAsistenciaPage() {
@@ -35,6 +48,14 @@ export default function AdministracionAsistenciaPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTurno, setSelectedTurno] = useState('TODOS');
+  const [selectedSucursal, setSelectedSucursal] = useState('TODAS');
+  const [empleados, setEmpleados] = useState<AsistenciaEmpleado[]>([]);
+  const [cola, setCola] = useState<PendienteCola[]>([]);
+  const [sucursales, setSucursales] = useState<string[]>(['—']);
+  const [hoy, setHoy] = useState(() => new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(true);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
@@ -43,64 +64,82 @@ export default function AdministracionAsistenciaPage() {
     ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500 focus:border-blue-500'
     : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-blue-500';
 
-  const [marcaciones] = useState<MarcacionBiometrica[]>([
-    {
-      id: '1',
-      dni: '45892011',
-      nombre: 'Carlos Quispe Arrunategui',
-      cargo: 'Operario de Mezclas',
-      horaIngreso: '06:54 AM',
-      horaSalida: '03:30 PM',
-      turno: 'Mañana (07:00 - 15:30)',
-      estado: 'PUNTUAL',
-      huellaVerificada: true,
-    },
-    {
-      id: '2',
-      dni: '71204938',
-      nombre: 'Ana Flores Mendoza',
-      cargo: 'Técnico de Calidad QA',
-      horaIngreso: '06:58 AM',
-      horaSalida: '03:30 PM',
-      turno: 'Mañana (07:00 - 15:30)',
-      estado: 'PUNTUAL',
-      huellaVerificada: true,
-    },
-    {
-      id: '3',
-      dni: '10928374',
-      nombre: 'Luis Mamani Salazar',
-      cargo: 'Supervisor de Planta',
-      horaIngreso: '07:12 AM',
-      horaSalida: '03:35 PM',
-      turno: 'Mañana (07:00 - 15:30)',
-      estado: 'TARDANZA',
-      huellaVerificada: true,
-    },
-    {
-      id: '4',
-      dni: '48291029',
-      nombre: 'Jorge Benítez Silva',
-      cargo: 'Operario de Envasado',
-      horaIngreso: '14:50 PM',
-      turno: 'Tarde (15:00 - 23:30)',
-      estado: 'PUNTUAL',
-      huellaVerificada: true,
-    },
-  ]);
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [hoyRes, colaRes, sucRes] = await Promise.all([
+        apiFetch<AsistenciaEmpleado[]>(`/asistencia/hoy?fecha=${hoy}`),
+        apiFetch<PendienteCola[]>('/asistencia/cola'),
+        apiFetch<any[]>('/asistencia/sucursales').catch(() => ({ data: [] as any[] })),
+      ]);
+      const lista = Array.isArray(hoyRes.data) ? hoyRes.data : [];
+      setEmpleados(lista);
+      setCola(Array.isArray(colaRes.data) ? colaRes.data : []);
 
-  const filtrados = marcaciones.filter((m) => {
+      const suc = (Array.isArray(sucRes.data) ? sucRes.data : []).map((s: any) => s.nombre);
+      setSucursales(suc.length ? suc : ['—']);
+      if (hoyRes.error || colaRes.error) setError(hoyRes.error || colaRes.error);
+      else setError(null);
+    } catch (e: any) {
+      setError(e.message || 'Error al cargar la asistencia');
+    } finally {
+      setLoading(false);
+    }
+  }, [hoy]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  const vincular = async (codigo: string, empleadoId: string) => {
+    setCargando(true);
+    try {
+      const { ok, error: err } = await apiFetch(`/asistencia/usuarios/${empleadoId}/vincular`, {
+        method: 'POST',
+        body: JSON.stringify({ codigoBiometrico: codigo }),
+      });
+      if (!ok) throw new Error(err || 'No se pudo vincular');
+      await cargar();
+    } catch (e: any) {
+      alert(`Error al vincular: ${e.message}`);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const filtrados = empleados.filter((m) => {
     const matchQuery =
       m.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
       m.dni.includes(searchQuery) ||
       m.cargo.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchTurno = selectedTurno === 'TODOS' || m.turno.toLowerCase().includes(selectedTurno.toLowerCase());
-    return matchQuery && matchTurno;
+    const matchTurno =
+      selectedTurno === 'TODOS' ||
+      m.turno.toLowerCase().includes(selectedTurno.toLowerCase());
+    const matchSucursal = selectedSucursal === 'TODAS' || m.sucursal === selectedSucursal;
+    return matchQuery && matchTurno && matchSucursal;
   });
 
-  const puntualCount = marcaciones.filter((m) => m.estado === 'PUNTUAL').length;
-  const tardanzaCount = marcaciones.filter((m) => m.estado === 'TARDANZA').length;
-  const ausenteCount = marcaciones.filter((m) => m.estado === 'AUSENTE').length;
+  const puntualCount = empleados.filter((m) => m.estado === 'PUNTUAL').length;
+  const tardanzaCount = empleados.filter((m) => m.estado === 'TARDANZA').length;
+  const ausenteCount = empleados.filter((m) => m.estado === 'FALTA' || m.estado === 'SIN_MARCAR').length;
+
+  const badgeEstado = (estado: string) => {
+    if (estado === 'PUNTUAL') return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    if (estado === 'TARDANZA') return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    if (estado === 'FALTA') return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+    return 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+  };
+
+  const badgeAlmuerzo = (estadoAlmuerzo: string) => {
+    if (estadoAlmuerzo === 'COMPLETO') return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    if (estadoAlmuerzo === 'OBLIGADO_ALMORZAR') return 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+    if (estadoAlmuerzo === 'EXCEDIDO') return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    if (estadoAlmuerzo === 'EN_ALMUERZO') return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
+    return 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+  };
+
+  const turnosDesdeDatos = Array.from(new Set(empleados.map((m) => m.turno).filter((t) => t && t !== 'Sin turno asignado')));
 
   return (
     <div className="space-y-6">
@@ -121,9 +160,32 @@ export default function AdministracionAsistenciaPage() {
                 </span>
               </div>
               <p className={`text-xs mt-1 ${textTitle}`}>
-                Marcaciones por huella dactilar, puntualidad, turnos rotativos y control de tiempo de personal.
+                Marcaciones por huella dactilar en tiempo real, puntualidad, turnos y control de almuerzo (tope 14:00).
               </p>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-mono ${cardBg}`}>
+              {error ? (
+                <>
+                  <WifiOff className="w-4 h-4 text-rose-400" />
+                  <span className="text-rose-400">Sin conexión al backend</span>
+                </>
+              ) : (
+                <>
+                  <Wifi className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-400">Conectado</span>
+                </>
+              )}
+            </div>
+            <button
+              onClick={cargar}
+              disabled={loading || cargando}
+              className="px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-2 cursor-pointer disabled:opacity-50 transition-colors hover:opacity-80"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading || cargando ? 'animate-spin' : ''}`} />
+              Actualizar
+            </button>
           </div>
         </div>
       </div>
@@ -131,8 +193,8 @@ export default function AdministracionAsistenciaPage() {
       {/* Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className={`p-4 rounded-xl border ${cardBg}`}>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Marcaciones Hoy</p>
-          <p className={`text-2xl font-black mt-2 ${textValue}`}>{marcaciones.length}</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Empleados</p>
+          <p className={`text-2xl font-black mt-2 ${textValue}`}>{empleados.length}</p>
         </div>
         <div className={`p-4 rounded-xl border ${cardBg}`}>
           <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Puntuales</p>
@@ -143,13 +205,49 @@ export default function AdministracionAsistenciaPage() {
           <p className="text-2xl font-black text-amber-400 mt-2">{tardanzaCount}</p>
         </div>
         <div className={`p-4 rounded-xl border ${cardBg}`}>
-          <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">Ausencias</p>
+          <p className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">Ausencias / Sin marcar</p>
           <p className="text-2xl font-black text-rose-400 mt-2">{ausenteCount}</p>
         </div>
       </div>
 
+      {/* Cola de huellas por asignar */}
+      {cola.length > 0 && (
+        <div className={`p-4 rounded-2xl border ${cardBg}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <Link2 className="w-4 h-4 text-amber-400" />
+            <h2 className={`text-sm font-black ${textValue}`}>Huellas sin asignar ({cola.length})</h2>
+            <p className={`text-[10px] ${textTitle}`}>Márcan fuera de la cola del huellero con un código aún no vinculado a un empleado.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {cola.map((p) => (
+              <div key={p.codigoBiometrico} className={`rounded-xl border p-3 flex flex-col gap-2 ${cardBg}`}>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Código huella</span>
+                  <span className={`font-mono text-sm font-black ${textValue}`}>{p.codigoBiometrico}</span>
+                  <span className={`text-[10px] ${textTitle}`}>{p.cantidad} marca(s) • disp. {p.dispositivoId.slice(0, 8)}</span>
+                </div>
+                <div className="relative">
+                  <select
+                    disabled={cargando}
+                    className={`w-full rounded-lg border p-2 text-xs font-mono ${inputBg}`}
+                    defaultValue=""
+                    onChange={(e) => e.target.value && vincular(p.codigoBiometrico, e.target.value)}
+                    title="Selecciona el empleado para vincular esta huella"
+                  >
+                    <option value="" disabled>Vincular a empleado...</option>
+                    {empleados.map((emp) => (
+                      <option key={emp.id} value={emp.id}>{emp.nombre} ({emp.dni})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filtros */}
-      <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${cardBg}`}>
+      <div className={`p-4 rounded-xl border flex flex-col lg:flex-row items-center justify-between gap-4 ${cardBg}`}>
         <div className="relative flex-1 w-full sm:w-80">
           <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
           <input
@@ -160,74 +258,124 @@ export default function AdministracionAsistenciaPage() {
             className={`w-full pl-9 pr-3 py-1.5 rounded-xl border text-xs font-medium ${inputBg}`}
           />
         </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedTurno}
-            onChange={(e) => setSelectedTurno(e.target.value)}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-bold font-mono ${inputBg}`}
-          >
-            <option value="TODOS">Todos los Turnos</option>
-            <option value="Mañana">Turno Mañana</option>
-            <option value="Tarde">Turno Tarde</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-slate-400" />
+            <input
+              type="date"
+              value={hoy}
+              onChange={(e) => setHoy(e.target.value)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-bold ${inputBg}`}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <select
+              value={selectedTurno}
+              onChange={(e) => setSelectedTurno(e.target.value)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold font-mono ${inputBg}`}
+            >
+              <option value="TODOS">Todos los Turnos</option>
+              {turnosDesdeDatos.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-slate-400" />
+            <select
+              value={selectedSucursal}
+              onChange={(e) => setSelectedSucursal(e.target.value)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold font-mono ${inputBg}`}
+            >
+              <option value="TODAS">Todas las Sucursales</option>
+              {sucursales.filter((s) => s !== '—').map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Tabla */}
       <div className={`rounded-2xl border overflow-hidden ${cardBg}`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className={`border-b text-[10px] font-bold uppercase tracking-wider ${isDark ? 'bg-[#151D2A] text-slate-400 border-[#1A2232]' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
-              <tr>
-                <th className="p-3">TRABAJADOR</th>
-                <th className="p-3">DNI</th>
-                <th className="p-3">CARGO / PUESTO</th>
-                <th className="p-3">TURNO</th>
-                <th className="p-3">HORA INGRESO</th>
-                <th className="p-3">HORA SALIDA</th>
-                <th className="p-3 text-center">ESTADO PUNTUALIDAD</th>
-                <th className="p-3 text-center">VALIDACIÓN HUELLA</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/40">
-              {filtrados.map((m) => (
-                <tr key={m.id} className={`hover:bg-emerald-500/5 transition-colors ${isDark ? 'border-[#1A2232]' : 'border-slate-100'}`}>
-                  <td className={`p-3 font-bold ${textValue}`}>{m.nombre}</td>
-                  <td className="p-3 font-mono text-slate-400">{m.dni}</td>
-                  <td className="p-3 text-slate-300">{m.cargo}</td>
-                  <td className="p-3 font-mono text-xs text-blue-400">{m.turno}</td>
-                  <td className="p-3 font-mono font-bold text-emerald-400">{m.horaIngreso}</td>
-                  <td className="p-3 font-mono text-slate-400">{m.horaSalida || '--:--'}</td>
-                  <td className="p-3 text-center">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                      m.estado === 'PUNTUAL'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : m.estado === 'TARDANZA'
-                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                    }`}>
-                      {m.estado}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center">
-                    {m.huellaVerificada ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Verificado
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        Manual
-                      </span>
-                    )}
-                  </td>
+        {loading ? (
+          <div className="p-10 text-center text-sm text-slate-400">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-3 text-emerald-400" />
+            Cargando asistencia del {hoy}...
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className={`border-b text-[10px] font-bold uppercase tracking-wider ${isDark ? 'bg-[#151D2A] text-slate-400 border-[#1A2232]' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                <tr>
+                  <th className="p-3">TRABAJADOR</th>
+                  <th className="p-3">DNI</th>
+                  <th className="p-3">CARGO / PUESTO</th>
+                  <th className="p-3">SUCURSAL</th>
+                  <th className="p-3">TURNO</th>
+                  <th className="p-3">ENTRADA</th>
+                  <th className="p-3">SALIDA</th>
+                  <th className="p-3 text-center">ESTADO</th>
+                  <th className="p-3 text-center">ALMUERZO</th>
+                  <th className="p-3 text-center">VIRTUD HUELLA</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-800/40">
+                {filtrados.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="p-8 text-center text-sm text-slate-500">
+                      No hay empleados registrados para esta fecha. Cuando el huellero envíe marcas, aparecerán aquí en tiempo real.
+                    </td>
+                  </tr>
+                )}
+                {filtrados.map((m) => (
+                  <tr key={m.id} className={`hover:bg-emerald-500/5 transition-colors ${isDark ? 'border-[#1A2232]' : 'border-slate-100'}`}>
+                    <td className={`p-3 font-bold ${textValue}`}>{m.nombre}</td>
+                    <td className="p-3 font-mono text-slate-400">{m.dni}</td>
+                    <td className="p-3 text-slate-300">{m.cargo}</td>
+                    <td className="p-3 font-mono text-xs text-cyan-400">{m.sucursal}</td>
+                    <td className="p-3 font-mono text-xs text-blue-400">{m.turno}</td>
+                    <td className={`p-3 font-mono font-bold ${m.minutosTardanza > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                      {m.horaIngreso}
+                      {m.minutosTardanza > 0 && (
+                        <span className="block text-[9px] text-amber-400">+{m.minutosTardanza} min</span>
+                      )}
+                    </td>
+                    <td className="p-3 font-mono text-slate-400">{m.horaSalida || '--:--'}</td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono ${badgeEstado(m.estado)}`}>
+                        {m.estado}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      {m.estadoAlmuerzo !== 'SIN_ALMUERZO' ? (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold font-mono ${badgeAlmuerzo(m.estadoAlmuerzo)}`}>
+                          {m.estadoAlmuerzo === 'OBLIGADO_ALMORZAR' ? 'OBLIGADO (14:00)' : m.estadoAlmuerzo}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-500">--</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      {m.huellaVerificada ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Huella
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-400">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Sin marca
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

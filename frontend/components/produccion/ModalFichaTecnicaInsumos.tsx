@@ -145,7 +145,7 @@ export function ModalFichaTecnicaInsumos({ isOpen, onClose, data }: ModalFichaTe
                   <th className="py-2.5 px-3">FUNCIÓN TÉCNICA EN FÓRMULA</th>
                   <th className="py-2.5 px-3">TIPO</th>
                   <th className="py-2.5 px-3 text-right">CONCENTRACIÓN (%)</th>
-                  <th className="py-2.5 px-3 text-right">MASA DOSIFICADA (KG)</th>
+                  <th className="py-2.5 px-3 text-right">MASA DOSIFICADA (KG / GR)</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
@@ -170,7 +170,10 @@ export function ModalFichaTecnicaInsumos({ isOpen, onClose, data }: ModalFichaTe
                       {ins.porcentaje.toFixed(2)}%
                     </td>
                     <td className={`py-2.5 px-3 font-mono font-black text-right ${textTitle}`}>
-                      {ins.pesoDosificadoKg.toFixed(3)} KG
+                      <span className="text-cyan-400">{ins.pesoDosificadoKg.toFixed(3)} KG</span>
+                      <span className="block text-[10px] text-purple-400 font-normal">
+                        ({(ins.pesoDosificadoKg * 1000).toLocaleString('es-PE', { maximumFractionDigits: 1 })} g)
+                      </span>
                     </td>
                   </tr>
                 ))}

@@ -16,6 +16,10 @@ export class RegistrarMovimientoDto {
   @IsString()
   documentoReferencia?: string;
 
+  @IsOptional()
+  @IsString()
+  unidadMedida?: string;
+
   @IsUUID()
   usuarioId: string;
 }

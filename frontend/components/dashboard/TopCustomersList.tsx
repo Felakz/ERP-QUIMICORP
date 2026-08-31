@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, ShieldCheck, ShieldAlert, Award } from 'lucide-react';
+import { Building2, ShieldCheck, ShieldAlert, Award, ArrowRight } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { CurrencyType, TopCustomer } from '@/types/dashboard';
 import { formatCurrency } from '@/lib/dashboardFormatters';
@@ -28,7 +28,7 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
 
   return (
-    <div className={`p-6 rounded-2xl border ${cardBg} space-y-4`}>
+    <div className={`p-6 rounded-2xl border ${cardBg} h-full flex flex-col justify-between space-y-4`}>
       <div className="flex items-center justify-between">
         <div>
           <h2
@@ -37,7 +37,7 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
               isDark ? 'text-white' : 'text-slate-900'
             }`}
           >
-            <Award className="w-4 h-4 text-amber-400" /> Top 10 Clientes Frecuentes
+            <Award className="w-4 h-4 text-amber-400" /> Top Clientes Frecuentes
           </h2>
           <p className="text-xs text-slate-400">
             Ranking de mayor volumen de compras e historial crediticio
@@ -48,7 +48,7 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
         </span>
       </div>
 
-      <div className="space-y-3 overflow-y-auto max-h-[380px] pr-1">
+      <div className="space-y-2.5 overflow-y-auto max-h-[340px] flex-1 pr-1">
         {customers.map((cust, index) => {
           const formatted = formatCurrency(
             cust.totalAmountPenNeto,
@@ -61,7 +61,7 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
             <div
               key={cust.id}
               onClick={() => router.push(ROUTES.CLIENTE_DETAIL(cust.id))}
-              className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer group ${
+              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition-all cursor-pointer group ${
                 isDark
                   ? 'bg-[#151D2A] border-[#1A2232] hover:border-blue-500/50 hover:bg-[#1B2535]'
                   : 'bg-slate-50 border-slate-200 hover:border-blue-500/50 hover:bg-blue-50/30'
@@ -71,7 +71,7 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
               <div className="flex items-center gap-3 min-w-0">
                 {/* Ranking Avatar */}
                 <div
-                  className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center font-black text-xs text-white ${cust.avatarBg}`}
+                  className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center font-black text-xs text-white ${cust.avatarBg}`}
                 >
                   #{index + 1}
                 </div>
@@ -107,6 +107,20 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Footer con navegación a Cartera de Clientes */}
+      <div className="pt-3 border-t border-slate-800/40 flex items-center justify-between text-xs">
+        <span className="text-[11px] text-slate-400 font-medium">
+          {customers.length} cuentas destacadas
+        </span>
+        <button
+          onClick={() => router.push(ROUTES.CLIENTES)}
+          className="font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors text-xs"
+        >
+          <span>Ver Cartera Completa</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

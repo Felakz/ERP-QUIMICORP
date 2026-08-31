@@ -103,7 +103,7 @@ export default function LoginPage() {
 
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-sans font-bold flex items-center gap-2 animate-in fade-in duration-200">
-              <span>??</span>
+              <span>⚠️</span>
               <span>{errorMsg}</span>
             </div>
           )}

@@ -18,9 +18,10 @@ import {
   Clock,
   LogOut,
 } from 'lucide-react';
-import { io } from 'socket.io-client';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
+import { apiFetch } from '@/lib/apiClient';
+import { useSocket } from '@/lib/socketContext';
 
 interface NavSection {
   title: string;
@@ -32,22 +33,16 @@ interface NavSection {
   }[];
 }
 
-// ?? Sidebar 100% Exclusivo y Completo de Producción & Planta (Exacto a la captura)
+// Sidebar 100% Exclusivo y Operativo de Producción & Planta
 const PRODUCCION_PLANTA_SECTIONS: NavSection[] = [
   {
-    title: 'KPIS & CONTROL',
-    items: [
-      { href: '/produccion/qa', label: 'Dashboard Ejecutivo', icon: LayoutDashboard },
-    ],
-  },
-  {
-    title: 'PEDIDOS DE ADMINISTRACIN',
+    title: 'PEDIDOS DE ADMINISTRACIÓN',
     items: [
       { href: '/produccion/pedidos', label: 'Pedidos Entrantes', icon: Inbox },
     ],
   },
   {
-    title: 'PRODUCCIN & PLANTA',
+    title: 'PRODUCCIÓN & PLANTA',
     items: [
       { href: '/produccion/inventario', label: 'Inventarios & Stock', icon: Package },
       { href: '/produccion/formulas', label: 'Fórmulas & Ajuste Fino', icon: Beaker },
@@ -55,7 +50,7 @@ const PRODUCCION_PLANTA_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'TRAZABILIDAD & LOGSTICA',
+    title: 'TRAZABILIDAD & LOGÍSTICA',
     items: [
       { href: '/produccion/kardex', label: 'Kardex de Inventario', icon: FileText },
       { href: '/produccion/etiquetas', label: 'Etiquetas & Despacho', icon: Tag },
@@ -64,13 +59,7 @@ const PRODUCCION_PLANTA_SECTIONS: NavSection[] = [
   {
     title: 'PERSONAL DE PLANTA',
     items: [
-      { href: '/produccion/biometria', label: 'Biometra & Turnos', icon: Clock },
-    ],
-  },
-  {
-    title: 'SEGURIDAD & PERMISOS',
-    items: [
-      { href: '/produccion/seguridad', label: 'Seguridad & RBAC', icon: ShieldCheck },
+      { href: '/produccion/biometria', label: 'Biometría & Turnos', icon: Clock },
     ],
   },
 ];
@@ -116,6 +105,7 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { logout } = useAuth();
+  const { socket } = useSocket();
   const [timeString, setTimeString] = useState('');
   const [pedidoCount, setPedidoCount] = useState<number>(0);
   const [isAlerting, setIsAlerting] = useState<boolean>(false);
@@ -125,17 +115,11 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
 
   const cargarBadgeCount = async () => {
     try {
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const res = await fetch('http://localhost:3001/api/v1/pedidos-admin/kpis', {
-        headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
-      });
-      if (res.ok) {
-        const kpis = await res.json();
-        const nuevos = Number(kpis.nuevos) || 0;
+      const { data, ok } = await apiFetch<any>('/pedidos-admin/kpis');
+      if (ok && data) {
+        const nuevos = Number((data as any).nuevos) || 0;
         setPedidoCount(nuevos);
-        if (nuevos === 0) {
-          setIsAlerting(false);
-        }
+        if (nuevos === 0) setIsAlerting(false);
       }
     } catch {}
   };
@@ -159,46 +143,40 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
     return () => clearInterval(interval);
   }, []);
 
-  // WebSockets para actualizar el contador y emitir sonido en tiempo real
+  // Badge en tiempo real vía SocketProvider centralizado (sin polling)
   useEffect(() => {
     cargarBadgeCount();
-
-    let socket: any = null;
-    try {
-      socket = io('http://localhost:3001', { transports: ['websocket', 'polling'] });
-      socket.on('order:created_to_plant', (payload: any) => {
-        playNotificationChime();
-        setIsAlerting(true);
-        setPedidoCount((prev) => prev + 1);
-        if (payload) {
-          setBannerAlert({
-            id: payload.id || '',
-            codigo: payload.codigoOrden || 'PO-NUEVO',
-            cliente: payload.clienteNombre || 'Cliente Comercial',
-            producto: payload.productoNombre || 'Fórmula Industrial',
-          });
-        }
-        cargarBadgeCount();
-      });
-
-      socket.on('order:status_updated', () => cargarBadgeCount());
-      socket.on('order:accepted_by_plant', () => {
-        setIsAlerting(false);
-        cargarBadgeCount();
-      });
-      socket.on('lote:estado_actualizado', () => cargarBadgeCount());
-    } catch {}
-
-    const handleStorage = () => cargarBadgeCount();
-    window.addEventListener('storage', handleStorage);
-    const intervalKpis = setInterval(cargarBadgeCount, 3000);
-
-    return () => {
-      if (socket) socket.disconnect();
-      window.removeEventListener('storage', handleStorage);
-      clearInterval(intervalKpis);
+    if (!socket) return;
+    const onCreated = (payload: any) => {
+      playNotificationChime();
+      setIsAlerting(true);
+      setPedidoCount((prev) => prev + 1);
+      if (payload) {
+        setBannerAlert({
+          id: payload.id || '',
+          codigo: payload.codigoOrden || 'PO-NUEVO',
+          cliente: payload.clienteNombre || 'Cliente Comercial',
+          producto: payload.productoNombre || 'Fórmula Industrial',
+        });
+      }
+      cargarBadgeCount();
     };
-  }, []);
+    const onRefresh = () => cargarBadgeCount();
+    const onAccepted = () => {
+      setIsAlerting(false);
+      cargarBadgeCount();
+    };
+    socket.on('order:created_to_plant', onCreated);
+    socket.on('order:status_updated', onRefresh);
+    socket.on('order:accepted_by_plant', onAccepted);
+    socket.on('lote:estado_actualizado', onRefresh);
+    return () => {
+      socket.off('order:created_to_plant', onCreated);
+      socket.off('order:status_updated', onRefresh);
+      socket.off('order:accepted_by_plant', onAccepted);
+      socket.off('lote:estado_actualizado', onRefresh);
+    };
+  }, [socket]);
 
   return (
     <div
@@ -214,7 +192,7 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
           </div>
           <div>
             <h4 className="text-xs font-black uppercase tracking-wider">
-              ??? Nuevo Pedido Comercial ({bannerAlert.codigo})!
+              🔔 ¡Nuevo Pedido Comercial ({bannerAlert.codigo})!
             </h4>
             <p className="text-[11px] font-medium text-slate-900">
               {bannerAlert.cliente} • {bannerAlert.producto}

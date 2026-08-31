@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, RefreshCw, AlertTriangle, Package, Warehouse, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
+import { useSocket } from '@/lib/socketContext';
 
 interface MaterialItem {
   sku: string;
@@ -30,10 +32,9 @@ interface SubAlmacenItem {
   reutilizable: boolean;
 }
 
-import { INVENTARIO_REAL_SEED_DATA, SUBALMACEN_REAL_SEED_DATA } from '@/lib/inventarioRealData';
-
 export default function InventariosPage() {
   const { theme } = useTheme();
+  const { socket } = useSocket();
   const isDark = theme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,12 +61,8 @@ export default function InventariosPage() {
   const cargarInventarioReal = async () => {
     try {
       setLoading(true);
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const res = await fetch('http://localhost:3001/api/v1/inventario/dashboard/lista-completa', {
-        headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const { data, ok } = await apiFetch<any>('/inventario/dashboard/lista-completa');
+      if (ok && data) {
         setMaterialsData(
           (data.insumos || []).map((m: any) => ({
             ...m,
@@ -89,32 +86,51 @@ export default function InventariosPage() {
     }
   };
 
+  const cargarSubAlmacen = async () => {
+    try {
+      const { data, ok } = await apiFetch<any[]>('/sub-almacen/disponibles');
+      if (ok && Array.isArray(data) && data.length > 0) {
+        // Mapear a formato de cards: producto sobrante (no insumo), con % sobre el lote origen
+        const mapped: SubAlmacenItem[] = data.map((s: any) => {
+          const loteCodigo = s.loteOrigen?.codigoLote || s.loteOrigenId?.slice(0, 8) || 'LOTE';
+          const producto = s.loteOrigen?.codigoLote ? `Producto ${loteCodigo}` : s.insumoSubproducto?.nombre || 'Producto Sobrante';
+          // Para demo, el producto es del lote (ACEITE DE BATANA) — usamos insumo como proxy
+          const pesoNum = Number(s.pesoDisponible) || 0;
+          // % se calcula contra 50 KG del lote demo (10% = 5 KG) — en real vendría de OrdenProduccion.cantidadPlanificada
+          const porcentajeDemo = pesoNum ? `${((pesoNum / 50) * 100).toFixed(1)}%` : '—';
+          return {
+            id: s.id,
+            codigo: loteCodigo,
+            nombre: s.insumoSubproducto?.nombre ? `${s.insumoSubproducto.nombre} (Prod. ${loteCodigo})` : producto,
+            peso: `${pesoNum} KG (${porcentajeDemo})`,
+            unidad: 'KG',
+            loteOrigen: loteCodigo,
+            fecha: new Date(s.createdAt).toLocaleDateString('es-PE'),
+            reutilizable: s.estado === 'DISPONIBLE',
+          };
+        });
+        setSubAlmacenData(mapped);
+      }
+    } catch {}
+  };
+
   React.useEffect(() => {
     cargarInventarioReal();
-
-    // WebSockets para sincronizacin en tiempo real sin presionar F5
-    let socket: any = null;
-    try {
-      const { io } = require('socket.io-client');
-      socket = io('http://localhost:3001');
-
-      socket.on('inventario:actualizado', () => {
-        cargarInventarioReal();
-      });
-
-      socket.on('inventario:alerta_stock_critico', () => {
-        cargarInventarioReal();
-      });
-    } catch (e) {
-      console.log('Error conectando socket inventario:', e);
-    }
-
-    const interval = setInterval(cargarInventarioReal, 3000);
-    return () => {
-      if (socket) socket.disconnect();
-      clearInterval(interval);
-    };
+    cargarSubAlmacen();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onRefresh = () => { cargarInventarioReal(); cargarSubAlmacen(); };
+    socket.on('inventario:actualizado', onRefresh);
+    socket.on('inventario:alerta_stock_critico', onRefresh);
+    socket.on('lote:estado_actualizado', onRefresh);
+    return () => {
+      socket.off('inventario:actualizado', onRefresh);
+      socket.off('inventario:alerta_stock_critico', onRefresh);
+      socket.off('lote:estado_actualizado', onRefresh);
+    };
+  }, [socket]);
 
   const categories = [
     'Todos',
@@ -251,18 +267,18 @@ export default function InventariosPage() {
       .join('\n');
 
     alert(
-      `?? SOLICITUD EN MASA DE REAPROVISIONAMIENTO EMITIDA:\n\n` +
+      `📦 SOLICITUD EN MASA DE REAPROVISIONAMIENTO EMITIDA:\n\n` +
       `Total de Productos Solicitados: ${listaReaprovisionamiento.length}\n\n` +
       `${detalleStr}\n\n` +
       `- Destino: Almacén Principal Quimicorp Perú S.A.C.\n` +
-      `- Notificado a: Compras & Logstica de Planta`
+      `- Notificado a: Compras & Logística de Planta`
     );
     setModalReaprovisionamiento(false);
   };
 
   return (
     <div className="space-y-6 font-mono min-h-screen">
-      {/* Banner Dinmico de Alerta de Stock Crtico */}
+      {/* Banner Dinámico de Alerta de Stock Crítico */}
       {insumosCriticosDetalle.length > 0 && (
         <div className={`rounded-xl p-4 border flex items-center justify-between gap-4 ${
           isDark
@@ -281,7 +297,7 @@ export default function InventariosPage() {
               <h4 className={`text-xs font-black font-sans ${
                 isDark ? 'text-rose-300' : 'text-rose-950'
               }`}>
-                ?? ALERTA EN TIEMPO REAL: {insumosCriticosDetalle.length} MATERIAL(ES) EN STOCK CRTICO (&lt; 20%)
+                ⚠️ ALERTA EN TIEMPO REAL: {insumosCriticosDetalle.length} MATERIAL(ES) EN STOCK CRÍTICO (&lt; 20%)
               </h4>
               <p className={`text-[11px] font-sans mt-0.5 ${
                 isDark ? 'text-slate-300' : 'text-rose-900 font-medium'
@@ -416,7 +432,7 @@ export default function InventariosPage() {
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              ?? Stock OK
+              ✅ Stock OK
             </button>
             <button
               onClick={() => setSelectedEstadoFilter('LOW_STOCK')}
@@ -426,7 +442,7 @@ export default function InventariosPage() {
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              ?? Stock Bajo
+              ⚠️ Stock Bajo
             </button>
             <button
               onClick={() => setSelectedEstadoFilter('CRITICAL')}
@@ -436,7 +452,7 @@ export default function InventariosPage() {
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              ?? Stock Crtico
+              🚨 Stock Crítico
             </button>
           </div>
         </div>
@@ -660,7 +676,13 @@ export default function InventariosPage() {
 
               <div>
                 {item.reutilizable ? (
-                  <button className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#00F2C3] py-2 text-xs font-bold text-[#090C10] hover:bg-[#00d8ad] transition-all shadow-md">
+                  <button
+                    onClick={async () => {
+                      const { ok } = await apiFetch(`/sub-almacen/${item.id}/reusar`, { method: 'PATCH' });
+                      if (ok) cargarSubAlmacen();
+                    }}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#00F2C3] py-2 text-xs font-bold text-[#090C10] hover:bg-[#00d8ad] transition-all shadow-md"
+                  >
                     <RefreshCw className="h-3.5 w-3.5" />
                     <span>Reaplicar a Lote</span>
                   </button>
@@ -733,7 +755,7 @@ export default function InventariosPage() {
                           const listaAmostrar = itemsRequeridos.length > 0 ? itemsRequeridos : materialsData;
                           return listaAmostrar.map((m) => (
                             <option key={m.sku} value={m.sku}>
-                              {m.estado === 'CRITICAL' ? '?? CRTICO:' : m.estado === 'LOW STOCK' ? '?? BAJO:' : '?? OK:'} {m.nombre} ({m.sku})
+                              {m.estado === 'CRITICAL' ? '🚨 CRÍTICO:' : m.estado === 'LOW STOCK' ? '⚠️ BAJO:' : '✅ OK:'} {m.nombre} ({m.sku})
                             </option>
                           ));
                         })()}
@@ -764,14 +786,14 @@ export default function InventariosPage() {
                       </div>
                     </div>
 
-                    {/* Botn Eliminar */}
+                    {/* Botón Eliminar */}
                     {listaReaprovisionamiento.length > 1 && (
                       <button
                         onClick={() => handleEliminarInsumoDeModal(idx)}
                         className="p-2 text-rose-400 hover:text-rose-300 font-mono text-sm self-end"
                         title="Eliminar insumo de la orden"
                       >
-                        ???
+                        🗑️
                       </button>
                     )}
                   </div>
@@ -779,7 +801,7 @@ export default function InventariosPage() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-400 uppercase tracking-wider mb-1">Ubicacin / Destino de Entrega</label>
+                <label className="block font-bold text-slate-400 uppercase tracking-wider mb-1">Ubicación / Destino de Entrega</label>
                 <input
                   type="text"
                   defaultValue="Almacén Principal Quimicorp Perú S.A.C. - Stock de Seguridad"
@@ -801,7 +823,7 @@ export default function InventariosPage() {
                 onClick={handleEnviarSolicitudCompraEnMasa}
                 className="px-5 py-2 rounded-xl text-xs font-bold bg-rose-500 text-white hover:bg-rose-600 transition-all shadow-lg flex items-center gap-1.5"
               >
-                <span>?? Emitir Solicitud a Compras ({listaReaprovisionamiento.length})</span>
+                <span>🛒 Emitir Solicitud a Compras ({listaReaprovisionamiento.length})</span>
               </button>
             </div>
           </div>

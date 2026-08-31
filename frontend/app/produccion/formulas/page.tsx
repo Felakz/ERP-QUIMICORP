@@ -388,28 +388,67 @@ function FormulasContent() {
               </div>
             </div>
 
-            {/* Calculadora de Batch Escalar */}
-            <div className={`p-4 rounded-xl border flex items-center gap-4 ${
+            {/* Calculadora de Batch Escalar (Kilogramos y Gramos con soporte de decimales ej. 0.250 kg = 250 g) */}
+            <div className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
               isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-300'
             }`}>
-              <div className="p-3 rounded-lg bg-[#00F2C3]/10 border border-[#00F2C3]/30 text-[#00F2C3]">
-                <Scale className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold tracking-widest uppercase block text-slate-400 font-sans">
-                  ?? BATCH A FABRICAR HOY (KG)
-                </span>
-                <div className="flex items-center gap-2 mt-1">
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={batchObjetivoKg}
-                    onChange={(e) => setBatchObjetivoKg(Math.max(1, parseFloat(e.target.value) || 1))}
-                    className="w-28 px-3 py-1.5 rounded-lg bg-black/40 border border-cyan-500/40 text-lg font-black text-[#00F2C3] font-mono text-center focus:outline-none focus:border-[#00F2C3]"
-                  />
-                  <span className="text-xs font-bold text-slate-400 font-sans">KG Totales</span>
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-[#00F2C3]/10 border border-[#00F2C3]/30 text-[#00F2C3] shrink-0">
+                  <Scale className="w-5 h-5" />
                 </div>
+                <div>
+                  <span className="text-[10px] font-bold tracking-widest uppercase block text-slate-400 font-sans">
+                    ⚖️ BATCH A FABRICAR (KG / GRAMOS)
+                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      value={batchObjetivoKg}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setBatchObjetivoKg(isNaN(val) ? 0 : Math.max(0.001, val));
+                      }}
+                      className="w-32 px-3 py-1.5 rounded-lg bg-black/40 border border-cyan-500/40 text-lg font-black text-[#00F2C3] font-mono text-center focus:outline-none focus:border-[#00F2C3]"
+                    />
+                    <span className="text-xs font-bold text-slate-400 font-sans">KG</span>
+                    <span className="text-xs font-bold text-purple-400 font-mono">
+                      = {(batchObjetivoKg * 1000).toLocaleString('es-PE', { maximumFractionDigits: 2 })} Gramos
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones de Selección Rápida de Balanza (Muestras de Lab & Lotes Industriales) */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block w-full md:w-auto font-sans mr-1">
+                  Presets:
+                </span>
+                {[
+                  { label: '250 g', kg: 0.25 },
+                  { label: '500 g', kg: 0.5 },
+                  { label: '1 kg', kg: 1 },
+                  { label: '5 kg', kg: 5 },
+                  { label: '20 kg', kg: 20 },
+                  { label: '100 kg', kg: 100 },
+                  { label: '500 kg', kg: 500 },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => setBatchObjetivoKg(preset.kg)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold border transition-all ${
+                      batchObjetivoKg === preset.kg
+                        ? 'bg-[#00F2C3] text-slate-950 border-[#00F2C3] font-black shadow-md shadow-[#00F2C3]/20'
+                        : isDark
+                        ? 'bg-slate-900/80 text-slate-300 border-slate-700 hover:border-cyan-500/50 hover:text-cyan-300'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -422,11 +461,11 @@ function FormulasContent() {
                 <span className={`text-xs font-bold tracking-widest uppercase font-sans ${textTitle}`}>
                   {varianteSeleccionada ? (
                     <span className="text-purple-300 font-bold">
-                      DOSIFICACIN DE BALANZA PARA CLIENTE [{varianteSeleccionada.clienteNombre}] ({ingredientesParaDosificar.length} INSUMOS)
+                      DOSIFICACIÓN DE BALANZA PARA CLIENTE [{varianteSeleccionada.clienteNombre}] ({ingredientesParaDosificar.length} INSUMOS)
                     </span>
                   ) : (
                     <span>
-                      DOSIFICACIN DE BALANZA PARA RECETA BASE ({ingredientesParaDosificar.length} INSUMOS)
+                      DOSIFICACIÓN DE BALANZA PARA RECETA BASE ({ingredientesParaDosificar.length} INSUMOS)
                     </span>
                   )}
                 </span>
@@ -441,8 +480,8 @@ function FormulasContent() {
                 <thead>
                   <tr className={`border-b text-[10px] font-bold tracking-widest uppercase ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
                     <th className="py-3 px-3">SKU</th>
-                    <th className="py-3 px-3">COMPONENTE QUMICO</th>
-                    <th className="py-3 px-3 text-right">PROPORCIN (%)</th>
+                    <th className="py-3 px-3">COMPONENTE QUÍMICO</th>
+                    <th className="py-3 px-3 text-right">PROPORCIÓN (%)</th>
                     <th className="py-3 px-3 text-right text-cyan-400">PESO A PESAR (KG)</th>
                     <th className="py-3 px-3 text-right text-purple-400">PESO EN GRAMOS (GR)</th>
                     <th className="py-3 px-3 text-center">ORIGEN</th>
@@ -465,10 +504,10 @@ function FormulasContent() {
                           {Number(item.porcentaje).toFixed(2)} %
                         </td>
                         <td className="py-3.5 px-3 text-right font-black text-sm text-[#00F2C3]">
-                          {pesoCalculadoKg.toFixed(3)} KG
+                          {pesoCalculadoKg < 0.01 ? pesoCalculadoKg.toFixed(4) : pesoCalculadoKg.toFixed(3)} KG
                         </td>
                         <td className="py-3.5 px-3 text-right font-bold text-xs text-purple-300">
-                          {pesoCalculadoGr.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} GR
+                          {pesoCalculadoGr.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} GR
                         </td>
                         <td className="py-3.5 px-3 text-center">
                           {varianteSeleccionada ? (
@@ -497,7 +536,7 @@ function FormulasContent() {
                       {batchObjetivoKg.toFixed(3)} KG
                     </td>
                     <td className="py-3 px-3 text-right font-black text-purple-300">
-                      {(batchObjetivoKg * 1000).toLocaleString('es-PE')} GR
+                      {(batchObjetivoKg * 1000).toLocaleString('es-PE', { maximumFractionDigits: 2 })} GR
                     </td>
                     <td></td>
                   </tr>
@@ -513,7 +552,7 @@ function FormulasContent() {
 
 export default function FormulasPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-400 font-mono text-xs">Cargando catlogo de fórmulas...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-slate-400 font-mono text-xs">Cargando catálogo de fórmulas...</div>}>
       <FormulasContent />
     </Suspense>
   );
