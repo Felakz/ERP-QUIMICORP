@@ -80,6 +80,18 @@ export class ProduccionService {
   }
 
   async crearOrden(dto: CrearOrdenDto) {
+    // Idempotencia: evita duplicados por doble clic (misma fórmula/cliente/cantidad en <30s)
+    const reciente = await this.prisma.ordenProduccion.findFirst({
+      where: {
+        formulaId: dto.formulaId,
+        clienteNombre: dto.clienteNombre || undefined,
+        cantidadPlanificada: dto.cantidadPlanificada as any,
+        createdAt: { gte: new Date(Date.now() - 30_000) },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (reciente) return reciente;
+
     // Validamos stock para informar, pero NO bloqueamos la creación del lote.
     const validacion = await this.validarStockDisponible({
       formulaId: dto.formulaId,

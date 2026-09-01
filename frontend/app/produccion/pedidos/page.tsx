@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Inbox,
   Search,
@@ -97,6 +97,7 @@ export default function ProduccionPedidosRecepcionPage() {
   const [pedidoParaDevolver, setPedidoParaDevolver] = useState<PedidoComercialUI | null>(null);
   const [motivoDevolucion, setMotivoDevolucion] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const approvingRef = useRef(false);
   const [toastMsg, setToastMsg] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
   const [timeString, setTimeString] = useState('');
 
@@ -184,6 +185,8 @@ export default function ProduccionPedidosRecepcionPage() {
   }, [socket, fechaFiltro]);
 
   const handleAprobarLote = async (pedido: PedidoComercialUI) => {
+    if (approvingRef.current) return;
+    approvingRef.current = true;
     try {
       setActionLoading(true);
       const me = await apiFetch<any>('/auth/me');
@@ -221,6 +224,7 @@ export default function ProduccionPedidosRecepcionPage() {
       setToastMsg({ tipo: 'error', texto: e.message || `No se pudo aprobar ${pedido.codigoOrden}` });
     } finally {
       setActionLoading(false);
+      approvingRef.current = false;
     }
   };
 
