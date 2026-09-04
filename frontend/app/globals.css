@@ -7,10 +7,17 @@
   --brand-emerald: #10b981;
 }
 
+html {
+  font-size: 92%; /* Escala compacta al 92% para máxima densidad y elegancia industrial */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   background-color: #0b0f17;
   color: #f8fafc;
-  font-feature-settings: 'tnum' 1;
+  font-feature-settings: 'tnum' 1, 'cv02' 1, 'cv03' 1, 'cv04' 1;
 }
 
 /* Custom dark scrollbars */
