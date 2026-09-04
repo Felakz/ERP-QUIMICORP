@@ -176,7 +176,7 @@ export default function AdministracionControlProduccionPage() {
         <div>
           <h3 className={`text-sm font-bold font-sans flex items-center gap-2 ${textValue}`}>
             <span>QUIMICORP PERU S.A.C.</span>
-            <span className="text-xs text-slate-400 font-mono">• RUC 20614697327</span>
+            <span className="text-xs text-slate-400 font-mono">• RUC 20612434124</span>
           </h3>
           <p className={`text-xs font-sans ${textTitle}`}>
             PROGRAMACIÓN DIARIA DE PRODUCCIÓN — Planilla Digital Inmutable del Turno ({selectedDate})

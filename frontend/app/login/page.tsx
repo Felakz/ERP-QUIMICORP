@@ -4,13 +4,13 @@ import React, { useState } from 'react';
 import { useAuth, UserRole } from '@/lib/AuthContext';
 import { Lock, Mail, ChevronRight, CheckCircle2, ShieldCheck, Factory, Building2, Users } from 'lucide-react';
 
-const QUICK_ROLES: { role: UserRole; label: string; email: string; pass: string; icon: string; name: string }[] = [
-  { role: 'GERENTE_ADMINISTRATIVO', label: 'Gerente Admin & Financiero', email: 'administracion@grupoquimicorp.pe', pass: 'adon$Qu1m1corp', icon: '👑', name: 'Elvis Edwin Yarleque Arrunategui' },
-  { role: 'ASISTENTE_ADMINISTRATIVO', label: 'Asistente de Administración', email: 'asistentedeadministracion@grupoquimicorp.pe', pass: 'asonQu1m1corp?', icon: '👤', name: 'Mishelle Barrera Quispe' },
-  { role: 'PRODUCCION_ALMACEN', label: 'Supervisor de Producción', email: 'produccion@grupoquimicorp.pe', pass: 'pron+Qu1m1corp+', icon: '🏭', name: 'Supervisor de Producción' },
-  { role: 'VENTAS_ATENCION_DIGITAL', label: 'Ventas & Atención Digital', email: 'ventas@quimicorp.pe', pass: 'Quimicorp2026!', icon: '🤝', name: 'Elena Gómez (Ventas)' },
-  { role: 'COMPRAS_PROVEEDORES', label: 'Compras & Proveedores', email: 'compras@quimicorp.pe', pass: 'Quimicorp2026!', icon: '📦', name: 'Laura Paredes (Compras)' },
-  { role: 'GERENCIA', label: 'Gerencia General', email: 'gerencia@quimicorp.pe', pass: 'Quimicorp2026!', icon: '💼', name: 'Carlos Mendoza (Gerente)' },
+const QUICK_ROLES: { role: UserRole; label: string; email: string; icon: string; name: string }[] = [
+  { role: 'GERENTE_ADMINISTRATIVO', label: 'Gerente Admin & Financiero', email: 'administracion@grupoquimicorp.pe', icon: '👑', name: 'Elvis Edwin Yarleque Arrunategui' },
+  { role: 'ASISTENTE_ADMINISTRATIVO', label: 'Asistente de Administración', email: 'asistentedeadministracion@grupoquimicorp.pe', icon: '👤', name: 'Mishelle Barrera Quispe' },
+  { role: 'PRODUCCION_ALMACEN', label: 'Supervisor de Producción', email: 'produccion@grupoquimicorp.pe', icon: '🏭', name: 'Supervisor de Producción' },
+  { role: 'VENTAS_ATENCION_DIGITAL', label: 'Ventas & Atención Digital', email: 'ventas@quimicorp.pe', icon: '🤝', name: 'Elena Gómez (Ventas)' },
+  { role: 'COMPRAS_PROVEEDORES', label: 'Compras & Proveedores', email: 'compras@quimicorp.pe', icon: '📦', name: 'Laura Paredes (Compras)' },
+  { role: 'GERENCIA', label: 'Gerencia General', email: 'gerencia@quimicorp.pe', icon: '💼', name: 'Carlos Mendoza (Gerente)' },
 ];
 
 import { getApiBaseUrl } from '@/lib/apiClient';
@@ -55,8 +55,7 @@ export default function LoginPage() {
 
   const handleQuickSelect = (r: typeof QUICK_ROLES[0]) => {
     setEmail(r.email);
-    setPassword(r.pass);
-    executeLogin(r.email, r.pass);
+    setPassword('');
   };
 
   return (

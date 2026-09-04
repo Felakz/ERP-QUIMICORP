@@ -137,22 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const targetEmail = ROLE_EMAIL_MAP[newRole];
     if (!targetEmail) return;
 
-    try {
-      const res = await fetch(`${getApiBaseUrl()}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: targetEmail, password: 'Quimicorp2026!' }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Error al autenticar en Dev Mode contra BD');
-      }
-
-      const { token: realToken, user: realUser } = await res.json();
-      login(realToken, realUser);
-    } catch (e) {
-      console.error('Error switching dev role via DB auth:', e);
-    }
+    // Redirigir al login con el email pre-seleccionado; la contraseña
+    // debe ingresarse manualmente (nunca hardcodeada en el frontend).
+    router.push(`/login?email=${encodeURIComponent(targetEmail)}`);
   };
 
   return (

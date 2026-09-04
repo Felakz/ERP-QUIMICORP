@@ -90,9 +90,9 @@ export class PedidosAdminController {
 
   @Post('limpiar-datos')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA)
   limpiarDatos() {
-    return this.pedidosAdminService.limpiarDatos();
+    throw new Error('Endpoint deshabilitado. Use scripts de migración para gestión de datos.');
   }
 }
 

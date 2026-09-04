@@ -21,20 +21,19 @@ import { apiFetch } from '@/lib/apiClient';
 import {
   CuentaCobrarItem,
   CobranzasKpis,
-  COBRANZAS_EXCEL_SEED,
 } from '@/lib/cobranzasRealData';
 
 export default function CuentasCobrarPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [cuentas, setCuentas] = useState<CuentaCobrarItem[]>(COBRANZAS_EXCEL_SEED);
+  const [cuentas, setCuentas] = useState<CuentaCobrarItem[]>([]);
   const [kpis, setKpis] = useState<CobranzasKpis>({
-    totalFacturado: 154663.05,
-    totalCobrado: 96211.55,
-    saldoPendiente: 58451.50,
+    totalFacturado: 0,
+    totalCobrado: 0,
+    saldoPendiente: 0,
     totalVencido: 0,
-    totalDocumentos: 74,
+    totalDocumentos: 0,
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -93,7 +92,7 @@ export default function CuentasCobrarPage() {
         });
       }
     } catch (err) {
-      console.warn('Usando respaldo seed de cobranzas:', err);
+      console.warn('No se pudieron cargar las cuentas por cobrar desde el backend:', err);
     } finally {
       setLoading(false);
     }

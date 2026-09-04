@@ -18,6 +18,12 @@ import { Role } from '@prisma/client';
 export class ProduccionController {
   constructor(private readonly produccionService: ProduccionService) {}
 
+  @Get('operarios')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
+  listarOperarios() {
+    return this.produccionService.listarOperarios();
+  }
+
   @Get('ordenes/programacion-diaria')
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   obtenerProgramacionDiaria(@Query('fecha') fecha?: string) {

@@ -19,6 +19,10 @@ export class CrearInsumoDto {
   tipo?: TipoInsumo;
 
   @IsOptional()
+  @IsString()
+  estadoFisico?: string;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   stockMinimo?: number;

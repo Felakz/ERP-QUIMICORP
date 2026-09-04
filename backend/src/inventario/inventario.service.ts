@@ -15,6 +15,7 @@ export class InventarioService {
         familiaId: dto.familiaId,
         unidadMedida: dto.unidadMedida,
         tipo: (dto as any).tipo ?? 'OTRO',
+        estadoFisico: (dto as any).estadoFisico ?? null,
         stockMinimo: dto.stockMinimo ?? 0,
         costoUnitario: dto.costoUnitario ?? 0,
       },
@@ -64,6 +65,7 @@ export class InventarioService {
     if (dto.familiaId) data.familiaId = dto.familiaId;
     if (dto.unidadMedida) data.unidadMedida = dto.unidadMedida;
     if (dto.tipo) data.tipo = dto.tipo;
+    if (dto.estadoFisico !== undefined) data.estadoFisico = dto.estadoFisico;
     if (dto.stockMinimo !== undefined) data.stockMinimo = dto.stockMinimo;
     if (dto.costoUnitario !== undefined) data.costoUnitario = dto.costoUnitario;
     return this.prisma.insumo.update({ where: { id }, data, include: { familia: true } });

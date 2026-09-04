@@ -106,8 +106,16 @@ export class ProduccionService {
     let supervisorId = dto.supervisorId;
     const supervisor = await this.prisma.usuario.findUnique({ where: { id: supervisorId } });
     if (!supervisor) {
-      const fallback = await this.prisma.usuario.findFirst();
-      if (fallback) supervisorId = fallback.id;
+      const fallback = await this.prisma.usuario.findFirst({
+        where: { rol: { nombre: 'PRODUCCION_ALMACEN' } },
+      });
+      if (fallback) {
+        supervisorId = fallback.id;
+      } else {
+        throw new BadRequestException(
+          'No hay usuario supervisor de planta disponible. Configure el personal de producción primero.',
+        );
+      }
     }
 
     const orden = await this.prisma.ordenProduccion.create({
@@ -116,7 +124,7 @@ export class ProduccionService {
         formulaId: dto.formulaId,
         cantidadPlanificada: dto.cantidadPlanificada,
         supervisorId: supervisorId,
-        clienteNombre: dto.clienteNombre || 'Cliente Quimicorp SAC',
+        clienteNombre: dto.clienteNombre || 'Sin cliente asignado',
         estado: EstadoOrdenProduccion.EN_PROCESO,
         pasoProceso: 'PENDIENTE_ASIGNACION',
       },
@@ -133,6 +141,21 @@ export class ProduccionService {
     });
 
     return orden;
+  }
+
+  async listarOperarios(): Promise<{ id: string; nombre: string }[]> {
+    const usuarios = await (this.prisma as any).usuario.findMany({
+      where: {
+        estado: 'ACTIVO',
+        OR: [
+          { rol: { nombre: 'PRODUCCION_ALMACEN' } },
+          { cargo: { contains: 'operario', mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, nombres: true, apellidos: true },
+      orderBy: { nombres: 'asc' },
+    }).catch(() => []);
+    return usuarios.map((u: any) => ({ id: u.id, nombre: `${u.nombres} ${u.apellidos}`.trim() }));
   }
 
   async asignarOperarios(dto: AsignarOperariosDto) {
@@ -375,7 +398,7 @@ export class ProduccionService {
         },
       });
 
-      // 3. Enviar a la Cola de Etiquetas & Despacho (/dashboard/etiquetas)
+      // 3. Enviar a la Cola de Etiquetas & Despacho (/produccion/etiquetas)
       await (tx as any).colaDespacho.create({
         data: {
           loteCodigo: orden.codigoLote,
@@ -386,6 +409,7 @@ export class ProduccionService {
           codigoQR: `QR-QUIMICORP-${orden.codigoLote}`,
           codigoBarras: `7759000${orden.codigoLote.replace(/\D/g, '') || '1001'}`,
           estado: 'LISTO_PARA_IMPRIMIR',
+          ruc: '20612434124',
         },
       });
 
@@ -442,22 +466,33 @@ export class ProduccionService {
         },
       });
 
-      // Propagar el estado ENTREGADO al Pedido Comercial vinculado (mismo patrón de
-      // coincidencia por dígitos del código usado en el resto del módulo de producción),
-      // para que el estado sea consistente en pedidos, control-producción y cartera de clientes.
-      const numPart = (orden.codigoLote || '').replace(/\D/g, '');
-      const pedidoVinculado = await (this.prisma as any).pedidoComercial.findFirst({
-        where: {
-          OR: numPart
-            ? [
-                { codigoOrden: { contains: numPart } },
-                { codigoRefAdmin: { contains: numPart } },
-              ]
-            : [],
-          clienteNombre: orden.clienteNombre || undefined,
-        },
-        orderBy: { createdAt: 'desc' },
-      }).catch(() => null);
+      // Propagar el estado ENTREGADO al Pedido Comercial vinculado. Se usa la FK
+      // `pedidoComercialId` (relación directa creada en la migración) como fuente
+      // principal; se conserva la coincidencia por dígitos solo como fallback para
+      // órdenes legacy sin relación.
+      let pedidoVinculado: { id: string } | null = null;
+      if (orden.pedidoComercialId) {
+        pedidoVinculado = await (this.prisma as any).pedidoComercial
+          .findFirst({ where: { id: orden.pedidoComercialId } })
+          .catch(() => null);
+      }
+      if (!pedidoVinculado) {
+        const numPart = (orden.codigoLote || '').replace(/\D/g, '');
+        pedidoVinculado = await (this.prisma as any).pedidoComercial
+          .findFirst({
+            where: {
+              OR: numPart
+                ? [
+                    { codigoOrden: { contains: numPart } },
+                    { codigoRefAdmin: { contains: numPart } },
+                  ]
+                : [],
+              clienteNombre: orden.clienteNombre || undefined,
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+          .catch(() => null);
+      }
 
       if (pedidoVinculado) {
         await (this.prisma as any).pedidoComercial.update({

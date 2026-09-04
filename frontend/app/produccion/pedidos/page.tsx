@@ -189,24 +189,8 @@ export default function ProduccionPedidosRecepcionPage() {
     approvingRef.current = true;
     try {
       setActionLoading(true);
-      const me = await apiFetch<any>('/auth/me');
-      const currentUserId: string | null = (me.data?.user?.id as string) || (me.data?.id as string) || null;
-
       const aprobar = await apiFetch(`/pedidos-admin/${pedido.id}/aprobar`, { method: 'POST' });
       if (!aprobar.ok) throw new Error(aprobar.error || 'No se pudo aprobar el pedido');
-
-      // Persistir la Orden de Producción REAL en el backend (pedido -> lote) — BD es la fuente de verdad
-      if (pedido.formulaId) {
-        await apiFetch('/produccion/ordenes', {
-          method: 'POST',
-          body: JSON.stringify({
-            formulaId: pedido.formulaId,
-            cantidadPlanificada: Number(pedido.cantidadSolicitada) || 100,
-            supervisorId: currentUserId || pedido.id,
-            clienteNombre: pedido.clienteNombre,
-          }),
-        });
-      }
 
       setToastMsg({
         tipo: 'success',

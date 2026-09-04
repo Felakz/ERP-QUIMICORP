@@ -88,132 +88,16 @@ export default function EtiquetasDespachoPage() {
   const [activeTab, setActiveTab] = useState<'ETIQUETA' | 'DESPACHO'>('ETIQUETA');
 
   // Pedidos Reales de Producción
-  const [pedidosCola, setPedidosCola] = useState<PedidoEtiquetaItem[]>([
-    {
-      id: 'ped-naupari-001',
-      idPedido: 'PED-2026-089',
-      numeroPedido: 'ORD-00296',
-      codigoLote: 'CRMS- 00296',
-      nombreProducto: 'CREMA MUSCULAR',
-      clienteNombre: 'ÑAUPARI',
-      clienteRuc: '20601984521',
-      cantidadKilosDisplay: '19 KILOS',
-      contenidoNetoKg: 19.014,
-      unidadesPedidas: 1,
-      sku: 'CRM-MUSC-19KG',
-      fechaFab: '30 – ABRIL -2026',
-      fechaVenc: '30 - ABRIL -2027',
-      codigoBarras: '7759000002961',
-      ruc: '20612434124',
-      advertenciaGHS: 'Uso Tópico Externo / Precaución Ocular',
-      codigoGHS: 'GHS07',
-      tipoPeligro: 'ATENCIÓN (GHS07)',
-      aprobadoQA: true,
-      estadoImpresion: 'LISTO_PARA_IMPRIMIR',
-      tipoEnvase: 'Balde + Tapa (PEAD 5 Gal)',
-      taraGramos: 985,
-      phMedido: 6.45,
-      phRango: '6.0 - 6.8',
-      viscosidadMedida: '48,500 cP',
-      densidadMedida: '0.992 g/ml',
-      aspecto: 'Crema homogénea consistente untuosa',
-      color: 'Blanco perla característico',
-      olor: 'Mentolado - Alcanforado intenso refrescante',
-      insumos: [
-        { nombre: 'Salicilato de Metilo', funcion: 'Principio Activo Rubefaciente / Analgésico', porcentaje: 12.0, pesoDosificadoKg: 2.282, tipo: 'ACTIVO' },
-        { nombre: 'Mentol Cristalino USP', funcion: 'Agente Refrescante / Descongestionante', porcentaje: 6.0, pesoDosificadoKg: 1.141, tipo: 'ACTIVO' },
-        { nombre: 'Alcanfor Sintético USP', funcion: 'Estimulante Circulatorio Local', porcentaje: 3.0, pesoDosificadoKg: 0.570, tipo: 'ACTIVO' },
-        { nombre: 'Base Autoemulsionante No Iónica (Lanette)', funcion: 'Emulsionante y Formador de Cuerpo', porcentaje: 15.0, pesoDosificadoKg: 2.852, tipo: 'BASE' },
-        { nombre: 'Glicerina Vegetal USP 99.5%', funcion: 'Agente Humectante y Emoliente', porcentaje: 5.0, pesoDosificadoKg: 0.951, tipo: 'BASE' },
-        { nombre: 'Agua Desmineralizada Tratada', funcion: 'Vehículo Acuoso Principal', porcentaje: 57.5, pesoDosificadoKg: 10.933, tipo: 'BASE' },
-        { nombre: 'Conservante Euxyl PE 9010', funcion: 'Preservante Antimicrobiano Amplio Espectro', porcentaje: 1.5, pesoDosificadoKg: 0.285, tipo: 'CONSERVANTE' },
-      ],
-    },
-    {
-      id: 'ped-jhon-canto-002',
-      idPedido: 'PED-2026-090',
-      numeroPedido: 'ORD-00040',
-      codigoLote: 'LOTE-000040',
-      nombreProducto: 'CREMA CÚRCUMA Y MENTOL',
-      clienteNombre: 'JHON CANTO INDUSTRIAL',
-      clienteRuc: '20512345678',
-      cantidadKilosDisplay: '250 KILOS',
-      contenidoNetoKg: 250.00,
-      unidadesPedidas: 1,
-      sku: 'CRM-CUR-250',
-      fechaFab: '2026-07-31',
-      fechaVenc: '2027-07-31',
-      codigoBarras: '7759000000040',
-      ruc: '20612434124',
-      advertenciaGHS: 'Irritante Cutáneo Leve',
-      codigoGHS: 'GHS07',
-      tipoPeligro: 'ATENCIÓN (GHS07)',
-      aprobadoQA: true,
-      estadoImpresion: 'LISTO_PARA_IMPRIMIR',
-      tipoEnvase: 'Cilindro Plástico Azul 55 Gal',
-      taraGramos: 8500,
-      phMedido: 6.2,
-      phRango: '5.8 - 6.6',
-      viscosidadMedida: '52,000 cP',
-      densidadMedida: '0.995 g/ml',
-      aspecto: 'Crema suave color amarillo suave',
-      color: 'Amarillo Cúrcuma',
-      olor: 'Mentolado Herbal',
-      insumos: [
-        { nombre: 'Extracto de Cúrcuma Longa', funcion: 'Antiinflamatorio Natural', porcentaje: 8.0, pesoDosificadoKg: 20.00, tipo: 'ACTIVO' },
-        { nombre: 'Mentol Cristalino USP', funcion: 'Refrescante Tópico', porcentaje: 5.0, pesoDosificadoKg: 12.50, tipo: 'ACTIVO' },
-        { nombre: 'Base Emulsionante Crema', funcion: 'Estructura Emulsión', porcentaje: 18.0, pesoDosificadoKg: 45.00, tipo: 'BASE' },
-        { nombre: 'Agua Desmineralizada', funcion: 'Solvente Base', porcentaje: 67.5, pesoDosificadoKg: 168.75, tipo: 'BASE' },
-        { nombre: 'Conservante Phenochem', funcion: 'Antibacteriano', porcentaje: 1.5, pesoDosificadoKg: 3.75, tipo: 'CONSERVANTE' },
-      ],
-    },
-    {
-      id: 'ped-dist-quimica-003',
-      idPedido: 'PED-2026-091',
-      numeroPedido: 'ORD-00001',
-      codigoLote: 'L-2026-001',
-      nombreProducto: 'DESENGRASANTE PESADO INDUSTRIAL HD',
-      clienteNombre: 'DISTRIBUIDORA QUÍMICA INDUSTRIAL',
-      clienteRuc: '20601234567',
-      cantidadKilosDisplay: '20 KILOS',
-      contenidoNetoKg: 20.00,
-      unidadesPedidas: 5,
-      sku: 'DES-IND-HD20',
-      fechaFab: '2026-08-28',
-      fechaVenc: '2027-08-28',
-      codigoBarras: '7759000000001',
-      ruc: '20612434124',
-      advertenciaGHS: 'Peligro: Causa quemaduras graves y lesiones oculares',
-      codigoGHS: 'GHS05',
-      tipoPeligro: 'PELIGRO CORROSIVO (GHS05)',
-      aprobadoQA: true,
-      estadoImpresion: 'LISTO_PARA_IMPRIMIR',
-      tipoEnvase: 'Bidón PEAD 5 Galones',
-      taraGramos: 650,
-      phMedido: 12.8,
-      phRango: '12.5 - 13.5',
-      viscosidadMedida: '350 cP',
-      densidadMedida: '1.045 g/ml',
-      aspecto: 'Líquido translúcido alcalino',
-      color: 'Ámbar Claro',
-      olor: 'Característico Solventado',
-      insumos: [
-        { nombre: 'Hidróxido de Sodio (Soda Cáustica 99%)', funcion: 'Agente Alcalinizante Saponificante', porcentaje: 8.5, pesoDosificadoKg: 1.70, tipo: 'ACTIVO' },
-        { nombre: 'Butilglicol Solvente', funcion: 'Disolvente de Grasas Pesadas', porcentaje: 6.0, pesoDosificadoKg: 1.20, tipo: 'ACTIVO' },
-        { nombre: 'Lauril Éter Sulfato (LESS 70%)', funcion: 'Tensoactivo Espumante y Humectante', porcentaje: 10.0, pesoDosificadoKg: 2.00, tipo: 'BASE' },
-        { nombre: 'Agua Tratada', funcion: 'Vehículo Principal', porcentaje: 75.5, pesoDosificadoKg: 15.10, tipo: 'BASE' },
-      ],
-    },
-  ]);
+  const [pedidosCola, setPedidosCola] = useState<PedidoEtiquetaItem[]>([]);
 
-  const [selectedPedidoId, setSelectedPedidoId] = useState<string>('ped-naupari-001');
+  const [selectedPedidoId, setSelectedPedidoId] = useState<string>('');
   const [showManualDrawer, setShowManualDrawer] = useState<boolean>(false);
   const [showFichaModal, setShowFichaModal] = useState<boolean>(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   // Estados de Despacho
   const [destino, setDestino] = useState<string>('Almacén Central Despachos');
-  const [responsable, setResponsable] = useState<string>('Carlos Quispe');
+  const [responsable, setResponsable] = useState<string>('');
   const [numeroGuia, setNumeroGuia] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [backendConectado, setBackendConectado] = useState<boolean>(false);
@@ -251,14 +135,14 @@ export default function EtiquetasDespachoPage() {
                 fechaFab: new Date(c.fechaFabricacion || c.createdAt).toISOString().split('T')[0],
                 fechaVenc: '',
                 codigoBarras: c.codigoBarras || '',
-                ruc: '20612434124',
-                advertenciaGHS: 'Manipular con equipo de protección.',
-                codigoGHS: 'GHS07',
-                tipoPeligro: 'ATENCIÓN (GHS07)',
+                ruc: c.ruc || '20612434124',
+                advertenciaGHS: c.advertenciaGHS || '',
+                codigoGHS: (c.codigoGHS as PedidoEtiquetaItem['codigoGHS']) || 'GHS07',
+                tipoPeligro: c.tipoPeligro || 'Clasificación pendiente',
                 aprobadoQA: true,
                 estadoImpresion: c.estado || 'LISTO_PARA_IMPRIMIR',
-                tipoEnvase: 'Bidón PEAD 5 Galones',
-                taraGramos: 650,
+                tipoEnvase: c.tipoEnvase || 'Envase estándar',
+                taraGramos: c.taraGramos || 0,
                 phMedido: 6.5,
                 phRango: '6.0 - 7.0',
                 viscosidadMedida: '—',
@@ -270,23 +154,10 @@ export default function EtiquetasDespachoPage() {
               };
             });
 
-          setPedidosCola((prev) => {
-            const mapa = new Map<string, PedidoEtiquetaItem>();
-            prev.forEach((p) => mapa.set(p.codigoLote.trim().toLowerCase(), p));
-            reales.forEach((r) => {
-              const key = r.codigoLote.trim().toLowerCase();
-              const existente = mapa.get(key);
-              if (existente) {
-                mapa.set(key, { ...r, ...existente, colaId: r.colaId || existente.colaId, numeroGuia: existente.numeroGuia || r.numeroGuia });
-              } else {
-                mapa.set(key, r);
-              }
-            });
-            return Array.from(mapa.values());
-          });
+          setPedidosCola(reales);
         }
       } catch {
-        // Sin backend de cola: se mantienen los pedidos de ejemplo
+        // Silencio: la cola cargará desde el backend; sin datos no hay cola que mostrar
       }
     };
     cargarCola();
@@ -316,7 +187,7 @@ export default function EtiquetasDespachoPage() {
       try {
         const qrPayload = JSON.stringify({
           empresa: 'QUIMICORP PERU S.A.C.',
-          ruc: '20612434124',
+          ruc: pedidoActivo.ruc || '20612434124',
           pedido: pedidoActivo.idPedido,
           orden: pedidoActivo.numeroPedido,
           lote: pedidoActivo.codigoLote,
@@ -328,7 +199,7 @@ export default function EtiquetasDespachoPage() {
           fechaFab: pedidoActivo.fechaFab,
           fechaVenc: pedidoActivo.fechaVenc,
           estadoQA: 'LIBERADO_CONFORME',
-          verificarURL: `https://erp.quimicorp.com/trazabilidad/pedido/${pedidoActivo.idPedido}`,
+          verificarURL: `${window.location.origin}/trazabilidad/pedido/${pedidoActivo.idPedido}`,
         }, null, 2);
 
         const url = await QRCode.toDataURL(qrPayload, {
@@ -381,6 +252,14 @@ export default function EtiquetasDespachoPage() {
 
     const etiquetaHtml = etiquetaElement.outerHTML;
 
+    const compiledStyles = Array.from(document.querySelectorAll('style'))
+      .map((s) => s.innerHTML)
+      .join('\\n');
+    const linkedCss = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))
+      .map((l) => l.href)
+      .map((href) => `<link rel="stylesheet" href="${href}" />`)
+      .join('\\n');
+
     doc.open();
     doc.write(`
       <!DOCTYPE html>
@@ -388,7 +267,8 @@ export default function EtiquetasDespachoPage() {
         <head>
           <title>Etiqueta - ${pedidoActivo.codigoLote} - ${pedidoActivo.nombreProducto}</title>
           <meta charset="utf-8" />
-          <script src="https://cdn.tailwindcss.com"></script>
+          ${linkedCss}
+          <style>${compiledStyles}</style>
           <style>
             @page {
               size: 100mm 150mm;
@@ -466,7 +346,7 @@ export default function EtiquetasDespachoPage() {
     src.push(`^PW812^LL1218^LS0`);
     src.push(`^FO40,40^GB732,6^FS`);
     src.push(`^FO40,56^A0N,34,34^FDQUIMICORP PERU S.A.C.^FS`);
-    src.push(`^FO40,96^A0N,24,24^FDRUC 20612434124  /  GUIA: ${guia}^FS`);
+    src.push(`^FO40,96^A0N,24,24^FDRUC ${pedidoActivo.ruc || '20612434124'}  /  GUIA: ${guia}^FS`);
     src.push(`^FO40,136^A0N,28,28^FDPRODUCTO: ${p.nombreProducto}^FS`);
     src.push(`^FO40,176^A0N,24,24^FDCLIENTE: ${p.clienteNombre}^FS`);
     src.push(`^FO40,212^A0N,24,24^FDLOTE: ${p.codigoLote}  /  PEDIDO: ${p.idPedido}^FS`);
@@ -482,7 +362,7 @@ export default function EtiquetasDespachoPage() {
     src.push(`^FO40,376^A0N,22,22^FDCANT.: ${cantDisplay}  /  BULTOS: ${p.unidadesPedidas}  /  RESPONSABLE: ${responsable}^FS`);
     src.push(`^FO40,420^A0N,20,20^FD${(p.advertenciaGHS || '').toUpperCase()}^FS`);
     src.push(`^FO40,490^BQN,2,5^FDQA,${p.idPedido} ${p.nombreProducto} ${p.codigoLote}^FS`);
-    src.push(`^FO40,660^A0N,18,18^FD www.quimicorp.com  |  ERP QUIMICORP - ETIQUETA INDUSTRIAL^FS`);
+    src.push(`^FO40,660^A0N,18,18^FD ${window.location.hostname}  |  ERP QUIMICORP - ETIQUETA INDUSTRIAL^FS`);
     src.push(`^XZ`);
     return src.join('\n');
   };
@@ -552,6 +432,35 @@ export default function EtiquetasDespachoPage() {
     }
   };
 
+  const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
+  const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
+  const textValue = isDark ? 'text-white' : 'text-slate-900';
+  const inputBg = isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800';
+
+  if (!pedidoActivo) {
+    return (
+      <div className="space-y-5 font-mono min-h-screen">
+        <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-3 ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
+          <div>
+            <h2 className={`text-sm font-bold tracking-widest uppercase flex items-center gap-2 ${textTitle}`}>
+              <span className="text-[#00F2C3]">⬡ ETIQUETADO METROLÓGICO DINÁMICO POR PEDIDO</span>
+            </h2>
+            <p className="text-xs text-slate-400 font-sans">
+              Cada pedido genera su propia etiqueta industrial con QR real, metrología de balanza y trazabilidad de insumos.
+            </p>
+          </div>
+        </div>
+        <div className={`rounded-2xl p-8 border text-center ${cardBg}`}>
+          <Package className="w-10 h-10 mx-auto mb-3 text-slate-400" />
+          <p className={`text-sm font-bold ${textTitle}`}>No hay lotes listos para imprimir</p>
+          <p className={`text-xs mt-1 ${textTitle}`}>
+            Los lotes aprobados por QA aparecerán aquí desde la cola de despacho del backend.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Datos para Modal Ficha Técnica
   const fichaTecnicaData: FichaTecnicaData = {
     codigoLote: pedidoActivo.codigoLote,
@@ -574,15 +483,10 @@ export default function EtiquetasDespachoPage() {
     color: pedidoActivo.color,
     olor: pedidoActivo.olor,
     insumos: pedidoActivo.insumos,
-    quimicoResponsable: 'Ing. Químico QA - Planta Quimicorp',
+    quimicoResponsable: 'Ing. Químico QA - Planta',
     operarioPlanta: responsable,
     estadoQA: 'LIBERADO',
   };
-
-  const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
-  const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
-  const textValue = isDark ? 'text-white' : 'text-slate-900';
-  const inputBg = isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-slate-50 border-slate-300 text-slate-800';
 
   return (
     <div className="space-y-5 font-mono min-h-screen">
@@ -987,7 +891,7 @@ export default function EtiquetasDespachoPage() {
               ) : (
                 <div className="flex items-center gap-2 pt-1 text-[9px] font-bold text-amber-500 uppercase tracking-widest">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  Sin cola de despacho en el backend: usando pedidos de ejemplo
+                  Sin cola de despacho en el backend — no hay lotes listos para imprimir
                 </div>
               )}
             </div>

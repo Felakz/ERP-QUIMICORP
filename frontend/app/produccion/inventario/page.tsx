@@ -10,6 +10,8 @@ interface MaterialItem {
   sku: string;
   nombre: string;
   familia: string;
+  tipo?: string;
+  estadoFisico?: string | null;
   stockPercentage: number;
   stockReal: number;
   cantidadFisica?: number;
@@ -465,6 +467,8 @@ export default function InventariosPage() {
                 <th className="py-3 px-4">SKU</th>
                 <th className="py-3 px-4">NOMBRE QUMICO</th>
                 <th className="py-3 px-4">CATEGORA / FAMILIA</th>
+                <th className="py-3 px-4">TIPO</th>
+                <th className="py-3 px-4">ESTADO FÍSICO</th>
                 <th className="py-3 px-4 text-right">CANTIDAD DISPONIBLE</th>
                 <th className="py-3 px-4">NIVEL STOCK</th>
                 <th className="py-3 px-4">PROVEEDOR ACTUAL</th>
@@ -475,7 +479,7 @@ export default function InventariosPage() {
             <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>
               {paginatedMaterials.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400 font-sans">
+                  <td colSpan={10} className="py-8 text-center text-slate-400 font-sans">
                     No se encontraron materiales registrados.
                   </td>
                 </tr>
@@ -491,6 +495,16 @@ export default function InventariosPage() {
                     <td className="py-3.5 px-4">
                       <span className={`rounded px-2 py-0.5 text-[10px] font-bold border tracking-wider uppercase ${isDark ? 'bg-[#1A2434] text-slate-300 border-[#233146]' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
                         {item.familia}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={`text-[10px] font-bold uppercase ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {item.tipo || '—'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${item.estadoFisico ? (isDark ? 'bg-[#1A2434] text-slate-300 border border-[#233146]' : 'bg-slate-100 text-slate-700 border border-slate-300') : ''}`}>
+                        {item.estadoFisico || '—'}
                       </span>
                     </td>
 

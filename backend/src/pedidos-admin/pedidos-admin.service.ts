@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { ProduccionGateway } from '../produccion/produccion.gateway';
 
@@ -186,14 +186,14 @@ export class PedidosAdminService {
       data: {
         codigoOrden,
         docType: mode === 'COTIZACION' ? 'COT' : 'OP',
-        clienteNombre: dto.cliente || dto.clienteInline?.razonSocial || 'GEYMA S.A.C.',
-        clienteRuc: targetRuc || '20614697321',
+        clienteNombre: dto.cliente || dto.clienteInline?.razonSocial || '',
+        clienteRuc: targetRuc || '',
         contactoNombre: dto.contacto || null,
         contactoTelefono: dto.telefono || null,
         direccionDespacho: dto.direccion || null,
-        repComercial: dto.repComercial || 'Administración Quimicorp',
+        repComercial: dto.repComercial || null,
         condicionPago: dto.condicionPago || 'Contado',
-        productoNombre: dto.producto || 'Producto sin especificar',
+        productoNombre: dto.producto || dto.productoNombre || '',
         cantidadSolicitada: parseFloat(dto.cantidad) || 1.0,
         unidadMedida: dto.unidad || dto.unidadMedida || 'KG',
         prioridad: dto.prioridad || 'NORMAL',
@@ -411,21 +411,13 @@ export class PedidosAdminService {
       } catch {}
     }
 
-    let supervisor = await this.prisma.usuario.findFirst();
+    const supervisor = await this.prisma.usuario.findFirst({
+      where: { rol: { nombre: 'PRODUCCION_ALMACEN' } },
+    });
     if (!supervisor) {
-      let rol = await this.prisma.rol.findFirst();
-      if (!rol) {
-        rol = await this.prisma.rol.create({ data: { nombre: 'ADMIN_SISTEMA' } });
-      }
-      supervisor = await this.prisma.usuario.create({
-        data: {
-          dni: '00000000',
-          nombres: 'Supervisor',
-          apellidos: 'Planta',
-          rolId: rol.id,
-          passwordHash: '$2b$10$xyz',
-        },
-      });
+      throw new BadRequestException(
+        'No hay usuario con rol PRODUCCION_ALMACEN para asignar como supervisor. Configure el personal de planta primero.',
+      );
     }
 
     const fraganciaAditivo = pedido.aditivos?.find(
@@ -503,6 +495,7 @@ export class PedidosAdminService {
                 fraganciaEspecificada: itemFragancia,
                 estado: 'EN_PROCESO',
                 pasoProceso: 'PENDIENTE_ASIGNACION',
+                pedidoComercialId: pedido.id,
               },
             }).catch((err: any) => console.log('Error creando ordenProduccion item:', err));
           } else {
@@ -564,6 +557,7 @@ export class PedidosAdminService {
               fraganciaEspecificada: defaultFragancia,
               estado: 'EN_PROCESO',
               pasoProceso: 'PENDIENTE_ASIGNACION',
+              pedidoComercialId: pedido.id,
             },
           }).catch((err: any) => console.log('Error creando ordenProduccion:', err));
         } else {
@@ -630,10 +624,13 @@ export class PedidosAdminService {
       throw new NotFoundException('Cotización no encontrada.');
     }
 
-    // Generar código de Orden de Producción #PO-XXXX único
-    let nuevoCodigo = dto?.code || `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    // Generar código de Orden de Producción OP-YYYY-NNN secuencial y trazable
+    const year = new Date().getFullYear();
+    let seq = (await db.pedidoComercial.count({ where: { docType: 'OP' } })) + 1;
+    let nuevoCodigo = dto?.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
     while (await db.pedidoComercial.findUnique({ where: { codigoOrden: nuevoCodigo } })) {
-      nuevoCodigo = `#PO-${String(Math.floor(1000 + Math.random() * 9000))}`;
+      seq++;
+      nuevoCodigo = dto?.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
     }
 
     // Preservar estructura JSON de items para no perder el desglose de productos
@@ -712,16 +709,10 @@ export class PedidosAdminService {
   // Helper privado para calcular stock de insumos cruzando la fórmula con los Insumos en Kardex
   private async calcularStockPedido(pedido: any) {
     if (!pedido.formula || !pedido.formula.detalles || pedido.formula.detalles.length === 0) {
-      // Retornar insumos genéricos ilustrativos con chips
       return {
-        stockCompleto: true,
+        stockCompleto: false,
         insumosFaltantesCount: 0,
-        detalles: [
-          { codigo: 'QC-011', nombre: 'Soda Cáustica 50%', requerido: 15.5, disponible: 120.0, suficiente: true },
-          { codigo: 'QC-003', nombre: 'LESS 70%', requerido: 45.0, disponible: 80.0, suficiente: true },
-          { codigo: 'QC-088', nombre: 'Mentol Cristalino', requerido: 12.0, disponible: 50.0, suficiente: true },
-          { codigo: 'QC-001', nombre: 'Agua Desionizada', requerido: 200.0, disponible: 1500.0, suficiente: true },
-        ],
+        detalles: [],
       };
     }
 
@@ -769,176 +760,6 @@ export class PedidosAdminService {
     };
   }
 
-  // Sembrar datos de ejemplo de la imagen de producción real
-  private async sembrarPedidosEjemplo() {
-    console.log('⚡ SEMBRANDO PEDIDOS DE EJEMPLO REALES EN POSTGRESQL...');
-    let formulaRef = await this.prisma.formulaMaster.findFirst();
-    if (!formulaRef) {
-      formulaRef = await this.prisma.formulaMaster.create({
-        data: {
-          codigoFormula: 'FM-8128-v2',
-          nombreProducto: 'Crema Muscular Mentolada v2',
-          densidadTeorica: 1.05,
-          estado: 'ACTIVA',
-        },
-      });
-    }
-
-    const pedidosData = [
-      {
-        codigoOrden: '#PO-0841',
-        codigoRefAdmin: 'ADM-2024-0841',
-        clienteNombre: 'Farmacias Peruanas S.A.C.',
-        clienteRuc: '20381396431',
-        contactoNombre: 'Ing. Rodrigo Salcedo',
-        contactoTelefono: '+51 999 234 781',
-        direccionDespacho: 'Av. Angamos Este 2646, Surquillo, Lima',
-        repComercial: 'Carla Medina',
-        condicionPago: 'Crédito 30 días',
-        productoNombre: 'Crema Muscular Mentolada',
-        cantidadSolicitada: 128,
-        unidadMedida: 'UN F0 (1 KG)',
-        lotesRequeridos: 3,
-        montoTotal: 14720.0,
-        fechaPrometida: new Date('2026-08-10'),
-        prioridad: 'URGENTE',
-        estado: 'NUEVO',
-        formulaId: formulaRef?.id,
-        notasAdmin:
-          'Orden prioritaria para distribución en farmacias. Cliente solicita empaque con sticker adicional de lote visible en frasco.',
-      },
-      {
-        codigoOrden: '#PO-0842',
-        codigoRefAdmin: 'ADM-2024-0842',
-        clienteNombre: 'Alfalion Corp. S.A.',
-        clienteRuc: '20504648087',
-        contactoNombre: 'Lic. Diana Vargas',
-        contactoTelefono: '+51 987 654 321',
-        direccionDespacho: 'Jr. Natalio Sánchez 220, Jesús María, Lima',
-        repComercial: 'José Herrera',
-        condicionPago: 'Contado',
-        productoNombre: 'Serum de Salmón - Alfalion',
-        cantidadSolicitada: 1000,
-        unidadMedida: 'UN F0 (30 ML)',
-        lotesRequeridos: 5,
-        montoTotal: 28000.0,
-        fechaPrometida: new Date('2026-08-15'),
-        prioridad: 'NORMAL',
-        estado: 'NUEVO',
-        formulaId: formulaRef?.id,
-        notasAdmin: 'Solicitud con empaque ámbar cóncavo de exportación.',
-      },
-      {
-        codigoOrden: '#PO-0843',
-        codigoRefAdmin: 'ADM-2024-0843',
-        clienteNombre: 'Austin Cosmetics Perú',
-        clienteRuc: '20601234567',
-        contactoNombre: 'Ing. Carlos Austin',
-        contactoTelefono: '+51 912 345 678',
-        direccionDespacho: 'Av. Industrial 450, Ate, Lima',
-        repComercial: 'Carla Medina',
-        condicionPago: 'Crédito 15 días',
-        productoNombre: 'Shampoo de Batana Orgánico',
-        cantidadSolicitada: 500,
-        unidadMedida: 'L',
-        lotesRequeridos: 2,
-        montoTotal: 32500.0,
-        fechaPrometida: new Date('2026-08-12'),
-        prioridad: 'PROGRAMADO',
-        estado: 'APROBADO',
-        formulaId: formulaRef?.id,
-        notasAdmin: 'Despacho directo a almacén central de distribuidores.',
-      },
-      {
-        codigoOrden: '#PO-0840',
-        codigoRefAdmin: 'ADM-2024-0840',
-        clienteNombre: 'Geyma Biotech S.A.C.',
-        clienteRuc: '20459876543',
-        contactoNombre: 'Dra. María Geyma',
-        contactoTelefono: '+51 976 543 210',
-        direccionDespacho: 'Av. El Sol 890, San Isidro, Lima',
-        repComercial: 'José Herrera',
-        condicionPago: 'Contado',
-        productoNombre: 'Crema Cúrcuma y Mentol Industrial',
-        cantidadSolicitada: 250,
-        unidadMedida: 'KG',
-        lotesRequeridos: 1,
-        montoTotal: 32450.0,
-        fechaPrometida: new Date('2026-08-08'),
-        prioridad: 'URGENTE',
-        estado: 'EN_PRODUCCION',
-        formulaId: formulaRef?.id,
-        notasAdmin: 'En proceso activo de fabricación en reactor R-02.',
-      },
-    ];
-
-    const db = this.prisma as any;
-
-    // Sembrar Clientes de Ejemplo
-    const clientesData = [
-      { razonSocial: 'Farmacias Peruanas S.A.C.', ruc: '20381396431', telefono: '+51 999 234 781', direccion: 'Av. Angamos Este 2646, Surquillo, Lima', condicionPago: 'Crédito 30 Días' },
-      { razonSocial: 'Alfalion Corp. S.A.', ruc: '20504648087', telefono: '+51 987 654 321', direccion: 'Jr. Natalio Sánchez 220, Jesús María, Lima', condicionPago: 'Contado' },
-      { razonSocial: 'Austin Cosmetics Perú', ruc: '20601234567', telefono: '+51 912 345 678', direccion: 'Av. Industrial 450, Ate, Lima', condicionPago: 'Crédito 15 Días' },
-      { razonSocial: 'Geyma Biotech S.A.C.', ruc: '20459876543', telefono: '+51 976 543 210', direccion: 'Av. El Sol 890, San Isidro, Lima', condicionPago: 'Contado' },
-    ];
-
-    const clientesMap: Record<string, any> = {};
-    for (const c of clientesData) {
-      const clienteGuardado = await db.cliente.upsert({
-        where: { ruc: c.ruc },
-        update: {},
-        create: c,
-      });
-      clientesMap[c.ruc] = clienteGuardado;
-    }
-
-    // Sembrar Variantes de Fórmula
-    if (formulaRef?.id) {
-      const variante1 = await db.formulaVariant.findFirst({
-        where: { formulaId: formulaRef.id, nombre: 'Aroma Lavanda Suave - Alfalion' },
-      });
-      if (!variante1) {
-        await db.formulaVariant.create({
-          data: {
-            nombre: 'Aroma Lavanda Suave - Alfalion',
-            formulaId: formulaRef.id,
-            clienteId: clientesMap['20504648087']?.id || null,
-            notas: 'Ajuste de fragancia con 0.5% extra de lavandín francés.',
-            ajustesJson: { aroma: 'Lavanda Francesa', color: 'Translúcido' },
-          },
-        });
-      }
-
-      const variante2 = await db.formulaVariant.findFirst({
-        where: { formulaId: formulaRef.id, nombre: 'Extracto Cítrico - Austin' },
-      });
-      if (!variante2) {
-        await db.formulaVariant.create({
-          data: {
-            nombre: 'Extracto Cítrico - Austin',
-            formulaId: formulaRef.id,
-            clienteId: clientesMap['20601234567']?.id || null,
-            notas: 'Variante con aroma a limón y tonalidad amarillo ámbar.',
-            ajustesJson: { aroma: 'Cítrico Limón', color: 'Amarillo Ámbar' },
-          },
-        });
-      }
-    }
-
-    for (const p of pedidosData) {
-      const res = await db.pedidoComercial.upsert({
-        where: { codigoOrden: p.codigoOrden },
-        update: {},
-        create: {
-          ...p,
-          clienteId: clientesMap[p.clienteRuc]?.id || null,
-          docType: p.codigoOrden.startsWith('COT') ? 'COT' : 'OP',
-        },
-      });
-      console.log('✅ PEDIDO GUARDADO EN BD:', res.codigoOrden);
-    }
-  }
-
   /**
    * R1 — Emitir comprobante (Boleta / Factura / Nota de Venta) desde una cotización/pedido.
    * Cambia el tipoComprobante, mantiene el ciclo docType (COT/OP) y registra la cuenta por cobrar.
@@ -952,9 +773,26 @@ export class PedidosAdminService {
     const pedido = await this.prisma.pedidoComercial.findUnique({ where: { id: pedidoId } });
     if (!pedido) throw new NotFoundException('Pedido no encontrado.');
 
+    if (pedido.tipoComprobante) {
+      throw new BadRequestException(
+        `El pedido ${pedido.codigoOrden} ya emitió comprobante (${pedido.tipoComprobante}).`,
+      );
+    }
+
     const monto = Number(pedido.montoTotal) || 0;
     const nombre = pedido.clienteNombre || 'Cliente';
     const ruc = pedido.clienteRuc || '00000000000';
+
+    // Días de crédito derivados de la condición de pago para el vencimiento.
+    const diasCredito = (() => {
+      const m = (pedido.condicionPago || '').toLowerCase();
+      const num = m.match(/\d+/)?.[0];
+      if (/credito|crédito|dias|días/.test(m) && num) return parseInt(num, 10);
+      return 0;
+    })();
+    const fechaEmision = new Date();
+    const fechaVencimiento = new Date(fechaEmision);
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + diasCredito);
 
     // Registrar en cuenta por cobrar (tabla de cobranzas)
     const prefijo = tipo === 'FACTURA' ? 'FAC' : tipo === 'BOLETA' ? 'BOL' : 'NV';
@@ -972,9 +810,9 @@ export class PedidosAdminService {
         montoTotal: monto,
         saldoPendiente: monto,
         condicionPago: pedido.condicionPago || 'Contado',
-        diasPlazo: 0,
-        fechaEmision: new Date(),
-        fechaVencimiento: new Date(),
+        diasPlazo: diasCredito,
+        fechaEmision,
+        fechaVencimiento,
         estado: 'PENDIENTE',
         medioPago: tipo,
       },

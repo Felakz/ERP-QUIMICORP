@@ -142,7 +142,7 @@ export default function ProduccionQAPage() {
         const ordenesSincronizadas = data.ordenes.map((o: any) => ({
           ...o,
           estado: (o.estado || 'PENDIENTE') as 'TERMINADO' | 'EN PROCESO' | 'PENDIENTE',
-          operarios: o.operarios && o.operarios !== 'Sin Asignar' ? o.operarios : 'Carlos Quispe, Ana Flores',
+          operarios: o.operarios && o.operarios !== 'Sin Asignar' ? o.operarios : 'Sin Asignar',
         }));
 
         const terminados = ordenesSincronizadas.filter((o: any) => o.estado === 'TERMINADO').length;
@@ -198,7 +198,7 @@ export default function ProduccionQAPage() {
               formulaItems = o.formula.detalles.map((d: any) => {
                 const pct = Number(d.porcentaje || 10);
                 const gramos = cantidadKg * 1000 * (pct / 100);
-                const stockKg = Number(d.insumo?.stockReal || 150);
+                const stockKg = Number(d.insumo?.stockReal || 0);
                 return {
                   insumoId: d.insumoId,
                   sku: d.insumo?.codigo || 'INS',
@@ -225,8 +225,8 @@ export default function ProduccionQAPage() {
                 porcentaje: pct,
                 pesoTeorico: Math.round((gramos / 1000) * 100) / 100,
                 gramosCalculados: Math.round(gramos * 100) / 100,
-                stockReal: 85,
-                suficiente: true,
+                stockReal: 0,
+                suficiente: false,
                 esAditivo: true,
               });
             }
@@ -241,8 +241,8 @@ export default function ProduccionQAPage() {
                 porcentaje: pct,
                 pesoTeorico: Math.round((gramos / 1000) * 100) / 100,
                 gramosCalculados: Math.round(gramos * 100) / 100,
-                stockReal: 120,
-                suficiente: true,
+                stockReal: 0,
+                suficiente: false,
                 esAditivo: true,
               });
             }
@@ -258,7 +258,9 @@ export default function ProduccionQAPage() {
               codigoLote: o.codigoLote,
               clienteNombre: o.clienteNombre || 'Cliente Quimicorp SAC',
               rendimiento: `${cantidadKg.toLocaleString()} KG`,
-              mermaPercentage: '0.8%',
+              mermaPercentage: o.mermaCalculada
+                ? `${(Number(o.mermaCalculada) / (cantidadKg || 1)) * 100}%`
+                : '—',
               operarios: o.operariosAsignados ? o.operariosAsignados.split(', ').filter(Boolean) : [],
               fechaEnvio: 'Hoy, ' + new Date(o.createdAt || Date.now()).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
               pasoProceso: (o.pasoProceso as PasoProcesoType) || 'PENDIENTE_ASIGNACION',
@@ -312,13 +314,24 @@ export default function ProduccionQAPage() {
     };
   }, [socket, fechaFiltro]);
 
-  const operariosDisponibles = [
-    'Carlos Quispe',
-    'Ana Flores',
-    'Luis Mamani',
-    'Rosa Condori',
-    'Jorge Mendoza',
-  ];
+  const [operariosDisponibles, setOperariosDisponibles] = useState<string[]>([]);
+
+  useEffect(() => {
+    let activo = true;
+    (async () => {
+      try {
+        const res = await apiFetch<{ id: string; nombre: string }[]>('/produccion/operarios');
+        if (activo && res.data && Array.isArray(res.data)) {
+          setOperariosDisponibles(res.data.map((o) => o.nombre).filter(Boolean));
+        }
+      } catch {
+        // Sin catálogo de operarios en BD: se deja vacío hasta configurar el personal de planta.
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   const selectedLote = lotes.find((l) => l.id === selectedLoteId) || null;
 
@@ -359,7 +372,7 @@ export default function ProduccionQAPage() {
     );
     setLotes(updated);
 
-    const operariosStr = newOperarios.length > 0 ? newOperarios.join(', ') : 'Carlos Quispe, Ana Flores';
+    const operariosStr = newOperarios.length > 0 ? newOperarios.join(', ') : 'Sin Asignar';
     setProgramacionData((prev) => ({
       ...prev,
       ordenes: prev.ordenes.map((ord) =>
@@ -375,7 +388,7 @@ export default function ProduccionQAPage() {
         body: JSON.stringify({ ordenProduccionId: selectedLote.id, operarios: newOperarios }),
       });
     } catch (e) {
-      console.log('Backend notification synced locally:', e);
+      alert('Error al guardar la asignación de operarios en el servidor. Los cambios se mantienen localmente.');
     }
   };
 
@@ -403,7 +416,7 @@ export default function ProduccionQAPage() {
         }),
       });
     } catch (e) {
-      console.log('Backend paso update local:', e);
+      alert('Error al guardar el cambio de paso en el servidor. Los cambios se mantienen localmente.');
     }
   };
 
@@ -463,7 +476,7 @@ export default function ProduccionQAPage() {
         }),
       });
     } catch (e) {
-      console.log('Local fallback execution for approval:', e);
+      alert('Error al enviar la liberación QA al servidor. Verifique la conexión con Planta.');
     }
 
 
@@ -520,7 +533,7 @@ export default function ProduccionQAPage() {
         }),
       });
     } catch (e) {
-      console.log('Error enviando rechazo al backend:', e);
+      alert('Error al enviar el rechazo al servidor. Verifique la conexión.');
     }
 
     setLotes((prev) =>
@@ -601,7 +614,7 @@ export default function ProduccionQAPage() {
             <div class="sub-title">PROGRAMACIN DIARIA DE PRODUCCIN • HOJA OFICIAL DE PLANTA</div>
           </div>
           <div class="meta-bar">
-            <span>RUC: 20614697327</span>
+            <span>RUC: 20612434124</span>
             <span>FECHA DEL TURNO: ${fechaFiltro}</span>
             <span>ORDENES EMITIDAS: ${programacionData.resumen.totalOrdenes}</span>
           </div>
@@ -761,7 +774,7 @@ export default function ProduccionQAPage() {
             <div>
               <h3 className={`text-sm font-bold font-sans flex items-center gap-2 ${textValue}`}>
                 <span>QUIMICORP PERU S.A.C.</span>
-                <span className="text-xs text-slate-400 font-mono"> RUC 20614697327</span>
+                <span className="text-xs text-slate-400 font-mono"> RUC 20612434124</span>
               </h3>
               <p className={`text-xs font-sans ${textTitle}`}>
                 PROGRAMACIÓN DIARIA DE PRODUCCIÓN • Planilla Digital Inmutable del Turno ({fechaFiltro})
@@ -943,7 +956,7 @@ export default function ProduccionQAPage() {
                               : 'bg-teal-50 text-teal-900 border-teal-300'
                           }`}>
                             <span className="text-xs">👷</span>
-                            <span className="font-semibold">{o.operarios || 'Carlos Quispe, Ana Flores'}</span>
+                            <span className="font-semibold">{o.operarios || 'Sin Asignar'}</span>
                           </span>
                         </td>
                         <td className="p-3">
@@ -1388,7 +1401,7 @@ export default function ProduccionQAPage() {
                     <p className="text-xs font-sans">
                       Lote {selectedLote.codigoLote} finalizado. La entrada de Producto Terminado fue asignada al cliente{' '}
                       <strong className="underline">{selectedLote.clienteNombre}</strong> y la orden ha sido enviada a la cola de{' '}
-                      <a href="/dashboard/etiquetas" className="underline font-bold text-teal-600 dark:text-emerald-400">
+                      <a href="/produccion/etiquetas" className="underline font-bold text-teal-600 dark:text-emerald-400">
                         Etiquetas & Despacho
                       </a>
                       .

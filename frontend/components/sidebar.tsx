@@ -127,12 +127,12 @@ export const adminSidebarItems: SidebarSection[] = [
     category: '5. ALMACÉN Y LOGÍSTICA',
     items: [
       {
-        label: 'Gestión de Inventario',
+        label: 'Inventario & Stock',
         icon: Package,
-        href: '/administracion/gestion-inventario',
+        href: '/administracion/inventario',
       },
       {
-        label: 'Inventario y Kardex',
+        label: 'Kardex de Inventario',
         icon: Package,
         href: '/administracion/inventario-kardex',
       },

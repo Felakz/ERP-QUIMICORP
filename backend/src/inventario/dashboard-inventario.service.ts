@@ -207,6 +207,8 @@ export class DashboardInventarioService {
         sku: i.codigo,
         nombre: i.nombre,
         familia: (i.categoria || i.familia?.nombre || 'MATERIA_PRIMA_BASE').toUpperCase(),
+        tipo: i.tipo || 'OTRO',
+        estadoFisico: i.estadoFisico || null,
         stockPercentage,
         stockReal,
         cantidadFisica,

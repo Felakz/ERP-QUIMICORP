@@ -202,6 +202,7 @@ model Insumo {
   costoUnitario      Decimal        @default(0) @db.Decimal(14, 4)
   estado             EstadoGenerico @default(ACTIVO)
   tipo               TipoInsumo?    @default(OTRO)
+  estadoFisico       String?        @map("estado_fisico")
 
   formulaDetalles     FormulaDetalle[]
   ajustesFinos        AjusteFino[]
@@ -280,6 +281,9 @@ model OrdenProduccion {
   supervisorId        String
   supervisor          Usuario               @relation("SupervisorOrdenes", fields: [supervisorId], references: [id])
   fechaCierre         DateTime?
+
+  pedidoComercialId  String?        @map("pedido_comercial_id")
+  pedidoComercial    PedidoComercial? @relation(fields: [pedidoComercialId], references: [id])
 
   ajustesFinos     AjusteFino[]
   subAlmacenOrigen SubAlmacenSobrante[]
@@ -604,6 +608,15 @@ model ColaDespacho {
   codigoBarras     String   @map("codigo_barras")
   estado           String   @default("LISTO_PARA_IMPRIMIR")
   numeroGuia       String?  @map("numero_guia")
+
+  ruc              String?  @map("ruc")
+  sku              String?
+  advertenciaGHS   String?  @map("advertencia_ghs")
+  codigoGHS        String?  @map("codigo_ghs")
+  tipoPeligro      String?  @map("tipo_peligro")
+  tipoEnvase       String?  @map("tipo_envase")
+  taraGramos       Int?     @map("tara_gramos")
+
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
@@ -753,6 +766,7 @@ model PedidoComercial {
   clienteRef         Cliente?                 @relation(fields: [clienteId], references: [id])
 
   aditivos           PedidoAditivo[]
+  ordenesProduccion  OrdenProduccion[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

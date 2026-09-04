@@ -261,18 +261,9 @@ export default function KardexPage() {
     try {
       let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
       if (!savedToken || savedToken.startsWith('jwt_mock')) {
-        try {
-          const authRes = await fetch('http://localhost:3001/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'produccion@quimicorp.pe', password: 'Quimicorp2026!' }),
-          });
-          if (authRes.ok) {
-            const authData = await authRes.json();
-            savedToken = authData.token;
-            localStorage.setItem('quimicorp_jwt', authData.token);
-          }
-        } catch {}
+        // Sin token válido: no se autenticar automáticamente.
+        // El usuario debe iniciar sesión correctamente.
+        savedToken = null;
       }
 
       const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
