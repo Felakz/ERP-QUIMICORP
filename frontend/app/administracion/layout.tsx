@@ -119,13 +119,13 @@ export default function AdministracionLayout({ children }: { children: React.Rea
               .map((section) => (
                 <div key={section.category} className="space-y-1">
                   <p
-                    className={`px-3 text-[10px] font-bold tracking-widest uppercase mb-1.5 ${
+                    className={`px-3 text-[10px] font-black tracking-widest uppercase mb-1.5 ${
                       isDark ? 'text-slate-500' : 'text-slate-400'
                     }`}
                   >
                     {section.category}
                   </p>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {section.items.map((item) => {
                       const isActive = pathname === item.href;
                       const Icon = item.icon;
@@ -137,14 +137,14 @@ export default function AdministracionLayout({ children }: { children: React.Rea
                         <Link
                           key={item.href}
                           href={item.href}
-                          className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 group ${
+                          className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-150 group relative ${
                             isActive
                               ? isDark
-                                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold shadow-sm'
-                                : 'bg-blue-50 text-blue-700 border border-blue-200 font-bold shadow-sm'
+                                ? 'bg-gradient-to-r from-blue-500/20 to-cyan-500/10 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_12px_rgba(0,242,195,0.15)] ring-1 ring-cyan-500/30'
+                                : 'bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-800 border border-blue-300 font-bold shadow-sm'
                               : isDark
-                              ? 'text-slate-400 hover:bg-[#151D2A] hover:text-slate-200'
-                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                              ? 'text-slate-400 hover:bg-[#151D2A] hover:text-slate-200 border border-transparent'
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-transparent'
                           }`}
                         >
                           <div className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export default function AdministracionLayout({ children }: { children: React.Rea
                               className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${
                                 isActive
                                   ? isDark
-                                    ? 'text-blue-400'
+                                    ? 'text-[#00F2C3]'
                                     : 'text-blue-600'
                                   : 'text-slate-400'
                               }`}
@@ -160,9 +160,12 @@ export default function AdministracionLayout({ children }: { children: React.Rea
                             <span className="truncate">{item.label}</span>
                           </div>
                           {hasBadge && (
-                            <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-blue-500 text-[10px] font-black text-white shadow-sm">
+                            <span className="flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-rose-500 text-[10px] font-black text-white shadow-sm animate-pulse">
                               {badgeDisplay}
                             </span>
+                          )}
+                          {isActive && (
+                            <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-[#00F2C3] shadow-[0_0_8px_#00F2C3]" />
                           )}
                         </Link>
                       );
@@ -176,19 +179,20 @@ export default function AdministracionLayout({ children }: { children: React.Rea
         {/* Footer Perfil */}
         <div className={`border-t p-3 shrink-0 ${isDark ? 'border-[#1A2232]' : 'border-slate-100'}`}>
           <div
-            className={`flex items-center justify-between gap-3 rounded-xl p-2.5 border ${
-              isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+            className={`flex items-center justify-between gap-3 rounded-xl p-2.5 border transition-all ${
+              isDark ? 'bg-[#0F141C] border-[#1A2232] hover:border-blue-500/30' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
             }`}
           >
             <div className="flex items-center gap-2.5 overflow-hidden text-left">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 font-bold text-xs border border-blue-500/30">
+              <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 text-cyan-300 font-bold text-xs border border-cyan-500/30">
                 {userInitials}
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981]" />
               </div>
               <div className="overflow-hidden text-left">
                 <p className={`text-xs font-bold truncate ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>
                   {userName}
                 </p>
-                <p className="text-[9px] text-blue-400 font-mono font-bold truncate uppercase">
+                <p className="text-[9px] text-[#00F2C3] font-mono font-bold truncate uppercase">
                   {userRoleDisplay}
                 </p>
               </div>
@@ -199,7 +203,7 @@ export default function AdministracionLayout({ children }: { children: React.Rea
               title="Cerrar Sesión"
               className={`p-2 rounded-lg border transition-all ${
                 isDark
-                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 hover:shadow-[0_0_8px_rgba(244,63,94,0.3)]'
                   : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
               }`}
             >

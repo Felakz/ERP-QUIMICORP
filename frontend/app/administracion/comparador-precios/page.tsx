@@ -249,26 +249,38 @@ export default function AdministracionComparadorPreciosPage() {
   return (
     <div className="space-y-6 font-sans">
       {/* Header Banner */}
-      <div className={`p-6 rounded-2xl border ${cardBg} space-y-4`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className={`p-6 rounded-2xl border ${cardBg} space-y-4 relative overflow-hidden`}>
+        {/* Ambient Glow */}
+        {isDark && (
+          <div className="absolute top-0 right-1/4 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+        )}
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
           <div>
-            <div className="flex items-center gap-2">
-              <Scale className="w-6 h-6 text-amber-400" />
-              <h1 className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Comparador & Auditoría de Precios de Insumos Químicos
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                Auditoría de Compras & Costos
-              </span>
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+                <Scale className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className={`text-xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Comparador & Auditoría de Precios de Insumos Químicos
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30 uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    AUDITORÍA COMPRAS
+                  </span>
+                </div>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Análisis comparativo multi-proveedor, validación de variaciones porcentuales (%) y trazabilidad histórica mensual.
+                </p>
+              </div>
             </div>
-            <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Análisis comparativo multi-proveedor, validación de variaciones porcentuales (%) y trazabilidad histórica mensual.
-            </p>
           </div>
 
           <button
             onClick={() => setModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all shrink-0"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all shrink-0 card-hover-lift"
           >
             <Plus className="w-4 h-4" />
             <span>+ Registrar Cotización Mensual</span>
@@ -276,17 +288,19 @@ export default function AdministracionComparadorPreciosPage() {
         </div>
 
         {/* Selector de Materia Prima / Insumo por Categoría */}
-        <div className="pt-2 border-t border-slate-800/10 flex flex-col gap-3">
+        <div className="pt-3 border-t border-slate-800/40 flex flex-col gap-3 relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 shrink-0">
-              <Layers className="w-4 h-4 text-blue-400" />
+            <span className="text-xs font-black text-slate-400 flex items-center gap-1.5 shrink-0">
+              <Layers className="w-4 h-4 text-cyan-400" />
               Categoría:
             </span>
             <select
               value={selectedCategoria}
               onChange={(e) => onSeleccionarCategoria(e.target.value)}
-              className={`w-full sm:w-72 p-2.5 rounded-xl border font-bold ${
-                isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+              className={`w-full sm:w-72 p-2.5 rounded-xl border font-black text-xs transition-all ${
+                isDark
+                  ? 'bg-[#151D2A] border-[#1A2232] text-white focus:border-cyan-500/50 focus:shadow-[0_0_10px_rgba(0,242,195,0.15)]'
+                  : 'bg-slate-50 border-slate-200 text-slate-900 shadow-sm'
               }`}
             >
               <option value="TODAS">Todas las categorías ({insumosList.length})</option>
@@ -296,33 +310,40 @@ export default function AdministracionComparadorPreciosPage() {
                 </option>
               ))}
             </select>
-            <span className="text-[11px] text-slate-500">
-              {insumosFiltrados.length} insumo(s) en esta categoría
+            <span className="text-[11px] text-slate-500 font-semibold font-mono">
+              {insumosFiltrados.length} insumo(s) disponibles
             </span>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 flex-1">
             {insumosFiltrados.length === 0 ? (
-              <span className="text-xs text-slate-400 col-span-full py-2">
+              <span className="text-xs text-slate-400 col-span-full py-2 font-mono">
                 {loadingInsumo ? 'Cargando catálogo de insumos...' : 'No hay insumos disponibles.'}
               </span>
             ) : (
-              insumosFiltrados.map((insumo) => (
-              <button
-                key={insumo.id}
-                onClick={() => onSeleccionarInsumo(insumo.id)}
-                className={`px-3 py-2 rounded-xl text-left transition-all border ${
-                  selectedInsumoId === insumo.id
-                    ? 'bg-blue-600 text-white border-blue-500 shadow-md font-bold'
-                    : isDark
-                    ? 'bg-[#151D2A] text-slate-300 border-[#1A2232] hover:border-slate-700 font-medium'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-medium'
-                }`}
-              >
-                <div className="text-[11px] truncate">{insumo.nombre}</div>
-                <div className="text-[9px] opacity-70">S/ {insumo.precioReferencia.toFixed(2)} /{insumo.unidad}</div>
-              </button>
-            ))
+              insumosFiltrados.map((insumo) => {
+                const isSelected = selectedInsumoId === insumo.id;
+                return (
+                  <button
+                    key={insumo.id}
+                    onClick={() => onSeleccionarInsumo(insumo.id)}
+                    className={`px-3 py-2 rounded-xl text-left transition-all border card-hover-lift ${
+                      isSelected
+                        ? isDark
+                          ? 'bg-[#151D2A] text-[#00F2C3] border-[#00F2C3] shadow-[0_0_12px_rgba(0,242,195,0.2)] ring-1 ring-[#00F2C3] font-black'
+                          : 'bg-cyan-50 text-cyan-900 border-cyan-400 shadow-sm font-black'
+                        : isDark
+                        ? 'bg-[#151D2A] text-slate-300 border-[#1A2232] hover:border-slate-700 font-medium'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-medium'
+                    }`}
+                  >
+                    <div className="text-[11px] truncate font-bold">{insumo.nombre}</div>
+                    <div className={`text-[9px] font-mono mt-0.5 ${isSelected ? 'text-[#00F2C3] font-black' : 'opacity-70'}`}>
+                      S/ {insumo.precioReferencia.toFixed(2)} /{insumo.unidad}
+                    </div>
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
@@ -330,12 +351,14 @@ export default function AdministracionComparadorPreciosPage() {
 
       {/* 4 KPIs Métricos del Insumo Seleccionado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#151D2A] border-emerald-500/30' : 'bg-emerald-50/50 border-emerald-200'}`}>
+        <div className={`p-5 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-emerald-500/30 hover:border-emerald-400 hover:shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-emerald-50/50 border-emerald-200 shadow-sm'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mejor Precio Disponible</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mejor Precio Disponible</span>
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
           </div>
-          <p className="text-2xl font-black text-emerald-400 mt-1">
+          <p className="text-2xl font-black font-mono text-emerald-400 mt-1.5">
             S/ {precioMinimo.toFixed(2)} <span className="text-xs font-normal">/{selectedInsumo?.unidad ?? ''}</span>
           </p>
           <p className="text-[11px] text-slate-400 truncate mt-1">
@@ -343,25 +366,29 @@ export default function AdministracionComparadorPreciosPage() {
           </p>
         </div>
 
-        <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#151D2A] border-blue-500/30' : 'bg-blue-50/50 border-blue-200'}`}>
+        <div className={`p-5 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_15px_rgba(0,242,195,0.15)]' : 'bg-blue-50/50 border-blue-200 shadow-sm'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Precio Promedio de Mercado</span>
-            <DollarSign className="w-4 h-4 text-blue-400" />
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Precio Promedio Mercado</span>
+            <div className="p-1.5 rounded-lg bg-cyan-500/10 text-[#00F2C3] border border-cyan-500/30">
+              <DollarSign className="w-4 h-4" />
+            </div>
           </div>
-          <p className="text-2xl font-black text-blue-400 mt-1">
+          <p className="text-2xl font-black font-mono text-[#00F2C3] mt-1.5">
             S/ {precioPromedio.toFixed(2)} <span className="text-xs font-normal">/{selectedInsumo?.unidad ?? ''}</span>
           </p>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="text-[11px] text-slate-400 mt-1 font-mono">
             Rango: S/ {precioMinimo.toFixed(2)} - S/ {precioMaximo.toFixed(2)}
           </p>
         </div>
 
-        <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#151D2A] border-purple-500/30' : 'bg-purple-50/50 border-purple-200'}`}>
+        <div className={`p-5 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-purple-500/30 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-purple-50/50 border-purple-200 shadow-sm'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Proveedores Cotizantes</span>
-            <Building2 className="w-4 h-4 text-purple-400" />
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Proveedores Cotizantes</span>
+            <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30">
+              <Building2 className="w-4 h-4" />
+            </div>
           </div>
-          <p className="text-2xl font-black text-purple-400 mt-1">
+          <p className="text-2xl font-black font-mono text-purple-400 mt-1.5">
             {ranking.length} Proveedores
           </p>
           <p className="text-[11px] text-slate-400 mt-1">
@@ -369,16 +396,18 @@ export default function AdministracionComparadorPreciosPage() {
           </p>
         </div>
 
-        <div className={`p-4 rounded-2xl border ${isDark ? 'bg-[#151D2A] border-amber-500/30' : 'bg-amber-50/50 border-amber-200'}`}>
+        <div className={`p-5 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-amber-500/30 hover:border-amber-400 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-amber-50/50 border-amber-200 shadow-sm'}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Mayor Variación Registrada</span>
-            {mayorAlza && (mayorAlza.variacionPorcentual || 0) > 0 ? (
-              <TrendingUp className="w-4 h-4 text-rose-400" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-emerald-400" />
-            )}
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Mayor Variación Registrada</span>
+            <div className={`p-1.5 rounded-lg ${mayorAlza && (mayorAlza.variacionPorcentual || 0) > 0 ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'}`}>
+              {mayorAlza && (mayorAlza.variacionPorcentual || 0) > 0 ? (
+                <TrendingUp className="w-4 h-4" />
+              ) : (
+                <TrendingDown className="w-4 h-4" />
+              )}
+            </div>
           </div>
-          <p className={`text-2xl font-black mt-1 ${mayorAlza && (mayorAlza.variacionPorcentual || 0) > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+          <p className={`text-2xl font-black font-mono mt-1.5 ${mayorAlza && (mayorAlza.variacionPorcentual || 0) > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
             {mayorAlza ? `${(mayorAlza.variacionPorcentual || 0) > 0 ? '+' : ''}${mayorAlza.variacionPorcentual}%` : '0.0%'}
           </p>
           <p className="text-[11px] text-slate-400 truncate mt-1">
@@ -391,7 +420,7 @@ export default function AdministracionComparadorPreciosPage() {
       <div className={`p-6 rounded-2xl border ${cardBg} space-y-4`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Scale className="w-5 h-5 text-blue-400" />
+            <Scale className="w-5 h-5 text-cyan-400" />
             <h2 className={`text-base font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Matriz Comparativa de Proveedores para: {selectedInsumo?.nombre ?? 'Cargando...'}
             </h2>
@@ -415,16 +444,16 @@ export default function AdministracionComparadorPreciosPage() {
               return (
                 <div
                   key={item.id}
-                  className={`p-5 rounded-2xl border relative transition-all ${
+                  className={`p-5 rounded-2xl border relative transition-all duration-200 card-hover-lift ${
                     isWinner
                       ? isDark
-                        ? 'bg-[#151D2A] border-emerald-500/60 shadow-lg shadow-emerald-500/10'
-                        : 'bg-emerald-50/60 border-emerald-400 shadow-md'
+                        ? 'bg-[#151D2A] border-[#00F2C3] shadow-[0_0_20px_rgba(0,242,195,0.15)] ring-1 ring-[#00F2C3]'
+                        : 'bg-cyan-50/60 border-cyan-400 shadow-md ring-1 ring-cyan-400'
                       : cardBg
                   }`}
                 >
                   {isWinner && (
-                    <span className="absolute -top-3 right-4 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500 text-slate-950 shadow-md flex items-center gap-1">
+                    <span className="absolute -top-3 right-4 px-3 py-1 rounded-full text-[10px] font-black bg-[#00F2C3] text-slate-950 shadow-[0_0_12px_#00F2C3] flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
                       MEJOR PRECIO DE COMPRA
                     </span>
@@ -432,7 +461,7 @@ export default function AdministracionComparadorPreciosPage() {
 
                   <div className="space-y-3">
                     <div>
-                      <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
                         RUC: {item.proveedorRuc}
                       </span>
                       <h3 className={`text-sm font-black mt-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -441,10 +470,10 @@ export default function AdministracionComparadorPreciosPage() {
                     </div>
 
                     {/* Precio Unitario */}
-                    <div className="p-3 rounded-xl bg-slate-800/20 border border-slate-800/30 flex items-center justify-between">
+                    <div className="p-3 rounded-xl bg-slate-800/30 border border-slate-800/40 flex items-center justify-between">
                       <div>
                         <span className="text-[9px] font-bold text-slate-400 uppercase">Precio Unitario Cotizado</span>
-                        <p className="text-xl font-black text-white">
+                        <p className={`text-xl font-black font-mono ${isWinner ? 'text-[#00F2C3]' : 'text-white'}`}>
                           S/ {item.precioUnitario.toFixed(2)}{' '}
                           <span className="text-xs text-slate-400 font-normal">/{item.unidadMedida}</span>
                         </p>
@@ -452,7 +481,7 @@ export default function AdministracionComparadorPreciosPage() {
 
                       {/* Badge Variación Mes a Mes */}
                       <div className="text-right">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Variación vs Mes Anterior</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Variación vs Mes Ant.</span>
                         {hasIncreased && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1">
                             <TrendingUp className="w-3 h-3" />
@@ -481,10 +510,10 @@ export default function AdministracionComparadorPreciosPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span>Fecha Registro:</span>
-                        <span className="text-slate-300">{item.fechaCotizacion}</span>
+                        <span className="text-slate-300 font-mono">{item.fechaCotizacion}</span>
                       </div>
                       {item.contacto && (
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-800/10">
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-800/40">
                           <span>Ejecutivo:</span>
                           <span className="text-slate-200 font-semibold">{item.contacto} ({item.telefono || '-'})</span>
                         </div>
@@ -492,7 +521,7 @@ export default function AdministracionComparadorPreciosPage() {
                     </div>
 
                     {item.observaciones && (
-                      <p className="text-[11px] text-slate-400 italic bg-slate-800/10 p-2 rounded-lg">
+                      <p className="text-[11px] text-slate-400 italic bg-slate-800/20 p-2 rounded-lg border border-slate-800/30">
                         "{item.observaciones}"
                       </p>
                     )}

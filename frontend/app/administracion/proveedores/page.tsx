@@ -29,6 +29,7 @@ import {
   ProveedorReal,
   ProveedorRegistroExcel,
 } from '@/lib/proveedoresRealData';
+import * as XLSX from 'xlsx';
 
 export default function AdministracionProveedoresPage() {
   const { theme } = useTheme();
@@ -43,6 +44,29 @@ export default function AdministracionProveedoresPage() {
   const [proveedores, setProveedores] = useState<ProveedorReal[]>(PROVEEDORES_QUIMICORP_SEED);
   const [registrosFlat] = useState<ProveedorRegistroExcel[]>(REGISTROS_EXCEL_PROVEEDORES);
   const [loading, setLoading] = useState(false);
+
+  const exportToExcel = () => {
+    try {
+      const dataToExport = registrosFlat.map((r) => ({
+        'Ítem N°': r.itemNo,
+        'RUC': r.ruc,
+        'Proveedor / Razón Social': r.razonSocial,
+        'Contacto': r.contacto || '—',
+        'Teléfono': r.telefono || '—',
+        'Banco': r.banco,
+        'Moneda': r.moneda,
+        'N° Cuenta': r.numeroCuenta,
+        'CCI Interbancario': r.cci || '—',
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Proveedores_Cuentas');
+      XLSX.writeFile(workbook, `Quimicorp_Directorio_Proveedores_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error('Error exportando Excel de proveedores:', err);
+    }
+  };
 
   // Cargar lista de proveedores desde el backend PostgreSQL
   const fetchProveedores = async () => {
@@ -232,27 +256,48 @@ export default function AdministracionProveedoresPage() {
       )}
 
       {/* Header Banner Principal */}
-      <div className={`p-6 rounded-2xl border ${cardBg} space-y-4`}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className={`p-6 rounded-2xl border ${cardBg} space-y-5 relative overflow-hidden`}>
+        {/* Ambient Glow */}
+        {isDark && (
+          <div className="absolute top-0 right-1/4 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+        )}
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
           <div>
-            <div className="flex items-center gap-2">
-              <Building2 className="w-6 h-6 text-blue-400" />
-              <h1 className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Directorio de Proveedores & Cuentas Bancarias
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                Catálogo Oficial Quimicorp Perú SAC
-              </span>
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-[#00F2C3] shadow-[0_0_12px_rgba(0,242,195,0.2)]">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className={`text-xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Directorio de Proveedores & Cuentas Bancarias
+                  </h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-cyan-500/10 text-[#00F2C3] border border-cyan-500/30 shadow-sm uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 led-pulse" />
+                    OFICIAL QUIMICORP
+                  </span>
+                </div>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Gestión integral de RUCs, ejecutivos comerciales y cuentas corrientes (BCP & Interbank) en Soles (S/) y Dólares ($)
+                </p>
+              </div>
             </div>
-            <p className={`text-xs mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-              Gestión de RUC, ejecutivos de contacto y cuentas corrientes (BCP & Interbank) en Soles (S/) y Dólares ($)
-            </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              onClick={exportToExcel}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all card-hover-lift"
+              title="Exportar archivo Excel oficial con las 43 cuentas"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exportar Excel (.xlsx)</span>
+            </button>
+
             <button
               onClick={() => setModalOpen(true)}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all card-hover-lift"
             >
               <Plus className="w-4 h-4" />
               <span>+ Registrar Proveedor</span>
@@ -261,48 +306,56 @@ export default function AdministracionProveedoresPage() {
         </div>
 
         {/* 4 Tarjetas Métricas KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-          <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#151D2A] border-blue-500/20' : 'bg-blue-50/70 border-blue-200 shadow-sm'}`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Empresas Homologadas</span>
-            <p className={`text-xl font-black mt-1 ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>33 Empresas</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1 relative z-10">
+          <div className={`p-4 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_15px_rgba(0,242,195,0.15)]' : 'bg-cyan-50/70 border-cyan-200 shadow-sm'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Empresas Homologadas</span>
+            <p className={`text-2xl font-black font-mono mt-1 ${isDark ? 'text-[#00F2C3]' : 'text-cyan-700'}`}>33 Empresas</p>
+            <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Catálogo activo en PostgreSQL</p>
           </div>
-          <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#151D2A] border-emerald-500/20' : 'bg-emerald-50/70 border-emerald-200 shadow-sm'}`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Registros de Cuentas Excel</span>
-            <p className={`text-xl font-black mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>43 Registros (N° 01 a N° 43)</p>
+          <div className={`p-4 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-emerald-500/30 hover:border-emerald-400 hover:shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-emerald-50/70 border-emerald-200 shadow-sm'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Cuentas Corrientes Excel</span>
+            <p className={`text-2xl font-black font-mono mt-1 ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>43 Registros</p>
+            <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Ítems N° 01 a N° 43 validados</p>
           </div>
-          <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#151D2A] border-purple-500/20' : 'bg-purple-50/70 border-purple-200 shadow-sm'}`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Bancos Registrados</span>
-            <p className={`text-xl font-black mt-1 ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>BCP & Interbank</p>
+          <div className={`p-4 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-purple-500/30 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-purple-50/70 border-purple-200 shadow-sm'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Bancos Registrados</span>
+            <p className={`text-2xl font-black font-mono mt-1 ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>BCP & Interbank</p>
+            <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Transferencias directas y CCI</p>
           </div>
-          <div className={`p-4 rounded-xl border ${isDark ? 'bg-[#151D2A] border-amber-500/20' : 'bg-amber-50/70 border-amber-200 shadow-sm'}`}>
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Monedas Admitidas</span>
-            <p className={`text-xl font-black mt-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Soles (S/) & Dólares ($)</p>
+          <div className={`p-4 rounded-2xl border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-amber-500/30 hover:border-amber-400 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-amber-50/70 border-amber-200 shadow-sm'}`}>
+            <span className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Monedas Admitidas</span>
+            <p className={`text-2xl font-black font-mono mt-1 ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Soles (S/) & Dólares ($)</p>
+            <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Multi-divisa integrada</p>
           </div>
         </div>
 
         {/* Barra de Filtros y Modo de Vista */}
-        <div className={`flex flex-wrap items-center justify-between gap-4 pt-2 border-t ${isDark ? 'border-slate-800/40' : 'border-slate-200'}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-4 pt-3 border-t ${isDark ? 'border-slate-800/40' : 'border-slate-200'} relative z-10`}>
           {/* Selector de Modo de Vista */}
-          <div className={`flex items-center gap-1.5 p-1 rounded-xl border ${isDark ? 'bg-slate-800/20 border-slate-800/30' : 'bg-slate-100 border-slate-200'}`}>
+          <div className={`flex items-center gap-1.5 p-1 rounded-xl border ${isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-100 border-slate-200'}`}>
             <button
               onClick={() => setViewMode('EMPRESAS')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all ${
                 viewMode === 'EMPRESAS'
-                  ? 'bg-blue-600 text-white shadow-md'
+                  ? isDark
+                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-[0_0_12px_rgba(0,242,195,0.3)]'
+                    : 'bg-blue-600 text-white shadow-md'
                   : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              🏢 Vista Agrupada por Empresa (33)
+              🏢 Vista Tarjetas Empresa (33)
             </button>
             <button
               onClick={() => setViewMode('EXCEL_FLAT')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all ${
                 viewMode === 'EXCEL_FLAT'
-                  ? 'bg-blue-600 text-white shadow-md'
+                  ? isDark
+                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-[0_0_12px_rgba(0,242,195,0.3)]'
+                    : 'bg-blue-600 text-white shadow-md'
                   : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              📊 Vista Detallada Excel (43 Cuentas N° 01-43)
+              📊 Vista Matriz Excel (43 Cuentas N° 01-43)
             </button>
           </div>
 
@@ -314,9 +367,9 @@ export default function AdministracionProveedoresPage() {
                 <button
                   key={b}
                   onClick={() => setSelectedBancoFilter(b)}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all ${
                     selectedBancoFilter === b
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]'
                       : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -331,9 +384,9 @@ export default function AdministracionProveedoresPage() {
                 <button
                   key={m}
                   onClick={() => setSelectedMonedaFilter(m)}
-                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-black text-[11px] transition-all ${
                     selectedMonedaFilter === m
-                      ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/40'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
                       : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -345,15 +398,17 @@ export default function AdministracionProveedoresPage() {
         </div>
 
         {/* Buscador */}
-        <div className="relative w-full">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+        <div className="relative w-full relative z-10">
+          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-cyan-400" />
           <input
             type="text"
             placeholder="Buscar por RUC, Razón Social, Ejecutivo de Contacto, N° de Cuenta o CCI..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-xs font-medium border focus:outline-none focus:border-blue-500 transition-all ${
-              isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+            className={`w-full pl-10 pr-4 py-3 rounded-xl text-xs font-bold border focus:outline-none transition-all ${
+              isDark
+                ? 'bg-[#151D2A] border-[#1A2232] text-white focus:border-cyan-500/50 focus:shadow-[0_0_12px_rgba(0,242,195,0.15)] placeholder-slate-500'
+                : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500 shadow-sm placeholder-slate-400'
             }`}
           />
         </div>
@@ -363,23 +418,24 @@ export default function AdministracionProveedoresPage() {
       {viewMode === 'EMPRESAS' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredEmpresas.map((prov) => (
-            <div key={prov.id} className={`p-5 rounded-2xl border ${cardBg} space-y-4 hover:border-blue-500/40 transition-all`}>
-              <div className={`flex items-start justify-between gap-3 border-b pb-3 ${isDark ? 'border-slate-800/10' : 'border-slate-200'}`}>
+            <div key={prov.id} className={`p-5 rounded-2xl border ${cardBg} space-y-4 hover:border-cyan-500/40 hover:shadow-[0_0_15px_rgba(0,242,195,0.08)] transition-all duration-200 card-hover-lift`}>
+              <div className={`flex items-start justify-between gap-3 border-b pb-3 ${isDark ? 'border-slate-800/40' : 'border-slate-200'}`}>
                 <div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleCopy(prov.ruc, 'RUC')}
-                      className="px-2 py-0.5 rounded font-mono text-[11px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 flex items-center gap-1"
+                      className="px-2.5 py-1 rounded-lg font-mono text-[11px] font-black bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20 hover:shadow-[0_0_8px_rgba(0,242,195,0.2)] flex items-center gap-1.5 transition-all"
                       title="Copiar RUC al portapapeles"
                     >
                       <span>RUC: {prov.ruc}</span>
-                      <Copy className="w-3 h-3" />
+                      <Copy className="w-3 h-3 text-[#00F2C3]" />
                     </button>
-                    <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <span className="px-2 py-0.5 rounded text-[9px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 led-pulse" />
                       HOMOLOGADO
                     </span>
                   </div>
-                  <h3 className={`text-sm font-black mt-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  <h3 className={`text-base font-black mt-2 tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     {prov.razonSocial}
                   </h3>
                 </div>
@@ -389,36 +445,44 @@ export default function AdministracionProveedoresPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 {prov.contacto && (
                   <div className={`flex items-center gap-2 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                    <User className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                    <span className="font-semibold truncate">{prov.contacto}</span>
+                    <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <span className="font-bold truncate">{prov.contacto}</span>
                   </div>
                 )}
                 {prov.telefono && (
                   <div className={`flex items-center gap-2 font-mono ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                    <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span>{prov.telefono}</span>
+                    <Phone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <a
+                      href={`https://wa.me/51${prov.telefono.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-400 hover:underline font-bold"
+                      title="Abrir WhatsApp"
+                    >
+                      {prov.telefono}
+                    </a>
                   </div>
                 )}
                 {prov.correo && (
                   <div className={`flex items-center gap-2 col-span-1 sm:col-span-2 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                    <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                    <a href={`mailto:${prov.correo}`} className="underline text-blue-600 dark:text-blue-400 hover:underline truncate font-medium">
+                    <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <a href={`mailto:${prov.correo}`} className="underline text-cyan-400 hover:text-cyan-300 truncate font-semibold">
                       {prov.correo}
                     </a>
                   </div>
                 )}
                 {prov.direccion && (
                   <div className={`flex items-start gap-2 col-span-1 sm:col-span-2 text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                    <span>{prov.direccion}</span>
+                    <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                    <span className="font-medium">{prov.direccion}</span>
                   </div>
                 )}
               </div>
 
               {/* Cuentas Bancarias Registradas */}
-              <div className={`pt-2 border-t space-y-2 ${isDark ? 'border-slate-800/10' : 'border-slate-200'}`}>
-                <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  <CreditCard className="w-3.5 h-3.5 text-amber-500" />
+              <div className={`pt-2 border-t space-y-2 ${isDark ? 'border-slate-800/40' : 'border-slate-200'}`}>
+                <span className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  <CreditCard className="w-3.5 h-3.5 text-amber-400" />
                   Cuentas Corrientes ({prov.cuentasBancarias.length})
                 </span>
 
@@ -429,16 +493,16 @@ export default function AdministracionProveedoresPage() {
                     {prov.cuentasBancarias.map((cuenta, idx) => (
                       <div
                         key={idx}
-                        className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
-                          isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200 shadow-sm'
+                        className={`p-2.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs transition-all ${
+                          isDark ? 'bg-[#151D2A] border-[#1A2232] hover:border-cyan-500/30' : 'bg-slate-50 border-slate-200 shadow-sm'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-black ${
                               cuenta.banco.includes('INTERBANK')
-                                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                                : 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-blue-500/20 text-cyan-300 border border-cyan-500/30'
                             }`}
                           >
                             {cuenta.banco}
@@ -446,8 +510,8 @@ export default function AdministracionProveedoresPage() {
                           <span
                             className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
                               cuenta.moneda === 'USD'
-                                ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30'
-                                : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                             }`}
                           >
                             {cuenta.moneda === 'USD' ? '$ USD' : 'S/ SOLES'}
@@ -458,11 +522,11 @@ export default function AdministracionProveedoresPage() {
                           {cuenta.numeroCuenta && (
                             <button
                               onClick={() => handleCopy(cuenta.numeroCuenta, `CTA ${cuenta.banco}`)}
-                              className={`font-bold flex items-center gap-1 ${isDark ? 'text-slate-200 hover:text-blue-400' : 'text-slate-900 hover:text-blue-600'}`}
+                              className={`font-black flex items-center gap-1 ${isDark ? 'text-slate-200 hover:text-[#00F2C3]' : 'text-slate-900 hover:text-blue-600'}`}
                               title="Copiar N° Cuenta"
                             >
                               <span>CTA: {cuenta.numeroCuenta}</span>
-                              <Copy className="w-3 h-3 text-slate-400" />
+                              <Copy className="w-3 h-3 text-cyan-400" />
                             </button>
                           )}
                           {cuenta.cci && (
@@ -472,7 +536,7 @@ export default function AdministracionProveedoresPage() {
                               title="Copiar CCI"
                             >
                               <span>CCI: {cuenta.cci.substring(0, 10)}...</span>
-                              <Copy className="w-3 h-3 text-slate-400" />
+                              <Copy className="w-3 h-3 text-emerald-400" />
                             </button>
                           )}
                         </div>
@@ -488,11 +552,29 @@ export default function AdministracionProveedoresPage() {
 
       {/* VISTA 2: EXCEL DETALLADO (LOS 43 REGISTROS ÍTEM N° 01 A N° 43) */}
       {viewMode === 'EXCEL_FLAT' && (
-        <div className={`p-6 rounded-2xl border ${cardBg}`}>
+        <div className={`p-6 rounded-2xl border ${cardBg} space-y-4`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className={`text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Matriz Consolidada de Cuentas Bancarias Excel
+              </h3>
+              <p className="text-xs text-slate-400">
+                Mostrando {filteredFlat.length} registros auditables con N° de Cuenta y CCI oficial
+              </p>
+            </div>
+            <button
+              onClick={exportToExcel}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-black flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Exportar Matriz</span>
+            </button>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className={`border-b text-[10px] font-bold uppercase tracking-wider ${tableHeaderBg}`}>
+                <tr className={`border-b text-[10px] font-black uppercase tracking-wider ${isDark ? 'border-[#1A2232] text-slate-400 bg-[#151D2A]/60' : 'border-slate-200 text-slate-700 bg-slate-100'}`}>
                   <th className="py-3 px-3">ÍTEM N°</th>
                   <th className="py-3 px-3">RUC</th>
                   <th className="py-3 px-3">PROVEEDOR / RAZÓN SOCIAL</th>
@@ -505,31 +587,32 @@ export default function AdministracionProveedoresPage() {
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800/40' : 'divide-slate-200'}`}>
                 {filteredFlat.map((item, idx) => (
-                  <tr key={idx} className={isDark ? 'hover:bg-[#151D2A]' : 'hover:bg-slate-50'}>
-                    <td className={`py-3 px-3 font-mono font-black ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>N° {item.itemNo}</td>
-                    <td className={`py-3 px-3 font-mono font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                  <tr key={idx} className={`transition-colors ${isDark ? 'hover:bg-[#151D2A] hover:shadow-[inset_0_0_12px_rgba(0,242,195,0.04)]' : 'hover:bg-slate-50'}`}>
+                    <td className="py-3 px-3 font-mono font-black text-amber-400">N° {item.itemNo}</td>
+                    <td className="py-3 px-3 font-mono font-black text-[#00F2C3]">
                       <button
                         onClick={() => handleCopy(item.ruc, 'RUC')}
-                        className="hover:underline flex items-center gap-1"
+                        className="hover:underline flex items-center gap-1 group"
+                        title="Copiar RUC"
                       >
                         <span>{item.ruc}</span>
-                        <Copy className="w-3 h-3 opacity-60" />
+                        <Copy className="w-3 h-3 text-cyan-400 opacity-60 group-hover:opacity-100" />
                       </button>
                     </td>
                     <td className={`py-3 px-3 font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      <div>{item.razonSocial}</div>
-                      {item.direccion && <div className={`text-[10px] font-normal ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.direccion}</div>}
+                      <div className="font-black">{item.razonSocial}</div>
+                      {item.direccion && <div className={`text-[10px] font-normal ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.direccion}</div>}
                     </td>
                     <td className={`py-3 px-3 ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
-                      <div className="font-semibold">{item.contacto || '-'}</div>
-                      <div className={`font-mono text-[11px] font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{item.telefono || '-'}</div>
+                      <div className="font-bold">{item.contacto || '-'}</div>
+                      <div className="font-mono text-[11px] font-black text-emerald-400">{item.telefono || '-'}</div>
                     </td>
                     <td className="py-3 px-3 font-bold">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] ${
+                        className={`px-2 py-0.5 rounded text-[10px] font-black ${
                           item.banco.includes('INTERBANK')
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-blue-500/15 text-cyan-300 border border-cyan-500/30'
                         }`}
                       >
                         {item.banco || '-'}
@@ -537,10 +620,10 @@ export default function AdministracionProveedoresPage() {
                     </td>
                     <td className="py-3 px-3 font-bold">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] ${
+                        className={`px-2 py-0.5 rounded text-[10px] font-black ${
                           item.moneda.includes('USD') || item.moneda.includes('DOLAR')
-                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
-                            : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                            : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                         }`}
                       >
                         {item.moneda || 'SOLES'}
@@ -550,10 +633,11 @@ export default function AdministracionProveedoresPage() {
                       {item.numeroCuenta ? (
                         <button
                           onClick={() => handleCopy(item.numeroCuenta, 'CTA')}
-                          className={`font-bold flex items-center gap-1 ${isDark ? 'text-slate-200 hover:text-blue-400' : 'text-slate-900 hover:text-blue-600'}`}
+                          className={`font-black flex items-center gap-1.5 ${isDark ? 'text-slate-200 hover:text-[#00F2C3]' : 'text-slate-900 hover:text-blue-600'}`}
+                          title="Copiar N° Cuenta"
                         >
                           <span>{item.numeroCuenta}</span>
-                          <Copy className="w-3 h-3 text-slate-400" />
+                          <Copy className="w-3 h-3 text-cyan-400" />
                         </button>
                       ) : (
                         '-'
@@ -563,10 +647,11 @@ export default function AdministracionProveedoresPage() {
                       {item.cci ? (
                         <button
                           onClick={() => handleCopy(item.cci || '', 'CCI')}
-                          className={`font-medium flex items-center justify-end gap-1 ${isDark ? 'text-slate-400 hover:text-emerald-400' : 'text-slate-700 hover:text-emerald-600'}`}
+                          className={`font-bold flex items-center justify-end gap-1.5 ${isDark ? 'text-slate-300 hover:text-emerald-400' : 'text-slate-700 hover:text-emerald-600'}`}
+                          title="Copiar CCI"
                         >
                           <span>{item.cci}</span>
-                          <Copy className="w-3 h-3 text-slate-400" />
+                          <Copy className="w-3 h-3 text-emerald-400" />
                         </button>
                       ) : (
                         '-'

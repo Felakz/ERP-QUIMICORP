@@ -23,6 +23,8 @@ import {
   CobranzasKpis,
 } from '@/lib/cobranzasRealData';
 
+import * as XLSX from 'xlsx';
+
 export default function CuentasCobrarPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -80,7 +82,6 @@ export default function CuentasCobrarPage() {
       if (resKpis.data) {
         setKpis(resKpis.data);
       } else {
-        // Calcular en cliente si no vino del backend
         const facturado = cuentas.reduce((acc, c) => acc + (Number(c.montoTotal) || 0), 0);
         const pendiente = cuentas.reduce((acc, c) => acc + (Number(c.saldoPendiente) || 0), 0);
         setKpis({
@@ -107,7 +108,6 @@ export default function CuentasCobrarPage() {
       setCuentaSeleccionada(cuenta);
       setMontoAbono(String(cuenta.saldoPendiente > 0 ? cuenta.saldoPendiente : ''));
     } else {
-      // Tomar la primera pendiente
       const primeraPendiente = cuentas.find((c) => c.estado === 'PENDIENTE') || cuentas[0];
       setCuentaSeleccionada(primeraPendiente);
       setMontoAbono(String(primeraPendiente?.saldoPendiente || ''));
@@ -147,7 +147,6 @@ export default function CuentasCobrarPage() {
         }),
       });
 
-      // Actualizar estado local
       const nuevoSaldo = Math.max(0, Number(cuentaSeleccionada.saldoPendiente) - monto);
       const nuevoEstado = nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE';
 
@@ -169,7 +168,6 @@ export default function CuentasCobrarPage() {
       alert(`✅ Abono de S/ ${monto.toFixed(2)} registrado exitosamente para ${cuentaSeleccionada.codigoDoc}`);
     } catch (err: any) {
       console.error('Error al registrar abono:', err);
-      // Fallback local visual
       const nuevoSaldo = Math.max(0, Number(cuentaSeleccionada.saldoPendiente) - monto);
       const nuevoEstado = nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE';
 
@@ -187,9 +185,35 @@ export default function CuentasCobrarPage() {
     }
   };
 
+  // Exportar a Excel real (.xlsx)
+  const exportarExcel = () => {
+    if (cuentasFiltradas.length === 0) {
+      alert('No hay registros filtrados para exportar.');
+      return;
+    }
+
+    const dataExport = cuentasFiltradas.map((c) => ({
+      Comprobante: c.codigoDoc,
+      'Fecha Emisión': c.fechaEmision,
+      'Fecha Vencimiento': c.fechaVencimiento,
+      Cliente: c.clienteNombre,
+      RUC: c.clienteRuc,
+      Producto: c.producto || 'Varios',
+      'Orden Producción': c.ordenProd || 'Sin OP',
+      'Condición Pago': c.condicionPago,
+      'Total Facturado (PEN)': Number(c.montoTotal),
+      'Saldo Pendiente (PEN)': Number(c.saldoPendiente),
+      Estado: c.estado,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cobranzas_Quimicorp');
+    XLSX.writeFile(wb, `REPORTE_COBRANZAS_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   // Filtrado de Cuentas
   const cuentasFiltradas = cuentas.filter((c) => {
-    // Filtro búsqueda
     if (search.trim()) {
       const q = search.toLowerCase();
       const matchDoc = c.codigoDoc.toLowerCase().includes(q);
@@ -200,12 +224,10 @@ export default function CuentasCobrarPage() {
       if (!matchDoc && !matchCli && !matchRuc && !matchOp && !matchProd) return false;
     }
 
-    // Filtro plazo
     if (filtroPlazo !== 'TODOS') {
       if (!c.condicionPago.toLowerCase().includes(filtroPlazo.toLowerCase())) return false;
     }
 
-    // Filtro estado
     if (filtroEstado !== 'TODOS') {
       if (c.estado !== filtroEstado) return false;
     }
@@ -213,279 +235,379 @@ export default function CuentasCobrarPage() {
     return true;
   });
 
+  // Configuración de las 6 Tarjetas Horizontales de Condición (Estilo Kardex Neón)
+  const tabsCondicion = [
+    {
+      id: 'TODOS',
+      label: 'Todas las Condiciones',
+      description: 'Totalidad de ventas al contado y carteras a crédito',
+      badge: 'TOTAL CARTERA',
+      count: cuentas.length,
+      badgeCls: 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10',
+    },
+    {
+      id: 'Contado',
+      label: 'Contado Inmediato',
+      description: 'Cobro contra entrega / transferencias liquidadas',
+      badge: 'CONTADO',
+      count: cuentas.filter((c) => c.condicionPago.toLowerCase().includes('contado')).length,
+      badgeCls: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10',
+    },
+    {
+      id: '07',
+      label: 'Crédito 7 Días',
+      description: 'Línea de crédito semanal para clientes frecuentes',
+      badge: '7 DÍAS',
+      count: cuentas.filter((c) => c.condicionPago.includes('07')).length,
+      badgeCls: 'border-blue-500/40 text-blue-400 bg-blue-500/10',
+    },
+    {
+      id: '15',
+      label: 'Crédito 15 Días',
+      description: 'Línea quincenal con control de documentos',
+      badge: '15 DÍAS',
+      count: cuentas.filter((c) => c.condicionPago.includes('15')).length,
+      badgeCls: 'border-amber-500/40 text-amber-400 bg-amber-500/10',
+    },
+    {
+      id: '20',
+      label: 'Crédito 20 Días',
+      description: 'Plazo especial institucional y distribuidoras',
+      badge: '20 DÍAS',
+      count: cuentas.filter((c) => c.condicionPago.includes('20')).length,
+      badgeCls: 'border-purple-500/40 text-purple-400 bg-purple-500/10',
+    },
+    {
+      id: '60',
+      label: 'Crédito 60 Días',
+      description: 'Plazo extendido corporativo con aval comercial',
+      badge: '60 DÍAS',
+      count: cuentas.filter((c) => c.condicionPago.includes('60')).length,
+      badgeCls: 'border-rose-500/40 text-rose-400 bg-rose-500/10',
+    },
+  ];
+
   return (
-    <div className="space-y-6 font-sans">
-      {/* Header */}
-      <div className={`p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4 ${cardBg}`}>
+    <div className="space-y-5 font-sans min-h-screen pb-12">
+      {/* Banner Principal con Luces Neón */}
+      <div className={`p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4 transition-all shadow-sm ${cardBg}`}>
         <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-[#00F2C3] shadow-lg shadow-emerald-500/10">
             <CreditCard className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <h1 className={`text-lg font-black tracking-tight ${textValue}`}>
                 Cuentas por Cobrar & Control de Liquidez
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                PostgreSQL Live • {cuentas.length} Operaciones
+              <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-[#00F2C3] uppercase flex items-center gap-1.5 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00F2C3] led-pulse" />
+                POSTGRESQL LIVE • {cuentas.length} OPERACIONES
               </span>
             </div>
-            <p className={`text-xs ${textTitle}`}>
-              Monitoreo de plazos a crédito (7, 15, 20 y 60 días), comprobantes SUNAT y depósitos bancarios.
+            <p className={`text-xs mt-0.5 ${textTitle}`}>
+              Monitoreo ejecutivo de plazos de crédito (7, 15, 20 y 60 días), comprobantes SUNAT y depósitos bancarios.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={cargarDatos}
             disabled={loading}
-            className={`p-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
-              isDark ? 'border-slate-800 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+            className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+              isDark ? 'border-[#1A2232] bg-[#151D2A] text-slate-300 hover:text-white hover:border-cyan-500/50' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
             }`}
             title="Recargar datos"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+          </button>
+
+          <button
+            onClick={exportarExcel}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs tracking-wider uppercase transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
+          >
+            <Banknote className="w-4 h-4" />
+            <span>Exportar a Excel (.xlsx)</span>
           </button>
 
           <button
             onClick={() => abrirModalAbono()}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            <span>Registrar Pago / Abono</span>
+            <span>Registrar Abono</span>
           </button>
         </div>
       </div>
 
-      {/* 4 KPIs Reales Dinámicos */}
+      {/* 6 Tarjetas Horizontales Interactivas de Condición de Pago (Estilo Kardex Neón) */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {tabsCondicion.map((tab) => {
+          const isSelected = filtroPlazo === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setFiltroPlazo(tab.id)}
+              className={`rounded-2xl p-4 border text-left transition-all duration-200 flex flex-col justify-between gap-2.5 group relative overflow-hidden card-hover-lift ${
+                isSelected
+                  ? isDark
+                    ? 'bg-[#151D2A] border-[#00F2C3] shadow-lg shadow-[#00F2C3]/15 ring-1 ring-[#00F2C3]'
+                    : 'bg-cyan-50/80 border-cyan-400 shadow-md ring-1 ring-cyan-400'
+                  : isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] hover:border-slate-700 hover:bg-[#151D2A]/60'
+                  : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full">
+                <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${tab.badgeCls}`}>
+                  {tab.badge}
+                </span>
+                <span className={`text-xs font-mono font-black ${isSelected ? 'text-[#00F2C3]' : 'text-slate-400'}`}>
+                  {tab.count}
+                </span>
+              </div>
+
+              <div>
+                <h3 className={`text-xs font-black uppercase tracking-tight ${isSelected ? 'text-[#00F2C3]' : textValue}`}>
+                  {tab.label}
+                </h3>
+                <p className="text-[10px] text-slate-400 leading-tight mt-1 line-clamp-2">
+                  {tab.description}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 4 KPIs Reales Dinámicos con Resplandor Neón */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={`rounded-2xl p-4 border space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border space-y-1 transition-all card-hover-lift ${cardBg} ${isDark ? 'hover:border-emerald-500/50' : ''}`}>
           <div className="flex items-center justify-between">
             <span className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>TOTAL FACTURADO</span>
-            <Banknote className="w-4 h-4 text-emerald-400" />
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <Banknote className="w-3.5 h-3.5" />
+            </div>
           </div>
           <p className="text-2xl font-black font-mono text-emerald-400">
             S/ {kpis.totalFacturado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <span className="text-[10px] text-slate-500">74 transacciones registradas</span>
+          <span className="text-[10px] text-slate-500 font-mono">74 comprobantes emitidos</span>
         </div>
 
-        <div className={`rounded-2xl p-4 border space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border space-y-1 transition-all card-hover-lift ${cardBg} ${isDark ? 'hover:border-blue-500/50' : ''}`}>
           <div className="flex items-center justify-between">
             <span className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>RECAUDADO / PAGADO</span>
-            <CheckCircle2 className="w-4 h-4 text-blue-400" />
+            <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            </div>
           </div>
           <p className="text-2xl font-black font-mono text-blue-400">
             S/ {kpis.totalCobrado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <span className="text-[10px] text-slate-500">
+          <span className="text-[10px] text-cyan-400/80 font-mono font-bold">
             {((kpis.totalCobrado / (kpis.totalFacturado || 1)) * 100).toFixed(1)}% liquidez efectiva
           </span>
         </div>
 
-        <div className={`rounded-2xl p-4 border space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border space-y-1 transition-all card-hover-lift ${cardBg} ${isDark ? 'hover:border-amber-500/50' : ''}`}>
           <div className="flex items-center justify-between">
             <span className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>SALDO POR COBRAR</span>
-            <Clock className="w-4 h-4 text-amber-400" />
+            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <Clock className="w-3.5 h-3.5" />
+            </div>
           </div>
           <p className="text-2xl font-black font-mono text-amber-400">
             S/ {kpis.saldoPendiente.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <span className="text-[10px] text-slate-500">
+          <span className="text-[10px] text-amber-500/80 font-mono font-bold">
             {cuentas.filter((c) => c.estado === 'PENDIENTE').length} facturas pendientes
           </span>
         </div>
 
-        <div className={`rounded-2xl p-4 border space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border space-y-1 transition-all card-hover-lift ${cardBg} ${isDark ? 'hover:border-emerald-500/50' : ''}`}>
           <div className="flex items-center justify-between">
             <span className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>SALUD DE CARTERA</span>
-            <Percent className="w-4 h-4 text-emerald-400" />
+            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-[#00F2C3] border border-emerald-500/20">
+              <Percent className="w-3.5 h-3.5" />
+            </div>
           </div>
-          <p className="text-2xl font-black font-mono text-emerald-400">98.5%</p>
+          <p className="text-2xl font-black font-mono text-[#00F2C3]">98.5%</p>
           <span className="text-[10px] text-slate-500">Créditos al día y controlados</span>
         </div>
       </div>
 
-      {/* Barra de Filtros por Plazos y Búsqueda */}
-      <div className={`rounded-2xl p-4 border space-y-3 ${cardBg}`}>
+      {/* Barra de Filtros por Estado y Buscador con Segmented Pills */}
+      <div className={`rounded-2xl p-4 border space-y-3 shadow-sm ${cardBg}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Filtros de Plazo */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className={`text-[11px] font-bold mr-1 ${textTitle}`}>Condición:</span>
+          {/* Segmented Controls de Estado Iluminados */}
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[11px] font-bold mr-1 uppercase ${textTitle}`}>Estado:</span>
             {[
-              { id: 'TODOS', label: 'Todos' },
-              { id: 'Contado', label: 'Contado (59)' },
-              { id: '07', label: 'Crédito 7d (8)' },
-              { id: '15', label: 'Crédito 15d (1)' },
-              { id: '20', label: 'Crédito 20d (4)' },
-              { id: '60', label: 'Crédito 60d (2)' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setFiltroPlazo(tab.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                  filtroPlazo === tab.id
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : isDark
-                    ? 'bg-[#151D2A] text-slate-400 border border-[#1A2232] hover:text-slate-200'
-                    : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+              { id: 'TODOS', label: 'Todos', activeColor: 'bg-slate-700 text-white' },
+              { id: 'PAGADO', label: 'Pagados (Liquidados)', activeColor: 'bg-blue-500 text-white shadow-md shadow-blue-500/30' },
+              { id: 'PENDIENTE', label: 'Pendientes (Por Cobrar)', activeColor: 'bg-[#00F2C3] text-slate-950 shadow-md shadow-[#00F2C3]/30 font-black' },
+            ].map((est) => {
+              const isSel = filtroEstado === est.id;
+              return (
+                <button
+                  key={est.id}
+                  onClick={() => setFiltroEstado(est.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    isSel
+                      ? est.activeColor
+                      : isDark
+                      ? 'bg-[#151D2A] text-slate-300 border border-[#1A2232] hover:text-white hover:border-slate-600'
+                      : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                  }`}
+                >
+                  {est.label}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Filtro por Estado */}
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[11px] font-bold mr-1 ${textTitle}`}>Estado:</span>
-            {['TODOS', 'PAGADO', 'PENDIENTE'].map((est) => (
-              <button
-                key={est}
-                onClick={() => setFiltroEstado(est)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                  filtroEstado === est
-                    ? est === 'PAGADO'
-                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-                      : est === 'PENDIENTE'
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : isDark
-                    ? 'bg-[#151D2A] text-slate-400 border border-[#1A2232]'
-                    : 'bg-slate-100 text-slate-600 border border-slate-200'
-                }`}
-              >
-                {est === 'TODOS' ? 'Todos' : est === 'PAGADO' ? 'Pagados' : 'Pendientes'}
-              </button>
-            ))}
-          </div>
+          <span className="text-xs font-mono text-slate-400">
+            Filtrado: <strong className="text-cyan-400 font-bold">S/ {cuentasFiltradas.reduce((a, c) => a + Number(c.montoTotal), 0).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
+          </span>
         </div>
 
-        {/* Buscador */}
+        {/* Buscador de Alto Impacto */}
         <div className="relative w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
           <input
             type="text"
-            placeholder="Buscar por Cliente, RUC, Comprobante (E001-180, EB01-100), Producto u OP..."
+            placeholder="Buscar por Cliente, RUC, Comprobante (EB01-100, E001-180), Producto o Código OP..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-sans ${inputBg}`}
+            className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-xs font-sans focus:border-[#00F2C3] focus:outline-none transition-all ${inputBg}`}
           />
         </div>
       </div>
 
-      {/* Tabla de Cuentas por Cobrar */}
+      {/* Tabla de Cuentas por Cobrar con Iluminación Semántica */}
       <div className={`rounded-2xl p-5 border space-y-4 shadow-sm ${cardBg}`}>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-3 border-slate-800/60">
           <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-emerald-400" />
+            <FileText className="w-4 h-4 text-cyan-400" />
             <h2 className={`text-xs font-bold uppercase tracking-wider ${textValue}`}>
-              Detalle de Comprobantes & Cuentas ({cuentasFiltradas.length} de {cuentas.length})
+              Detalle de Comprobantes & Cuentas ({cuentasFiltradas.length} de {cuentas.length} Operaciones)
             </h2>
           </div>
           <span className="text-[11px] text-slate-400 font-mono">
-            Filtrado: S/ {cuentasFiltradas.reduce((a, c) => a + Number(c.montoTotal), 0).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+            Sincronizado con Libro Mayor SUNAT
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className={`border-b text-[10px] uppercase font-bold ${
-                isDark ? 'border-slate-800/60 text-slate-400' : 'border-slate-200 text-slate-700 bg-slate-50'
+              <tr className={`border-b text-[10px] uppercase font-bold tracking-widest ${
+                isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-700 bg-slate-50'
               }`}>
-                <th className="py-2.5 px-3">COMPROBANTE</th>
-                <th className="py-2.5 px-3">CLIENTE & RUC</th>
-                <th className="py-2.5 px-3">PRODUCTO & OP</th>
-                <th className="py-2.5 px-3">CONDICIÓN / VENCE</th>
-                <th className="py-2.5 px-3 text-right">TOTAL</th>
-                <th className="py-2.5 px-3 text-right">SALDO POR COBRAR</th>
-                <th className="py-2.5 px-3 text-center">ESTADO</th>
-                <th className="py-2.5 px-3 text-center">ACCIONES</th>
+                <th className="py-3 px-3">COMPROBANTE</th>
+                <th className="py-3 px-3">CLIENTE & RUC</th>
+                <th className="py-3 px-3">PRODUCTO & OP</th>
+                <th className="py-3 px-3">CONDICIÓN / VENCE</th>
+                <th className="py-3 px-3 text-right">TOTAL</th>
+                <th className="py-3 px-3 text-right">SALDO POR COBRAR</th>
+                <th className="py-3 px-3 text-center">ESTADO</th>
+                <th className="py-3 px-3 text-center">ACCIONES</th>
               </tr>
             </thead>
             <tbody className={`divide-y font-mono text-[11px] ${
-              isDark ? 'divide-slate-800/60' : 'divide-slate-100'
+              isDark ? 'divide-[#1A2232]/60' : 'divide-slate-100'
             }`}>
-              {cuentasFiltradas.map((c) => (
-                <tr key={c.id} className={`transition-colors ${isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}`}>
-                  <td className="py-3 px-3">
-                    <span className="font-bold text-cyan-400 block">{c.codigoDoc}</span>
-                    <span className="text-[10px] text-slate-500 block">{c.fechaEmision}</span>
-                  </td>
-                  <td className="py-3 px-3 font-sans">
-                    <span className="font-bold text-slate-200 block">{c.clienteNombre}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">RUC: {c.clienteRuc}</span>
-                  </td>
-                  <td className="py-3 px-3">
-                    <span className="text-slate-300 font-sans text-xs block truncate max-w-[200px]" title={c.producto}>
-                      {c.producto || '-'}
-                    </span>
-                    <span className="text-[10px] text-emerald-400/80 block">{c.ordenProd || 'Sin OP'}</span>
-                  </td>
-                  <td className="py-3 px-3 font-sans">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700 block w-max">
-                      {c.condicionPago}
-                    </span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Vence: {c.fechaVencimiento}</span>
-                  </td>
-                  <td className="py-3 px-3 text-right text-slate-300 font-bold">
-                    S/ {Number(c.montoTotal).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td className="py-3 px-3 text-right font-black">
-                    {Number(c.saldoPendiente) > 0 ? (
-                      <span className="text-amber-400">
-                        S/ {Number(c.saldoPendiente).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    ) : (
-                      <span className="text-emerald-400">S/ 0.00</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-3 text-center">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
-                      c.estado === 'PAGADO'
-                        ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                    }`}>
-                      {c.estado === 'PAGADO' ? 'Pagado' : 'Pendiente'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-3 text-center">
-                    {c.estado === 'PENDIENTE' ? (
-                      <button
-                        onClick={() => abrirModalAbono(c)}
-                        className="px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 text-[10px] font-bold font-sans transition-all active:scale-95"
-                      >
-                        Abonar
-                      </button>
-                    ) : (
-                      <span className="text-[10px] text-slate-500 font-sans">Liquidado</span>
-                    )}
+              {cuentasFiltradas.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-400 font-sans">
+                    No se encontraron cuentas por cobrar con los filtros seleccionados.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                cuentasFiltradas.map((c) => (
+                  <tr key={c.id} className={`transition-colors ${isDark ? 'hover:bg-[#151D2A]/60' : 'hover:bg-slate-50'}`}>
+                    <td className="py-3.5 px-3">
+                      <span className="font-bold text-cyan-400 block">{c.codigoDoc}</span>
+                      <span className="text-[10px] text-slate-500 block">{c.fechaEmision}</span>
+                    </td>
+                    <td className="py-3.5 px-3 font-sans">
+                      <span className="font-bold text-slate-200 block">{c.clienteNombre}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">RUC: {c.clienteRuc}</span>
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <span className="text-slate-300 font-sans text-xs block truncate max-w-[200px]" title={c.producto}>
+                        {c.producto || '-'}
+                      </span>
+                      <span className="text-[10px] text-emerald-400/80 block">{c.ordenProd || 'Sin OP'}</span>
+                    </td>
+                    <td className="py-3.5 px-3 font-sans">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#151D2A] text-slate-300 border border-[#1A2232] block w-max">
+                        {c.condicionPago}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">Vence: {c.fechaVencimiento}</span>
+                    </td>
+                    <td className="py-3.5 px-3 text-right text-slate-300 font-bold">
+                      S/ {Number(c.montoTotal).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-3.5 px-3 text-right font-black">
+                      {Number(c.saldoPendiente) > 0 ? (
+                        <span className="text-amber-400 font-bold">
+                          S/ {Number(c.saldoPendiente).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-400">S/ 0.00</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-3 text-center">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
+                        c.estado === 'PAGADO'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${c.estado === 'PAGADO' ? 'bg-blue-400' : 'bg-amber-400 led-pulse'}`} />
+                        {c.estado === 'PAGADO' ? 'Pagado' : 'Pendiente'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-3 text-center">
+                      {c.estado === 'PENDIENTE' ? (
+                        <button
+                          onClick={() => abrirModalAbono(c)}
+                          className="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-[#00F2C3] border border-emerald-500/30 hover:border-[#00F2C3] text-[10px] font-bold font-sans transition-all active:scale-95 shadow-sm"
+                        >
+                          Abonar
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 font-sans">Liquidado</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal Registrar Pago / Abono */}
+      {/* Modal Registrar Pago / Abono con Backdrop Blur y Glow */}
       {modalAbonoOpen && cuentaSeleccionada && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-          <div className={`w-full max-w-lg rounded-2xl border p-6 space-y-4 shadow-2xl ${cardBg}`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-lg rounded-2xl border p-6 space-y-4 shadow-2xl ${cardBg} border-emerald-500/30`}>
             <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-emerald-500" />
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  <CreditCard className="w-5 h-5" />
+                </div>
                 <h3 className={`text-sm font-black ${textValue}`}>Registrar Pago / Abono Bancario</h3>
               </div>
               <button
                 onClick={() => setModalAbonoOpen(false)}
-                className={`p-1 rounded-lg transition-colors ${
-                  isDark ? 'text-slate-400 hover:text-white hover:bg-slate-800' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                className={`p-1.5 rounded-lg border transition-colors ${
+                  isDark ? 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -495,7 +617,7 @@ export default function CuentasCobrarPage() {
             }`}>
               <div className="flex justify-between">
                 <span className={isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}>Comprobante:</span>
-                <span className="font-mono font-bold text-cyan-600 dark:text-cyan-400">{cuentaSeleccionada.codigoDoc}</span>
+                <span className="font-mono font-bold text-cyan-400">{cuentaSeleccionada.codigoDoc}</span>
               </div>
               <div className="flex justify-between">
                 <span className={isDark ? 'text-slate-400' : 'text-slate-600 font-semibold'}>Cliente:</span>
@@ -506,8 +628,8 @@ export default function CuentasCobrarPage() {
                 <span className={`font-mono font-semibold ${textValue}`}>S/ {Number(cuentaSeleccionada.montoTotal).toFixed(2)}</span>
               </div>
               <div className={`flex justify-between border-t pt-1.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <span className="font-bold text-amber-500 dark:text-amber-400">Saldo Pendiente Actual:</span>
-                <span className="font-mono font-black text-amber-500 dark:text-amber-400">S/ {Number(cuentaSeleccionada.saldoPendiente).toFixed(2)}</span>
+                <span className="font-bold text-amber-400">Saldo Pendiente Actual:</span>
+                <span className="font-mono font-black text-amber-400">S/ {Number(cuentaSeleccionada.saldoPendiente).toFixed(2)}</span>
               </div>
             </div>
 
@@ -525,7 +647,7 @@ export default function CuentasCobrarPage() {
                   onChange={(e) => setMontoAbono(e.target.value)}
                   required
                   placeholder="0.00"
-                  className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${inputBg}`}
+                  className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${inputBg} focus:border-[#00F2C3] focus:outline-none`}
                 />
               </div>
 
@@ -568,7 +690,7 @@ export default function CuentasCobrarPage() {
                   value={numOperacion}
                   onChange={(e) => setNumOperacion(e.target.value)}
                   placeholder="Ej: OP-84920412"
-                  className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg}`}
+                  className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg} focus:border-[#00F2C3] focus:outline-none`}
                 />
               </div>
 
@@ -579,7 +701,7 @@ export default function CuentasCobrarPage() {
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
                   placeholder="Abono parcial de factura..."
-                  className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg} focus:border-[#00F2C3] focus:outline-none`}
                 />
               </div>
 
@@ -596,7 +718,7 @@ export default function CuentasCobrarPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
                 >
                   {isSubmitting ? 'Registrando...' : 'Confirmar Abono'}
                 </button>
@@ -608,3 +730,4 @@ export default function CuentasCobrarPage() {
     </div>
   );
 }
+

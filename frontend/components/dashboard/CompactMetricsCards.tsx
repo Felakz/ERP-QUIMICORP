@@ -33,10 +33,6 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const cardBg = isDark
-    ? 'bg-[#0F141C] border-[#1A2232] hover:border-blue-500/50 hover:bg-[#131A26]'
-    : 'bg-white border-slate-200 shadow-sm hover:border-blue-500/50 hover:bg-blue-50/30';
-
   const getTargetRoute = (type: string) => {
     switch (type) {
       case 'AMOUNT_DUE':
@@ -55,30 +51,50 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
   const getActionLabel = (type: string) => {
     switch (type) {
       case 'AMOUNT_DUE':
-        return 'Ver Cuentas por Cobrar';
+        return 'Ver Cuentas';
       case 'CUSTOMERS':
-        return 'Ver Directorio Clientes';
+        return 'Ver Directorio';
       case 'INVOICES':
-        return 'Ver Registro Invoices';
+        return 'Ver Invoices';
       case 'ESTIMATES':
-        return 'Generar Cotización';
+        return 'Cotizar';
       default:
         return 'Ver Detalle';
     }
   };
 
-  const getIcon = (type: string) => {
+  const getItemStyle = (type: string) => {
     switch (type) {
       case 'AMOUNT_DUE':
-        return <Wallet className="w-5 h-5 text-purple-400" />;
+        return {
+          icon: <Wallet className="w-5 h-5 text-purple-400" />,
+          glowClass: 'hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.15)]',
+          badgeBg: 'bg-purple-500/10 border-purple-500/30 text-purple-400',
+        };
       case 'CUSTOMERS':
-        return <Users className="w-5 h-5 text-emerald-400" />;
+        return {
+          icon: <Users className="w-5 h-5 text-[#00F2C3]" />,
+          glowClass: 'hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(0,242,195,0.15)]',
+          badgeBg: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400',
+        };
       case 'INVOICES':
-        return <FileText className="w-5 h-5 text-amber-400" />;
+        return {
+          icon: <FileText className="w-5 h-5 text-amber-400" />,
+          glowClass: 'hover:border-amber-500/50 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)]',
+          badgeBg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+        };
       case 'ESTIMATES':
-        return <FileSpreadsheet className="w-5 h-5 text-rose-400" />;
+        return {
+          icon: <FileSpreadsheet className="w-5 h-5 text-rose-400" />,
+          glowClass: 'hover:border-rose-500/50 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)]',
+          badgeBg: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
+        };
       default:
-        return <Wallet className="w-5 h-5 text-blue-400" />;
+        return {
+          icon: <Wallet className="w-5 h-5 text-blue-400" />,
+          glowClass: 'hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]',
+          badgeBg: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+        };
     }
   };
 
@@ -91,40 +107,45 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
           : (item.valuePenNeto ?? 0).toLocaleString('es-PE');
         const targetRoute = getTargetRoute(item.type);
         const actionLabel = getActionLabel(item.type);
+        const itemStyle = getItemStyle(item.type);
+
+        const cardBg = isDark
+          ? `bg-[#0F141C] border-[#1A2232] ${itemStyle.glowClass} hover:bg-[#131A26]`
+          : 'bg-white border-slate-200 shadow-sm hover:border-blue-500/50 hover:bg-blue-50/30 hover:shadow-md';
 
         return (
           <div
             key={item.id}
             onClick={() => router.push(targetRoute)}
-            className={`p-5 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all group ${cardBg}`}
+            className={`p-4 rounded-2xl border flex flex-col justify-between cursor-pointer transition-all duration-200 group card-hover-lift ${cardBg}`}
             title={`Ir a ${item.title}`}
           >
             <div>
               <div className="flex items-center justify-between">
                 <div
-                  className={`p-2.5 rounded-xl border ${
-                    isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+                  className={`p-2.5 rounded-xl border transition-transform duration-200 group-hover:scale-110 ${
+                    isDark ? itemStyle.badgeBg : 'bg-slate-50 border-slate-200'
                   }`}
                 >
-                  {getIcon(item.type)}
+                  {itemStyle.icon}
                 </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ArrowRight className="w-4 h-4 text-blue-400" />
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg bg-cyan-500/10 text-[#00F2C3]">
+                  <ArrowRight className="w-4 h-4" />
                 </div>
               </div>
 
               <div className="mt-3">
-                <span className="text-xs font-bold text-slate-400 block">{item.title}</span>
-                <h3 className={`text-xl font-black mt-1 font-mono tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <span className="text-[11px] font-bold text-slate-400 block tracking-wide">{item.title}</span>
+                <h3 className={`text-lg font-black mt-1 font-mono tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   {displayValue}
                 </h3>
               </div>
             </div>
 
-            <div className="mt-4 pt-2.5 border-t border-slate-800/40 flex items-center justify-between text-[11px] font-bold">
+            <div className="mt-3 pt-2 border-t border-slate-800/40 flex items-center justify-between text-[10px] font-bold">
               <span
                 className={`flex items-center gap-0.5 ${
-                  item.isPositive ? 'text-emerald-500' : 'text-rose-500'
+                  item.isPositive ? 'text-emerald-400' : 'text-rose-400'
                 }`}
               >
                 {item.isPositive ? (
@@ -134,11 +155,10 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
                 )}
                 {item.isPositive ? '+' : ''}
                 {item.changePercent.toFixed(1)}%
-                <span className="text-slate-500 font-normal ml-0.5">vs mes ant.</span>
               </span>
 
-              <span className="text-[10px] text-blue-400/80 group-hover:text-blue-400 font-semibold hidden xl:inline-block">
-                {actionLabel}
+              <span className="text-[10px] text-cyan-400/80 group-hover:text-cyan-300 font-bold hidden xl:inline-block">
+                {actionLabel} →
               </span>
             </div>
           </div>

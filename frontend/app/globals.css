@@ -60,3 +60,79 @@ body {
   }
 }
 
+/* ==========================================================================
+   NEON & CYBER-INDUSTRIAL DESIGN SYSTEM UTILITIES
+   ========================================================================== */
+
+/* Neon Glows */
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
+}
+
+.glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+}
+
+.glow-neon {
+  box-shadow: 0 0 25px rgba(0, 242, 195, 0.25);
+}
+
+/* Neon Active Card */
+.neon-card-cyan {
+  border-color: #06b6d4 !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.2), inset 0 0 10px rgba(6, 182, 212, 0.05);
+}
+
+.neon-card-emerald {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2), inset 0 0 10px rgba(16, 185, 129, 0.05);
+}
+
+.neon-card-amber {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2), inset 0 0 10px rgba(245, 158, 11, 0.05);
+}
+
+.neon-card-teal {
+  border-color: #00F2C3 !important;
+  box-shadow: 0 0 18px rgba(0, 242, 195, 0.22), inset 0 0 12px rgba(0, 242, 195, 0.06);
+}
+
+/* Micro LED Pulsing */
+@keyframes ledPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
+}
+
+.led-pulse {
+  animation: ledPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Card Hover Lift */
+.card-hover-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+

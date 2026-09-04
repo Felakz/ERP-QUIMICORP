@@ -36,7 +36,9 @@ export const PaymentCategoriesChart: React.FC<PaymentCategoriesChartProps> = ({
     setIsMounted(true);
   }, []);
 
-  const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
+  const cardBg = isDark
+    ? 'bg-[#0F141C] border-[#1A2232] shadow-[0_0_20px_rgba(0,242,195,0.03)]'
+    : 'bg-white border-slate-200 shadow-sm';
   const gridColor = isDark ? '#1A2232' : '#CBD5E1';
   const textColor = isDark ? '#94A3B8' : '#475569';
 
@@ -46,16 +48,14 @@ export const PaymentCategoriesChart: React.FC<PaymentCategoriesChartProps> = ({
     fullMark: c.fullMark,
   }));
 
-  const totalCollectedPen = categories.reduce((acc, curr) => acc + curr.amountPenNeto, 0);
-
   return (
     <div className={`p-6 rounded-2xl border ${cardBg} h-full flex flex-col justify-between space-y-4`}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+          <h2 className={`text-base font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
             Métodos de Pago & Cobranza
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-medium">
             Distribución por entidad financiera y canal comercial
           </p>
         </div>
@@ -78,10 +78,12 @@ export const PaymentCategoriesChart: React.FC<PaymentCategoriesChartProps> = ({
               <Tooltip
                 contentStyle={{
                   backgroundColor: isDark ? '#0B0F17' : '#FFFFFF',
-                  borderColor: isDark ? '#1A2232' : '#CBD5E1',
+                  borderColor: isDark ? '#EC4899' : '#CBD5E1',
                   borderRadius: '12px',
+                  boxShadow: isDark ? '0 0 15px rgba(236,72,153,0.25)' : '0 4px 6px -1px rgba(0,0,0,0.1)',
                   fontSize: '12px',
                   color: isDark ? '#FFF' : '#000',
+                  fontWeight: 600,
                 }}
                 formatter={(val: any) => [
                   val !== undefined
@@ -95,7 +97,7 @@ export const PaymentCategoriesChart: React.FC<PaymentCategoriesChartProps> = ({
             </RadarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-xs text-slate-500">
+          <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 font-mono">
             Cargando gráfico...
           </div>
         )}
@@ -107,23 +109,16 @@ export const PaymentCategoriesChart: React.FC<PaymentCategoriesChartProps> = ({
           {categories.slice(0, 4).map((c, i) => (
             <div
               key={i}
-              className={`p-2 rounded-xl border flex items-center justify-between ${
-                isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'
+              className={`p-2 rounded-xl border flex items-center justify-between transition-all card-hover-lift ${
+                isDark ? 'bg-[#151D2A] border-[#1A2232] hover:border-pink-500/30' : 'bg-slate-50 border-slate-200'
               }`}
             >
-              <span className="text-slate-400 truncate max-w-[85px] font-medium">{c.category}</span>
-              <span className={`font-mono font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <span className="text-slate-400 truncate max-w-[85px] font-bold">{c.category}</span>
+              <span className={`font-mono font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {formatCurrency(c.amountPenNeto, includeIgv, currency, exchangeRateUsd)}
               </span>
             </div>
           ))}
-        </div>
-
-        <div className="flex items-center justify-between pt-1 text-xs">
-          <span className="text-slate-400 font-medium">Recaudación Total:</span>
-          <span className="font-black text-rose-400 font-mono">
-            {formatCurrency(totalCollectedPen, includeIgv, currency, exchangeRateUsd)}
-          </span>
         </div>
       </div>
     </div>

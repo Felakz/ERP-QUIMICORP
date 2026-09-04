@@ -27,7 +27,9 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
 
   const [activeTab, setActiveTab] = useState<CommercialDocType>('TODOS');
 
-  const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
+  const cardBg = isDark
+    ? 'bg-[#0F141C] border-[#1A2232] shadow-[0_0_20px_rgba(0,242,195,0.03)]'
+    : 'bg-white border-slate-200 shadow-sm';
 
   const filteredDocs = documents.filter((doc) => {
     if (activeTab === 'TODOS') return true;
@@ -38,20 +40,20 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
     switch (status) {
       case 'PAGADO':
         return (
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Pagado
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1.5 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 led-pulse" /> Pagado
           </span>
         );
       case 'PENDIENTE':
         return (
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 inline-flex items-center gap-1">
-            <Clock className="w-3 h-3" /> Pendiente
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-400 border border-amber-500/30 inline-flex items-center gap-1.5 shadow-[0_0_8px_rgba(245,158,11,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> Pendiente
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 inline-flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" /> Vencido
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5 shadow-[0_0_8px_rgba(244,63,94,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> Vencido
           </span>
         );
     }
@@ -63,14 +65,14 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
         <div>
           <h2
             onClick={() => router.push(ROUTES.ANALISIS)}
-            className={`text-base font-bold cursor-pointer hover:text-blue-400 transition-colors ${
+            className={`text-base font-black cursor-pointer hover:text-[#00F2C3] transition-colors ${
               isDark ? 'text-white' : 'text-slate-900'
             }`}
             title="Ir a Análisis & Inteligencia de Ventas"
           >
             Documentos Comerciales Recientes
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 font-medium">
             Facturas, cotizaciones y notas de venta emitidas con ficha técnica
           </p>
         </div>
@@ -89,9 +91,11 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
               <button
                 key={tabKey}
                 onClick={() => setActiveTab(tabKey)}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   isSel
-                    ? 'bg-blue-600 text-white shadow-sm'
+                    ? isDark
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-[0_0_12px_rgba(0,242,195,0.3)] font-black'
+                      : 'bg-blue-600 text-white shadow-sm font-black'
                     : isDark
                     ? 'text-slate-400 hover:text-slate-200'
                     : 'text-slate-600 hover:text-slate-900'
@@ -107,8 +111,8 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className={`border-b text-[10px] font-bold uppercase tracking-wider ${
-              isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-700 bg-slate-50'
+            <tr className={`border-b text-[10px] font-black uppercase tracking-wider ${
+              isDark ? 'border-[#1A2232] text-slate-400 bg-[#151D2A]/50' : 'border-slate-200 text-slate-700 bg-slate-50'
             }`}>
               <th className="py-3 px-3">DOCUMENTO N°</th>
               <th className="py-3 px-3">CLIENTE / RUC</th>
@@ -133,10 +137,10 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
                 <tr
                   key={doc.id}
                   onClick={() => router.push(ROUTES.PEDIDOS)}
-                  className={`cursor-pointer transition-all ${isDark ? 'hover:bg-[#151D2A]' : 'hover:bg-slate-50'}`}
+                  className={`cursor-pointer transition-all duration-150 ${isDark ? 'hover:bg-[#151D2A] hover:shadow-[inset_0_0_12px_rgba(0,242,195,0.05)]' : 'hover:bg-slate-50'}`}
                   title="Ver pedido en módulo de Pedidos Comerciales"
                 >
-                  <td className="py-3 px-3 font-mono font-bold text-blue-500">{doc.docNumber}</td>
+                  <td className="py-3 px-3 font-mono font-black text-[#00F2C3]">{doc.docNumber}</td>
                   <td className="py-3 px-3">
                     <span className={`font-bold block ${isDark ? 'text-white' : 'text-slate-900'}`}>{doc.customerName}</span>
                     <span className="text-[10px] text-slate-500 font-mono">RUC: {doc.ruc}</span>
@@ -146,7 +150,7 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
                   </td>
                   <td className={`py-3 px-3 font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{doc.issueDate}</td>
                   <td className={`py-3 px-3 font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{doc.dueDate}</td>
-                  <td className={`py-3 px-3 font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{formattedAmount}</td>
+                  <td className={`py-3 px-3 font-mono font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{formattedAmount}</td>
                   <td className="py-3 px-3">{getStatusBadge(doc.status)}</td>
                   <td className="py-3 px-3 text-right">
                     <button
@@ -154,7 +158,7 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
                         e.stopPropagation();
                         console.log(`[PDF Generator] Generando ficha técnica para ${doc.docNumber}`);
                       }}
-                      className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-all border border-blue-500/20"
+                      className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-[#00F2C3] transition-all border border-cyan-500/30 shadow-sm"
                       title="Descargar PDF con Ficha Técnica"
                     >
                       <Download className="w-4 h-4" />

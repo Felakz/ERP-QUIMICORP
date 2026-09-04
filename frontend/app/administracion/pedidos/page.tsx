@@ -412,10 +412,10 @@ export default function AdministracionPedidosComercialesPage() {
         </div>
       )}
 
-      {/* Banner Principal & Botones de Emisión */}
+      {/* Banner Principal & Botones de Emisión con Luces Neón */}
       <div className={`rounded-2xl p-6 border flex flex-wrap items-center justify-between gap-4 transition-all shadow-sm ${cardBg}`}>
         <div className="flex items-center gap-3.5">
-          <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-orange-50 border-orange-200 text-orange-700'}`}>
+          <div className={`p-3.5 rounded-2xl border ${isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 shadow-lg shadow-amber-500/10' : 'bg-amber-50 border-orange-200 text-orange-700'}`}>
             <Inbox className="w-7 h-7" />
           </div>
           <div>
@@ -423,9 +423,10 @@ export default function AdministracionPedidosComercialesPage() {
               <h1 className={`text-xl font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 Gestión Comercial: Cotizaciones & Pedidos de Planta
               </h1>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase ${
-                isDark ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400' : 'bg-orange-100 border border-orange-300 text-orange-800'
+              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono uppercase flex items-center gap-1.5 shadow-sm ${
+                isDark ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400' : 'bg-orange-100 border border-orange-300 text-orange-800'
               }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 led-pulse" />
                 PORTAL ADMINISTRACIÓN
               </span>
             </div>
@@ -435,21 +436,20 @@ export default function AdministracionPedidosComercialesPage() {
           </div>
         </div>
 
-        {/* Botón Único de Emisión */}
+        {/* Botón Único de Emisión con Glow */}
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => {
               setCreationDefaultMode('COTIZACION');
               setIsCreatingOrder(true);
             }}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 flex items-center gap-2"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 active:scale-95 flex items-center gap-2"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Nueva Cotización / Pedido</span>
           </button>
         </div>
       </div>
-
 
       {/* Tabla Completa con Barra de Búsqueda, Filtro por Día y Tabs */}
       <div className={`rounded-2xl p-6 border space-y-5 shadow-sm ${cardBg}`}>
@@ -484,7 +484,7 @@ export default function AdministracionPedidosComercialesPage() {
             <div className={`relative flex items-center rounded-xl border px-3 py-1.5 text-xs font-bold font-mono ${
               selectedDate !== 'TODOS'
                 ? isDark
-                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/20'
+                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 ring-1 ring-amber-500/20 shadow-sm shadow-amber-500/10'
                   : 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm'
                 : isDark
                 ? 'bg-[#0F141C] border-[#1A2232] text-slate-400'
@@ -521,7 +521,7 @@ export default function AdministracionPedidosComercialesPage() {
               onClick={() => setSelectedDate('TODOS')}
               className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
                 selectedDate === 'TODOS'
-                  ? 'bg-blue-600 border-blue-500 text-white shadow-md'
+                  ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20'
                   : isDark
                   ? 'bg-[#0F141C] border-[#1A2232] text-slate-400 hover:text-white'
                   : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
@@ -532,17 +532,17 @@ export default function AdministracionPedidosComercialesPage() {
           </div>
         </div>
 
-        {/* Controls Bar: Search & Filter Tabs */}
+        {/* Controls Bar: Search & Filter Tabs con Segmented Neón */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
-          {/* Tabs */}
+          {/* Tabs con Resplandor */}
           <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
             <button
               onClick={() => setSelectedTab('TODOS')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans transition-all border ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-sans transition-all border ${
                 selectedTab === 'TODOS'
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/30 font-black'
                   : isDark
-                  ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
+                  ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200 hover:border-slate-700'
                   : 'bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-900'
               }`}
             >
@@ -551,11 +551,11 @@ export default function AdministracionPedidosComercialesPage() {
 
             <button
               onClick={() => setSelectedTab('COTIZACIONES')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans transition-all border flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-sans transition-all border flex items-center gap-1.5 ${
                 selectedTab === 'COTIZACIONES'
-                  ? 'bg-orange-500 text-white border-orange-500 shadow-sm'
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 border-amber-400 shadow-md shadow-orange-500/30 font-black'
                   : isDark
-                  ? 'bg-[#151D2A] text-orange-400 border-[#1A2232] hover:text-orange-300'
+                  ? 'bg-[#151D2A] text-orange-400 border-[#1A2232] hover:text-orange-300 hover:border-orange-500/40'
                   : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'
               }`}
             >
@@ -565,11 +565,11 @@ export default function AdministracionPedidosComercialesPage() {
 
             <button
               onClick={() => setSelectedTab('PEDIDOS')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans transition-all border flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-sans transition-all border flex items-center gap-1.5 ${
                 selectedTab === 'PEDIDOS'
-                  ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                  ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 border-teal-400 shadow-md shadow-teal-500/30 font-black'
                   : isDark
-                  ? 'bg-[#151D2A] text-teal-400 border-[#1A2232] hover:text-teal-300'
+                  ? 'bg-[#151D2A] text-teal-400 border-[#1A2232] hover:text-teal-300 hover:border-teal-500/40'
                   : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'
               }`}
             >
@@ -579,11 +579,11 @@ export default function AdministracionPedidosComercialesPage() {
 
             <button
               onClick={() => setSelectedTab('APROBADOS')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold font-sans transition-all border ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-sans transition-all border ${
                 selectedTab === 'APROBADOS'
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/30 font-black'
                   : isDark
-                  ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
+                  ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200 hover:border-slate-700'
                   : 'bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-900'
               }`}
             >
@@ -592,7 +592,7 @@ export default function AdministracionPedidosComercialesPage() {
           </div>
 
           {/* R4 — Filtro por etiqueta (Tipo de Comprobante) */}
-          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs mt-3 pt-3 border-t border-slate-800/10">
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
             {[
               { key: 'TODOS', label: 'Todas las etiquetas', count: pedidos.length },
               { key: 'SIN_EMITIR', label: 'Sin emitir', count: countByTipo('SIN_EMITIR') },
@@ -603,21 +603,21 @@ export default function AdministracionPedidosComercialesPage() {
               const active = filtroTipo === f.key;
               const color =
                 f.key === 'FACTURA'
-                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                  ? 'bg-blue-500/20 text-blue-400 border-blue-500/40 shadow-sm shadow-blue-500/10'
                   : f.key === 'BOLETA'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm shadow-emerald-500/10'
                   : f.key === 'NOTA_VENTA'
-                  ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                  ? 'bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-sm shadow-purple-500/10'
                   : f.key === 'SIN_EMITIR'
-                  ? 'bg-slate-500/10 text-slate-400 border-slate-500/30'
-                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+                  ? 'bg-slate-500/20 text-slate-300 border-slate-500/40'
+                  : 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-sm shadow-amber-500/10';
               return (
                 <button
                   key={f.key}
                   onClick={() => setFiltroTipo(f.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold font-sans transition-all border flex items-center gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold font-sans transition-all border flex items-center gap-1.5 ${
                     active
-                      ? `${color} shadow-sm`
+                      ? `${color} shadow-sm font-bold`
                       : isDark
                       ? 'bg-[#151D2A] text-slate-400 border-[#1A2232] hover:text-slate-200'
                       : 'bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-900'
@@ -625,21 +625,21 @@ export default function AdministracionPedidosComercialesPage() {
                 >
                   <Filter className="w-3.5 h-3.5" />
                   <span>{f.label}</span>
-                  <span className="px-1.5 py-0.5 rounded bg-black/10 text-[10px]">{f.count}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-black/20 text-[10px] font-mono">{f.count}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Search Bar */}
+          {/* Search Bar con Focus Glow */}
           <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
             <input
               type="text"
               placeholder="Buscar por código, cliente o RUC..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded-xl border py-2 pl-9 pr-3 text-xs focus:outline-none transition-all ${inputBg}`}
+              className={`w-full rounded-xl border py-2 pl-10 pr-4 text-xs focus:border-amber-400 focus:outline-none transition-all ${inputBg}`}
             />
           </div>
         </div>
@@ -808,29 +808,37 @@ export default function AdministracionPedidosComercialesPage() {
                       {/* Estado */}
                       <td className="py-3 px-3 text-center">
                         {isCot ? (
-                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase font-mono border ${
-                            isDark ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-orange-50 border-orange-200 text-orange-800 font-bold'
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase font-mono border ${
+                            isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-orange-50 border-orange-200 text-orange-800 font-bold'
                           }`}>
-                            COTIZACIÓN EMITIDA
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 led-pulse" />
+                            COTIZACIÓN
                           </span>
                         ) : (
-                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase font-mono ${
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase font-mono border ${
                             p.estado === 'APROBADO' || p.estado === 'COMPLETADO' || p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO'
                               ? isDark
-                                ? 'bg-sky-500/10 border border-sky-500/30 text-sky-400'
-                                : 'bg-sky-100 border border-sky-300 text-sky-800 font-black'
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-[#00F2C3]'
+                                : 'bg-emerald-100 border-emerald-300 text-emerald-800 font-black'
                               : p.estado === 'EN_PRODUCCION'
                               ? isDark
-                                ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
-                                : 'bg-cyan-100 border border-cyan-300 text-cyan-800 font-black'
+                                ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+                                : 'bg-cyan-100 border-cyan-300 text-cyan-800 font-black'
                               : p.estado === 'PENDIENTE_REVISION'
                               ? isDark
-                                ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
-                                : 'bg-amber-100 border border-amber-300 text-amber-800 font-black'
+                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                                : 'bg-amber-100 border-amber-300 text-amber-800 font-black'
                               : isDark
-                              ? 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
-                              : 'bg-blue-100 border border-blue-300 text-blue-800 font-black'
+                              ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                              : 'bg-blue-100 border-blue-300 text-blue-800 font-black'
                           }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              p.estado === 'EN_PRODUCCION'
+                                ? 'bg-cyan-400 led-pulse'
+                                : p.estado === 'APROBADO' || p.estado === 'COMPLETADO' || p.estado === 'ENTREGADO'
+                                ? 'bg-[#00F2C3]'
+                                : 'bg-blue-400'
+                            }`} />
                             {p.estado === 'ENTREGADO' || p.estado === 'DESPACHADO' || p.estado === 'COMPLETADO' ? 'ENTREGADO' : p.estado}
                           </span>
                         )}
@@ -845,9 +853,9 @@ export default function AdministracionPedidosComercialesPage() {
                               <button
                                 onClick={() => canApprove && setConvertModalItem(p)}
                                 disabled={!canApprove}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider flex items-center gap-1 shadow-sm transition-all ${
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wider flex items-center gap-1 shadow-sm transition-all active:scale-95 ${
                                   canApprove
-                                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer'
+                                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white cursor-pointer shadow-emerald-500/20'
                                     : 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
                                 }`}
                                 title={
@@ -863,9 +871,9 @@ export default function AdministracionPedidosComercialesPage() {
                               {/* Botón Ver PDF Cotización */}
                               <button
                                 onClick={() => handleOpenPdfForOrder(p)}
-                                className={`p-1.5 rounded-lg border transition-colors ${
+                                className={`p-1.5 rounded-lg border transition-all active:scale-90 ${
                                   isDark
-                                    ? 'bg-[#151D2A] border-[#1A2232] text-orange-400 hover:text-white hover:border-orange-500'
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-amber-400 hover:text-white hover:border-amber-400 shadow-sm'
                                     : 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100'
                                 }`}
                                 title="Ver / Imprimir Cotización Oficial"
@@ -876,9 +884,9 @@ export default function AdministracionPedidosComercialesPage() {
                               {/* Botón Emitir comprobante (R1) */}
                               <button
                                 onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-colors ${
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
                                   isDark
-                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-500'
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
                                     : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
                                 }`}
                                 title="Emitir Boleta / Factura / Nota de Venta"
@@ -892,9 +900,9 @@ export default function AdministracionPedidosComercialesPage() {
                               {/* Botón Ver Boleta / Pedido */}
                               <button
                                 onClick={() => handleOpenPdfForOrder(p)}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-colors ${
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
                                   isDark
-                                    ? 'bg-[#151D2A] border-[#1A2232] text-teal-400 hover:text-white hover:border-teal-500'
+                                    ? 'bg-teal-500/10 border-teal-500/30 text-[#00F2C3] hover:border-[#00F2C3] shadow-sm'
                                     : 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100'
                                 }`}
                                 title="Ver / Imprimir Boleta o Comprobante"
@@ -906,9 +914,9 @@ export default function AdministracionPedidosComercialesPage() {
                               {/* Botón Emitir comprobante (R1) */}
                               <button
                                 onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-colors ${
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
                                   isDark
-                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-500'
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
                                     : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
                                 }`}
                                 title="Emitir Boleta / Factura / Nota de Venta"

@@ -134,90 +134,109 @@ export default function InventarioAdministracionPage() {
   return (
     <div className="space-y-5 font-sans">
       {/* Header */}
-      <div className={`p-5 rounded-2xl border flex flex-wrap items-center justify-between gap-4 ${cardBg}`}>
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30">
+      <div className={`p-6 rounded-2xl border flex flex-wrap items-center justify-between gap-4 relative overflow-hidden ${cardBg}`}>
+        {/* Ambient Glow */}
+        {isDark && (
+          <div className="absolute top-0 right-1/4 w-80 h-80 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+        )}
+
+        <div className="flex items-center gap-3.5 relative z-10">
+          <div className="p-3 rounded-2xl bg-cyan-500/10 text-[#00F2C3] border border-cyan-500/30 shadow-[0_0_12px_rgba(0,242,195,0.2)]">
             <Warehouse className="w-6 h-6" />
           </div>
           <div>
-            <h1 className={`text-lg font-black tracking-tight ${textValue}`}>
-              Inventario de Insumos & Materia Prima
-            </h1>
-            <p className={`text-xs ${textTitle}`}>
-              Mismo catálogo y stock que Producción — fuente única PostgreSQL.
+            <div className="flex items-center gap-2">
+              <h1 className={`text-xl font-black tracking-tight ${textValue}`}>
+                Inventario de Insumos & Materia Prima
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-cyan-500/10 text-[#00F2C3] border border-cyan-500/30 uppercase flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 led-pulse" />
+                POSTGRES MAESTRO
+              </span>
+            </div>
+            <p className={`text-xs mt-0.5 ${textTitle}`}>
+              Catálogo sincronizado en tiempo real con Almacén & Producción — fuente única de datos.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative z-10">
           <button
             onClick={cargarInventarioReal}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-500/20"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all card-hover-lift"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             <span>Actualizar</span>
           </button>
         </div>
       </div>
 
       {/* Micro-pestañas: Stock & Vista | Gestión de Insumos */}
-      <div className={`rounded-xl p-1.5 border flex items-center gap-1 text-xs font-bold ${cardBg}`}>
+      <div className={`rounded-2xl p-1.5 border flex items-center gap-1.5 text-xs font-black ${cardBg}`}>
         <button
           onClick={() => setTab('stock')}
-          className={`px-4 py-2 rounded-lg transition-all ${tab === 'stock' ? 'bg-[#00F2C3] text-slate-950 shadow' : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
+          className={`px-4 py-2 rounded-xl transition-all ${
+            tab === 'stock'
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-[0_0_12px_rgba(0,242,195,0.3)]'
+              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+          }`}
         >
-          Stock & Vista
+          Stock & Catálogo Oficial
         </button>
         <button
           onClick={() => setTab('crud')}
-          className={`px-4 py-2 rounded-lg transition-all ${tab === 'crud' ? 'bg-[#00F2C3] text-slate-950 shadow' : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'}`}
+          className={`px-4 py-2 rounded-xl transition-all ${
+            tab === 'crud'
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-[0_0_12px_rgba(0,242,195,0.3)]'
+              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+          }`}
         >
-          Gestión de Insumos
+          Gestión & Creación de Insumos
         </button>
       </div>
 
       {tab === 'stock' ? (
         <>
-      {/* Top 4 KPI Metrics Grid (idéntico a Producción) */}
+      {/* Top 4 KPI Metrics Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div
           onClick={() => setSelectedEstadoFilter('TODOS')}
-          className={`rounded-xl p-4 border cursor-pointer hover:border-cyan-500/50 transition-all ${cardBg}`}
+          className={`rounded-2xl p-5 border cursor-pointer transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-cyan-500/30 hover:border-cyan-400 hover:shadow-[0_0_15px_rgba(0,242,195,0.15)]' : 'bg-cyan-50/70 border-cyan-200'}`}
         >
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>TOTAL MATERIALES</span>
+          <span className={`text-[10px] font-black tracking-widest uppercase ${textTitle}`}>TOTAL MATERIALES</span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-cyan-500">{materialsData.length}</span>
-            <span className="text-xs text-slate-400 font-sans">SKUs Activos</span>
+            <span className="text-2xl font-black font-mono text-[#00F2C3]">{materialsData.length}</span>
+            <span className="text-xs text-slate-400 font-sans font-semibold">SKUs Activos</span>
           </div>
         </div>
 
-        <div className={`rounded-xl p-4 border ${cardBg}`}>
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>DISPONIBILIDAD TOTAL</span>
+        <div className={`rounded-2xl p-5 border transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-emerald-500/30 hover:border-emerald-400 hover:shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-emerald-50/70 border-emerald-200'}`}>
+          <span className={`text-[10px] font-black tracking-widest uppercase ${textTitle}`}>DISPONIBILIDAD TOTAL</span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className={`text-2xl font-black ${textValue}`}>{disponibilidadTotal}</span>
-            <span className="text-xs text-slate-400 font-sans">KG / LT Fsicos</span>
+            <span className={`text-2xl font-black font-mono ${isDark ? 'text-emerald-400' : 'text-slate-900'}`}>{disponibilidadTotal}</span>
+            <span className="text-xs text-slate-400 font-sans font-semibold">KG / LT Físicos</span>
           </div>
         </div>
 
         <div
           onClick={() => setSelectedEstadoFilter('CRITICAL')}
-          className={`rounded-xl p-4 border cursor-pointer hover:border-rose-500/50 transition-all ${cardBg}`}
+          className={`rounded-2xl p-5 border cursor-pointer transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-rose-500/30 hover:border-rose-400 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)]' : 'bg-rose-50/70 border-rose-200'}`}
         >
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>STOCK CRTICO</span>
+          <span className={`text-[10px] font-black tracking-widest uppercase ${textTitle}`}>STOCK CRÍTICO</span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-rose-500">{stockCriticoCount}</span>
-            <span className="text-xs text-slate-400 font-sans">materiales</span>
+            <span className="text-2xl font-black font-mono text-rose-400">{stockCriticoCount}</span>
+            <span className="text-xs text-slate-400 font-sans font-semibold">materiales</span>
           </div>
         </div>
 
         <div
           onClick={() => setSelectedEstadoFilter('LOW_STOCK')}
-          className={`rounded-xl p-4 border cursor-pointer hover:border-amber-500/50 transition-all ${cardBg}`}
+          className={`rounded-2xl p-5 border cursor-pointer transition-all card-hover-lift ${isDark ? 'bg-[#151D2A] border-amber-500/30 hover:border-amber-400 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'bg-amber-50/70 border-amber-200'}`}
         >
-          <span className={`text-[11px] font-bold tracking-widest uppercase ${textTitle}`}>STOCK BAJO</span>
+          <span className={`text-[10px] font-black tracking-widest uppercase ${textTitle}`}>STOCK BAJO</span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-amber-500">{stockBajoCount}</span>
-            <span className="text-xs text-slate-400 font-sans">materiales</span>
+            <span className="text-2xl font-black font-mono text-amber-400">{stockBajoCount}</span>
+            <span className="text-xs text-slate-400 font-sans font-semibold">materiales</span>
           </div>
         </div>
       </div>
@@ -237,12 +256,14 @@ export default function InventarioAdministracionPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold ${textTitle}`}>CATEGORA:</span>
+            <span className={`text-xs font-black ${textTitle}`}>CATEGORÍA:</span>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className={`px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
+              className={`px-3 py-2 rounded-xl border text-xs font-black transition-all ${
+                isDark
+                  ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 focus:border-cyan-500/50'
+                  : 'bg-slate-100 border-slate-300 text-slate-800 shadow-sm'
               }`}
             >
               {categories.map((cat) => {
@@ -252,52 +273,52 @@ export default function InventarioAdministracionPage() {
                     : materialsData.filter((m) => m.familia.toLowerCase() === cat.toLowerCase()).length;
                 return (
                   <option key={cat} value={cat}>
-                    {cat === 'Todos' ? `Todas las Categoras (${count})` : `${cat} (${count})`}
+                    {cat === 'Todos' ? `Todas las Categorías (${count})` : `${cat} (${count})`}
                   </option>
                 );
               })}
             </select>
           </div>
 
-          <div className={`flex rounded-xl p-1 border text-xs font-sans ${
+          <div className={`flex rounded-2xl p-1 border text-xs font-black font-sans ${
             isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-100 border-slate-300'
           }`}>
             <button
               onClick={() => setSelectedEstadoFilter('TODOS')}
-              className={`rounded-lg px-3.5 py-1.5 font-bold transition-all ${
+              className={`rounded-xl px-3.5 py-1.5 font-black transition-all ${
                 selectedEstadoFilter === 'TODOS'
-                  ? 'bg-[#00F2C3] text-slate-950 shadow'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-[#00F2C3] text-slate-950 shadow-[0_0_10px_rgba(0,242,195,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               Todas
             </button>
             <button
               onClick={() => setSelectedEstadoFilter('OK')}
-              className={`rounded-lg px-3.5 py-1.5 font-bold transition-all ${
+              className={`rounded-xl px-3.5 py-1.5 font-black transition-all ${
                 selectedEstadoFilter === 'OK'
-                  ? 'bg-[#00F2C3] text-slate-950 shadow'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-emerald-400 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               ✅ Stock OK
             </button>
             <button
               onClick={() => setSelectedEstadoFilter('LOW_STOCK')}
-              className={`rounded-lg px-3.5 py-1.5 font-bold transition-all ${
+              className={`rounded-xl px-3.5 py-1.5 font-black transition-all ${
                 selectedEstadoFilter === 'LOW_STOCK'
-                  ? 'bg-[#00F2C3] text-slate-950 shadow'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-amber-400 text-slate-950 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               ⚠️ Stock Bajo
             </button>
             <button
               onClick={() => setSelectedEstadoFilter('CRITICAL')}
-              className={`rounded-lg px-3.5 py-1.5 font-bold transition-all ${
+              className={`rounded-xl px-3.5 py-1.5 font-black transition-all ${
                 selectedEstadoFilter === 'CRITICAL'
-                  ? 'bg-[#00F2C3] text-slate-950 shadow'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  ? 'bg-rose-500 text-white shadow-[0_0_10px_rgba(244,63,94,0.3)]'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               🚨 Stock Crítico
@@ -309,17 +330,17 @@ export default function InventarioAdministracionPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className={`border-b text-[10px] font-bold tracking-widest uppercase ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-500'}`}>
+              <tr className={`border-b text-[10px] font-black tracking-widest uppercase ${isDark ? 'border-[#1A2232] text-slate-400 bg-[#151D2A]/50' : 'border-slate-200 text-slate-500 bg-slate-50'}`}>
                 <th className="py-3 px-4">SKU</th>
-                <th className="py-3 px-4">NOMBRE QUMICO</th>
-                <th className="py-3 px-4">CATEGORA / FAMILIA</th>
+                <th className="py-3 px-4">NOMBRE QUÍMICO</th>
+                <th className="py-3 px-4">CATEGORÍA / FAMILIA</th>
                 <th className="py-3 px-4">TIPO</th>
                 <th className="py-3 px-4">ESTADO FÍSICO</th>
                 <th className="py-3 px-4 text-right">CANTIDAD DISPONIBLE</th>
                 <th className="py-3 px-4">NIVEL STOCK</th>
                 <th className="py-3 px-4">PROVEEDOR ACTUAL</th>
                 <th className="py-3 px-4">ESTADO</th>
-                <th className="py-3 px-4 text-right">ACCIN</th>
+                <th className="py-3 px-4 text-right">ACCIÓN</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>

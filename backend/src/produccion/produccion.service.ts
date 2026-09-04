@@ -313,6 +313,9 @@ export class ProduccionService {
             },
           },
         },
+        pedidoComercial: {
+          select: { montoTotal: true, codigoOrden: true, productoNombre: true },
+        },
       },
     });
 
@@ -355,6 +358,9 @@ export class ProduccionService {
         else if (tipo === 'OTRO' && (fam.includes('embalaje') || fam.includes('caja') || fam.includes('etiqueta') || fam.includes('embal'))) categoriaKardex = CategoriaKardex.EMBALAJE;
         else if (tipo === 'FRAGANCIA' || tipo === 'PIGMENTO') categoriaKardex = CategoriaKardex.INSUMO;
 
+        // Costo unitario del insumo (0 mientras no se cargue la ficha de costos)
+        const costoUnitarioInsumo = Number(detalle.insumo.costoUnitario || 0);
+
         await tx.kardexMovimiento.create({
           data: {
             categoriaKardex,
@@ -372,17 +378,37 @@ export class ProduccionService {
             cantidadEntrada: 0,
             cantidadSalida: consumoCalculado,
             saldoFinal: nuevoSaldo,
+            costoUnitario: costoUnitarioInsumo,
+            montoSalidaPen: consumoCalculado * costoUnitarioInsumo,
+            montoSaldoPen: nuevoSaldo * costoUnitarioInsumo,
             insumoId: detalle.insumoId,
+          },
+        });
+
+        // Trazabilidad inmutable (append-only) del stock del insumo
+        await tx.kardexInmutable.create({
+          data: {
+            insumoId: detalle.insumoId,
+            tipoMovimiento: TipoMovimientoKardex.SALIDA,
+            cantidad: consumoCalculado,
+            stockAnterior: stockActual,
+            stockNuevo: nuevoSaldo,
+            documentoReferencia: `OP-${orden.codigoLote}`,
+            usuarioId: orden.supervisorId,
           },
         });
       }
 
       // 2. Entrada del Producto Terminado Aprobado
+      //    Monto de costo del PT = monto fijado (cotización) y aprobado en la venta (PedidoComercial.montoTotal)
+      const montoVenta = Number(orden.pedidoComercial?.montoTotal || 0);
+      const costoUnitarioPT = montoVenta > 0 && cantidadProducida > 0 ? montoVenta / cantidadProducida : 0;
+
       await tx.kardexMovimiento.create({
         data: {
           categoriaKardex: CategoriaKardex.PRODUCTO_TERMINADO,
           productoNombre: orden.formula.nombreProducto,
-          familia: 'Detergentes & Limpiadores Industriales',
+          familia: orden.pedidoComercial?.productoNombre || 'Productos Terminados',
           categoriaNombre: 'Producto Terminado Aprobado',
           proveedorCliente: clienteFinal,
           unidadMedida: 'KG',
@@ -395,6 +421,9 @@ export class ProduccionService {
           cantidadEntrada: cantidadProducida,
           cantidadSalida: 0,
           saldoFinal: cantidadProducida,
+          costoUnitario: costoUnitarioPT,
+          montoEntradaPen: montoVenta,
+          montoSaldoPen: montoVenta,
         },
       });
 
