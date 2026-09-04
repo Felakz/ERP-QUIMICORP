@@ -337,13 +337,15 @@ export default function AdministracionReportesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <button
           onClick={() => setActiveTab('GERENCIAL')}
-          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left ${
+          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left card-hover-lift ${
             activeTab === 'GERENCIAL'
-              ? 'bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-600/20'
+              ? isDark
+                ? 'bg-[#151D2A] border-purple-500 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.2)] ring-1 ring-purple-500'
+                : 'bg-purple-600 text-white border-purple-500 shadow-lg shadow-purple-600/20'
               : `${cardBg} hover:border-purple-500/50`
           }`}
         >
-          <div className={`p-2.5 rounded-xl ${activeTab === 'GERENCIAL' ? 'bg-white/20 text-white' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'}`}>
+          <div className={`p-2.5 rounded-xl ${activeTab === 'GERENCIAL' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'}`}>
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
@@ -354,13 +356,15 @@ export default function AdministracionReportesPage() {
 
         <button
           onClick={() => setActiveTab('COMERCIAL')}
-          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left ${
+          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left card-hover-lift ${
             activeTab === 'COMERCIAL'
-              ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/20'
+              ? isDark
+                ? 'bg-[#151D2A] border-blue-500 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.2)] ring-1 ring-blue-500'
+                : 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-600/20'
               : `${cardBg} hover:border-blue-500/50`
           }`}
         >
-          <div className={`p-2.5 rounded-xl ${activeTab === 'COMERCIAL' ? 'bg-white/20 text-white' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}`}>
+          <div className={`p-2.5 rounded-xl ${activeTab === 'COMERCIAL' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'}`}>
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
@@ -371,13 +375,15 @@ export default function AdministracionReportesPage() {
 
         <button
           onClick={() => setActiveTab('PRODUCCION')}
-          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left ${
+          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left card-hover-lift ${
             activeTab === 'PRODUCCION'
-              ? 'bg-amber-600 text-white border-amber-500 shadow-lg shadow-amber-600/20'
+              ? isDark
+                ? 'bg-[#151D2A] border-amber-500 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.2)] ring-1 ring-amber-500'
+                : 'bg-amber-600 text-white border-amber-500 shadow-lg shadow-amber-600/20'
               : `${cardBg} hover:border-amber-500/50`
           }`}
         >
-          <div className={`p-2.5 rounded-xl ${activeTab === 'PRODUCCION' ? 'bg-white/20 text-white' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
+          <div className={`p-2.5 rounded-xl ${activeTab === 'PRODUCCION' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
             <Factory className="w-5 h-5" />
           </div>
           <div>
@@ -388,13 +394,15 @@ export default function AdministracionReportesPage() {
 
         <button
           onClick={() => setActiveTab('INVENTARIO')}
-          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left ${
+          className={`p-4 rounded-2xl border flex items-center gap-3 transition-all cursor-pointer text-left card-hover-lift ${
             activeTab === 'INVENTARIO'
-              ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-600/20'
+              ? isDark
+                ? 'bg-[#151D2A] border-[#00F2C3] text-cyan-300 shadow-[0_0_15px_rgba(0,242,195,0.2)] ring-1 ring-[#00F2C3]'
+                : 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-600/20'
               : `${cardBg} hover:border-emerald-500/50`
           }`}
         >
-          <div className={`p-2.5 rounded-xl ${activeTab === 'INVENTARIO' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
+          <div className={`p-2.5 rounded-xl ${activeTab === 'INVENTARIO' ? 'bg-cyan-500/20 text-[#00F2C3] border border-cyan-500/30' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
             <Package className="w-5 h-5" />
           </div>
           <div>
@@ -411,22 +419,22 @@ export default function AdministracionReportesPage() {
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className={`p-4 rounded-2xl border space-y-1 ${cardBg}`}>
+            <div className={`p-4 rounded-2xl border space-y-1 card-hover-lift ${cardBg}`}>
               <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Facturación Total</span>
               <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">S/ 231,050.00</p>
               <span className="text-[10px] text-slate-500">6 familias químicas</span>
             </div>
-            <div className={`p-4 rounded-2xl border space-y-1 ${cardBg}`}>
+            <div className={`p-4 rounded-2xl border space-y-1 card-hover-lift ${cardBg}`}>
               <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Costo Materia Prima</span>
               <p className="text-xl font-black text-rose-600 dark:text-rose-400">S/ 103,093.00</p>
               <span className="text-[10px] text-slate-500">44.6% de los ingresos</span>
             </div>
-            <div className={`p-4 rounded-2xl border space-y-1 ${cardBg}`}>
+            <div className={`p-4 rounded-2xl border space-y-1 card-hover-lift ${cardBg}`}>
               <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Utilidad Bruta Operativa</span>
               <p className="text-xl font-black text-purple-600 dark:text-purple-400">S/ 127,957.00</p>
               <span className="text-[10px] text-emerald-600 font-bold">55.4% Margen Promedio</span>
             </div>
-            <div className={`p-4 rounded-2xl border space-y-1 ${cardBg}`}>
+            <div className={`p-4 rounded-2xl border space-y-1 card-hover-lift ${cardBg}`}>
               <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Volumen Formulado</span>
               <p className="text-xl font-black text-blue-600 dark:text-blue-400">92,300 KG</p>
               <span className="text-[10px] text-slate-500">161 lotes en reactores</span>
