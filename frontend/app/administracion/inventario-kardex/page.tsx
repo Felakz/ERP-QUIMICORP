@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useTheme } from '@/lib/ThemeContext';
-import { KARDEX_REAL_SEED_DATA } from '@/lib/kardexRealData';
 
 export type CategoriaKardexTab =
   | 'PRODUCTO_TERMINADO'
@@ -49,6 +48,9 @@ interface KardexMovimientoUI {
   saldoFinal: number;
   costoUnitarioPen?: number;
   valorTotalPen?: number;
+  montoEntradaPen?: number;
+  montoSalidaPen?: number;
+  montoSaldoPen?: number;
 }
 
 const categoriesConfig: {
@@ -116,28 +118,63 @@ export default function AdministracionInventarioKardexPage() {
     : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-blue-500';
 
   useEffect(() => {
-    // Carga de los 183 registros auditables de Kardex Real
-    const mapped: KardexMovimientoUI[] = KARDEX_REAL_SEED_DATA.map((k, idx) => ({
-      id: `kardex-${idx}`,
-      categoriaKardex: k.categoriaKardex as CategoriaKardexTab,
-      productoNombre: k.productoNombre,
-      familia: k.familia,
-      categoriaNombre: k.categoriaNombre,
-      proveedorCliente: k.proveedorCliente,
-      unidadMedida: k.unidadMedida,
-      fecha: k.fecha,
-      tipoDoc: k.tipoDoc,
-      serie: k.serie,
-      numero: k.numero,
-      otp: k.otp,
-      tipoOperacion: k.tipoOperacion,
-      cantidadEntrada: Number(k.cantidadEntrada) || 0,
-      cantidadSalida: Number(k.cantidadSalida) || 0,
-      saldoFinal: Number(k.saldoFinal) || 0,
-      costoUnitarioPen: Number(k.cantidadEntrada) > 0 ? 5.5 : 4.8,
-    }));
-    setMovimientos(mapped);
-  }, []);
+    let activo = true;
+    (async () => {
+      setLoading(true);
+      let apiData: KardexMovimientoUI[] = [];
+      try {
+        let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+        if (!savedToken || savedToken.startsWith('jwt_mock')) savedToken = null;
+        const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+
+        const queryParams = new URLSearchParams();
+        queryParams.append('categoria', activeTab);
+        if (searchQuery.trim()) queryParams.append('search', searchQuery);
+        if (tipoOperacionFiltro !== 'TODOS') queryParams.append('tipoOperacion', tipoOperacionFiltro);
+        queryParams.append('take', '500');
+
+        const res = await fetch(`http://localhost:3001/api/v1/kardex/categorizado?${queryParams.toString()}`, {
+          headers: authHeader,
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) {
+            apiData = json.map((k: any) => ({
+              id: k.id,
+              categoriaKardex: k.categoriaKardex as CategoriaKardexTab,
+              productoNombre: k.productoNombre,
+              familia: k.familia,
+              categoriaNombre: k.categoriaNombre,
+              proveedorCliente: k.proveedorCliente,
+              unidadMedida: k.unidadMedida,
+              fecha: k.fecha,
+              tipoDoc: k.tipoDoc,
+              serie: k.serie,
+              numero: k.numero,
+              otp: k.otp,
+              tipoOperacion: k.tipoOperacion,
+              cantidadEntrada: Number(k.cantidadEntrada) || 0,
+              cantidadSalida: Number(k.cantidadSalida) || 0,
+              saldoFinal: Number(k.saldoFinal) || 0,
+              costoUnitarioPen: Number(k.costoUnitario) || 0,
+              montoEntradaPen: Number(k.montoEntradaPen) || 0,
+              montoSalidaPen: Number(k.montoSalidaPen) || 0,
+              montoSaldoPen: Number(k.montoSaldoPen) || 0,
+            }));
+          }
+        }
+      } catch (error) {
+        console.log('Error fetching kardex endpoint (admin):', error);
+      }
+      if (activo) {
+        setMovimientos(apiData || []);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [activeTab, searchQuery, tipoOperacionFiltro]);
 
   const filteredMovimientos = useMemo(() => {
     return movimientos.filter((m) => {
@@ -382,6 +419,10 @@ export default function AdministracionInventarioKardexPage() {
                 <th className="py-3 px-4 font-bold text-right text-emerald-400">ENTRADA</th>
                 <th className="py-3 px-4 font-bold text-right text-rose-400">SALIDA</th>
                 <th className="py-3 px-4 font-bold text-right text-[#00F2C3]">SALDO FINAL</th>
+                <th className="py-3 px-4 font-bold text-right text-slate-400">COSTO S/</th>
+                <th className="py-3 px-4 font-bold text-right text-emerald-400">MONTO ENT S/</th>
+                <th className="py-3 px-4 font-bold text-right text-rose-400">MONTO SAL S/</th>
+                <th className="py-3 px-4 font-bold text-right text-[#00F2C3]">MONTO SALDO S/</th>
                 <th className="py-3 px-3 font-bold text-center">UND</th>
               </tr>
             </thead>
@@ -427,6 +468,28 @@ export default function AdministracionInventarioKardexPage() {
                     {m.saldoFinal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
                   </td>
 
+                  <td className="py-3 px-4 text-right font-bold text-slate-400">
+                    {Number(m.costoUnitarioPen || 0).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                  </td>
+
+                  <td className="py-3 px-4 text-right font-bold text-emerald-400">
+                    {Number(m.montoEntradaPen || 0) > 0
+                      ? `S/ ${Number(m.montoEntradaPen).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
+                      : '—'}
+                  </td>
+
+                  <td className="py-3 px-4 text-right font-bold text-rose-400">
+                    {Number(m.montoSalidaPen || 0) > 0
+                      ? `S/ ${Number(m.montoSalidaPen).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
+                      : '—'}
+                  </td>
+
+                  <td className="py-3 px-4 text-right font-bold text-[#00F2C3]">
+                    {Number(m.montoSaldoPen || 0) > 0
+                      ? `S/ ${Number(m.montoSaldoPen).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
+                      : '—'}
+                  </td>
+
                   <td className="py-3 px-3 text-center text-slate-400 font-bold">{m.unidadMedida}</td>
                 </tr>
               ))}
@@ -437,7 +500,9 @@ export default function AdministracionInventarioKardexPage() {
         {/* Paginación */}
         <div className={`p-4 border-t flex items-center justify-between text-xs ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-600'}`}>
           <span>
-            Mostrando {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, filteredMovimientos.length)} de {filteredMovimientos.length} registros
+            {loading
+              ? 'Consultando Kardex en PostgreSQL...'
+              : `Mostrando ${startIndex + 1} - ${Math.min(startIndex + ITEMS_PER_PAGE, filteredMovimientos.length)} de ${filteredMovimientos.length} registros`}
           </span>
 
           <div className="flex items-center gap-2">

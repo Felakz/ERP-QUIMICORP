@@ -33,6 +33,7 @@ export type PasoProcesoType =
   | 'ELABORANDO'
   | 'EN_MUESTREO_QA'
   | 'LIBERADO_QA'
+  | 'DESPACHADO'
   | 'RECHAZADO';
 
 export interface RecetaItemUI {
@@ -280,7 +281,9 @@ export default function ProduccionQAPage() {
         }
       });
       const unicos = Array.from(mapa.values());
-      const activos = unicos.filter((l) => l.pasoProceso !== 'LIBERADO_QA');
+      const activos = unicos.filter(
+        (l) => l.pasoProceso !== 'LIBERADO_QA' && l.pasoProceso !== 'DESPACHADO'
+      );
       setLotes(activos);
       if (activos.length > 0) {
         setSelectedLoteId((curr) => (activos.some((a) => a.id === curr) ? curr : activos[0].id));
@@ -572,6 +575,8 @@ export default function ProduccionQAPage() {
       case 'EN_MUESTREO_QA':
         return 3;
       case 'LIBERADO_QA':
+        return 4;
+      case 'DESPACHADO':
         return 4;
       case 'RECHAZADO':
         return 0;
@@ -1026,7 +1031,7 @@ export default function ProduccionQAPage() {
               lotes.map((lote) => {
               const isSelected = lote.id === selectedLoteId;
               const isExpanded = expandedLoteIds.includes(lote.id);
-              const isLiberado = lote.pasoProceso === 'LIBERADO_QA';
+              const isLiberado = lote.pasoProceso === 'LIBERADO_QA' || lote.pasoProceso === 'DESPACHADO';
               const isRechazado = lote.pasoProceso === 'RECHAZADO';
               const currentStepIdx = getPasoStepIndex(lote.pasoProceso);
 
@@ -1088,8 +1093,8 @@ export default function ProduccionQAPage() {
                           ? '2. Mezcla en Reactores'
                           : lote.pasoProceso === 'EN_MUESTREO_QA'
                           ? '3. Muestreo QA'
-                          : lote.pasoProceso === 'LIBERADO_QA'
-                          ? '4. Finalizado & Liberado'
+                          : lote.pasoProceso === 'LIBERADO_QA' || lote.pasoProceso === 'DESPACHADO'
+                          ? '4. Finalizado & Despachado'
                           : 'RECHAZADO'}
                       </span>
                     </div>

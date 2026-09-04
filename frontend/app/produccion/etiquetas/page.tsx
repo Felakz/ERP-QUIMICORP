@@ -184,6 +184,7 @@ export default function EtiquetasDespachoPage() {
   // Generador de QR Real 100% Escaneable
   useEffect(() => {
     const generateRealQR = async () => {
+      if (!pedidoActivo) return;
       try {
         const qrPayload = JSON.stringify({
           empresa: 'QUIMICORP PERU S.A.C.',
