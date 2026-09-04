@@ -21,6 +21,7 @@ import { apiFetch } from '@/lib/apiClient';
 import {
   CuentaCobrarItem,
   CobranzasKpis,
+  COBRANZAS_EXCEL_SEED,
 } from '@/lib/cobranzasRealData';
 
 import * as XLSX from 'xlsx';
@@ -29,16 +30,20 @@ export default function CuentasCobrarPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [cuentas, setCuentas] = useState<CuentaCobrarItem[]>([]);
-  const [kpis, setKpis] = useState<CobranzasKpis>({
-    totalFacturado: 0,
-    totalCobrado: 0,
-    saldoPendiente: 0,
-    totalVencido: 0,
-    totalDocumentos: 0,
+  const [cuentas, setCuentas] = useState<CuentaCobrarItem[]>(COBRANZAS_EXCEL_SEED);
+  const [kpis, setKpis] = useState<CobranzasKpis>(() => {
+    const facturado = COBRANZAS_EXCEL_SEED.reduce((acc, c) => acc + (Number(c.montoTotal) || 0), 0);
+    const pendiente = COBRANZAS_EXCEL_SEED.reduce((acc, c) => acc + (Number(c.saldoPendiente) || 0), 0);
+    return {
+      totalFacturado: facturado,
+      totalCobrado: facturado - pendiente,
+      saldoPendiente: pendiente,
+      totalVencido: 0,
+      totalDocumentos: COBRANZAS_EXCEL_SEED.length,
+    };
   });
 
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [search, setSearch] = useState<string>('');
   const [filtroPlazo, setFiltroPlazo] = useState<string>('TODOS');
   const [filtroEstado, setFiltroEstado] = useState<string>('TODOS');

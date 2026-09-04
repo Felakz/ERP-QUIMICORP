@@ -8,7 +8,6 @@
 }
 
 html {
-  font-size: 92%; /* Escala compacta al 92% para máxima densidad y elegancia industrial */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -140,6 +139,75 @@ body {
 
 .card-hover-lift:hover {
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45), 0 0 16px -2px rgba(0, 242, 195, 0.08);
 }
+
+/* Glassmorphism & Frosted Cards */
+.glass-panel {
+  background: rgba(15, 20, 28, 0.82) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(26, 34, 50, 0.85) !important;
+}
+
+.glass-card {
+  background: rgba(15, 20, 28, 0.72) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(26, 34, 50, 0.8) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(21, 29, 42, 0.85) !important;
+  border-color: rgba(0, 242, 195, 0.35) !important;
+}
+
+/* Ambient Radial Mesh Glow */
+.mesh-ambient-glow {
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(6, 182, 212, 0.05) 0px, transparent 50%),
+    radial-gradient(at 85% 85%, rgba(16, 185, 129, 0.04) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(168, 85, 247, 0.03) 0px, transparent 60%);
+}
+
+/* Input Glowing Focus */
+.input-neon {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.input-neon:focus {
+  outline: none;
+  border-color: #00F2C3 !important;
+  box-shadow: 0 0 0 3px rgba(0, 242, 195, 0.15), 0 0 12px rgba(0, 242, 195, 0.1) !important;
+}
+
+/* Button Micro-interactions */
+.btn-glow-cyan {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-glow-cyan:hover {
+  box-shadow: 0 0 16px rgba(0, 242, 195, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-glow-cyan:active {
+  transform: translateY(0px) scale(0.98);
+}
+
+.btn-glow-emerald {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-glow-emerald:hover {
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-glow-emerald:active {
+  transform: translateY(0px) scale(0.98);
+}
+
 
 
