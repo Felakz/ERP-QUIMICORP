@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
+import { LiveClock } from '@/components/ui/LiveClock';
 
 const GERENCIA_SECTIONS = [
   {
@@ -34,29 +35,7 @@ const GERENCIA_SECTIONS = [
 export default function GerenciaLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { logout } = useAuth();
-  const [timeString, setTimeString] = useState('');
-
   const isDark = theme === 'dark';
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeString(
-        now.toLocaleDateString('es-ES', {
-          weekday: 'short',
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }) +
-        ' ' +
-        now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div
@@ -198,9 +177,7 @@ export default function GerenciaLayout({ children }: { children: React.ReactNode
 
           {/* Selector de Tema & Hora */}
           <div className="flex items-center gap-3">
-            <span className="hidden lg:block text-xs font-mono text-slate-400 mr-2">
-              {timeString}
-            </span>
+            <LiveClock className="hidden lg:block text-xs font-mono text-slate-400 mr-2" />
 
             <button
               onClick={toggleTheme}

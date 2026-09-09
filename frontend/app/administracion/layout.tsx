@@ -10,12 +10,12 @@ import { apiFetch } from '@/lib/apiClient';
 import { adminSidebarItems } from '@/components/sidebar';
 import { hasPermission } from '@/config/permissions';
 import { CampanaAutorizaciones } from '@/components/notifications/CampanaAutorizaciones';
+import { LiveClock } from '@/components/ui/LiveClock';
 
 export default function AdministracionLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const [timeString, setTimeString] = useState('');
   const [pedidoCount, setPedidoCount] = useState(0);
 
   const isDark = theme === 'dark';
@@ -55,24 +55,6 @@ export default function AdministracionLayout({ children }: { children: React.Rea
   }, []);
 
 
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeString(
-        now.toLocaleDateString('es-ES', {
-          weekday: 'short',
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }) +
-        ' ' +
-        now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div
@@ -250,9 +232,7 @@ export default function AdministracionLayout({ children }: { children: React.Rea
           <div className="flex items-center gap-3">
             <CampanaAutorizaciones />
 
-            <span className="hidden lg:block text-xs font-mono text-slate-400 mr-2">
-              {timeString}
-            </span>
+            <LiveClock className="hidden lg:block text-xs font-mono text-slate-400 mr-2" />
 
             <button
               onClick={toggleTheme}

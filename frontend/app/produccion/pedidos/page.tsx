@@ -33,6 +33,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { DateNavigatorToolbar } from '@/components/produccion/DateNavigatorToolbar';
 import { apiFetch } from '@/lib/apiClient';
 import { useSocket } from '@/lib/socketContext';
+import { LiveClock } from '@/components/ui/LiveClock';
 
 export interface InsumoValidacion {
   codigo: string;
@@ -99,8 +100,6 @@ export default function ProduccionPedidosRecepcionPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const approvingRef = useRef(false);
   const [toastMsg, setToastMsg] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
-  const [timeString, setTimeString] = useState('');
-
   const [fechaFiltro, setFechaFiltro] = useState<string>(new Date().toISOString().split('T')[0]);
   const [kpis, setKpis] = useState({
     pedidosHoy: 0,
@@ -109,26 +108,6 @@ export default function ProduccionPedidosRecepcionPage() {
     enProduccion: 0,
     valorDelDia: 0,
   });
-
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeString(
-        now.toLocaleDateString('es-ES', {
-          weekday: 'short',
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }) +
-        ' ' +
-        now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
@@ -275,7 +254,7 @@ export default function ProduccionPedidosRecepcionPage() {
         </div>
 
         <div className="flex items-center gap-2 font-sans text-xs">
-          <span className="text-slate-400 font-mono text-[11px]">{timeString}</span>
+          <LiveClock className="text-slate-400 font-mono text-[11px]" />
           <button
             onClick={() => cargarPedidos(fechaFiltro)}
             className={`p-2 rounded-xl border transition-all ${
