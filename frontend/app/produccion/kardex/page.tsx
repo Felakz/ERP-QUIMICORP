@@ -265,6 +265,13 @@ export default function KardexPage() {
         savedToken = null;
       }
 
+      const queryParams = new URLSearchParams();
+      queryParams.append('categoria', activeTab);
+      if (searchQuery) queryParams.append('search', searchQuery);
+      if (tipoOperacionFiltro !== 'TODAS') queryParams.append('tipoOperacion', tipoOperacionFiltro);
+      if (fechaDesde) queryParams.append('desde', fechaDesde);
+      if (fechaHasta) queryParams.append('hasta', fechaHasta);
+
       const res = await apiFetch<any[]>(`/kardex/categorizado?${queryParams.toString()}`);
       if (res.ok && Array.isArray(res.data)) {
         apiData = res.data;
