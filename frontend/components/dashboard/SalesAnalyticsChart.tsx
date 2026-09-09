@@ -94,9 +94,9 @@ export const SalesAnalyticsChart: React.FC<SalesAnalyticsChartProps> = ({
         </div>
       </div>
 
-      <div className="h-72 w-full pt-2 relative z-10">
-        {isMounted ? (
-          <ResponsiveContainer width="100%" height="100%">
+      <div className="h-72 w-full pt-2 relative z-10 min-h-[280px]">
+        {isMounted && chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%" minHeight={260} minWidth={250}>
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="gradientVentas" x1="0" y1="0" x2="0" y2="1">

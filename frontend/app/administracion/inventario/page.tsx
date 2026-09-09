@@ -15,6 +15,8 @@ import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 import { useSocket } from '@/lib/socketContext';
 import { InventoryCrud } from '@/components/inventario/InventoryCrud';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { ActionableEmptyState } from '@/components/ui/ActionableEmptyState';
 
 interface MaterialItem {
   id: string;
@@ -31,6 +33,7 @@ interface MaterialItem {
   unidadMedidaVisual?: string;
   proveedor?: string;
   ubicacion: string;
+  esSoloFormula?: boolean;
   estado: 'OK' | 'LOW STOCK' | 'CRITICAL';
 }
 
@@ -50,6 +53,7 @@ export default function InventarioAdministracionPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [errorMsg, setErrorMsg] = useState('');
   const [tab, setTab] = useState<'stock' | 'crud'>('stock');
+  const [soloFisicos, setSoloFisicos] = useState(true);
   const ITEMS_PER_PAGE = 50;
 
   const cargarInventarioReal = async () => {
@@ -101,9 +105,11 @@ export default function InventarioAdministracionPage() {
     };
   }, [socket]);
 
-  const categories = ['Todos', ...Array.from(new Set(materialsData.map((m) => m.familia)))];
+  const baseMaterials = soloFisicos ? materialsData.filter((m) => !m.esSoloFormula) : materialsData;
 
-  const filteredMaterials = materialsData.filter((item) => {
+  const categories = ['Todos', ...Array.from(new Set(baseMaterials.map((m) => m.familia)))];
+
+  const filteredMaterials = baseMaterials.filter((item) => {
     const matchesSearch =
       item.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchQuery.toLowerCase());
@@ -130,6 +136,82 @@ export default function InventarioAdministracionPage() {
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
   const inputBg = isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400';
+
+  const renderEstadoFisicoBadge = (estadoFisico?: string | null, tipo?: string | null, nombre?: string | null) => {
+    const raw = (estadoFisico || '').toUpperCase().trim();
+    const tipClean = (tipo || '').toUpperCase().trim();
+    const nomClean = (nombre || '').toUpperCase().trim();
+
+    // 1. Envases específicos (Baldes, Galoneras, Bidones, etc.)
+    if (raw.includes('BALDE') || nomClean.includes('BALDE')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-amber-500/15 text-amber-400 border-amber-500/30 tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+          <span>🪣</span> BALDE
+        </span>
+      );
+    }
+    if (raw.includes('GALON') || raw.includes('BIDON') || nomClean.includes('GALON') || nomClean.includes('BIDON')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-teal-500/15 text-teal-300 border-teal-500/30 tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+          <span>🛢️</span> GALONERA
+        </span>
+      );
+    }
+    if (tipClean.includes('ENVASE') || raw.includes('ENVASE') || raw.includes('EMBALA') || nomClean.includes('TAPA') || nomClean.includes('BOTELLA') || nomClean.includes('FRASCO')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-orange-500/15 text-orange-400 border-orange-500/30 tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+          <span>📦</span> ENVASE
+        </span>
+      );
+    }
+
+    if (!estadoFisico) {
+      return <span className="text-[10px] text-slate-500 font-bold">—</span>;
+    }
+    const clean = raw;
+    if (clean.includes('LIQ')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-cyan-500/10 text-cyan-400 border-cyan-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>💧</span> LÍQUIDO
+        </span>
+      );
+    }
+    if (clean.includes('POLV')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-purple-500/10 text-purple-400 border-purple-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🌫️</span> POLVO
+        </span>
+      );
+    }
+    if (clean.includes('GRAN') || clean.includes('CRIST') || clean.includes('ESCAM') || clean.includes('PERL') || clean.includes('HOJ') || clean.includes('BLOQ') || clean.includes('SOLI')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-amber-500/10 text-amber-400 border-amber-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🧱</span> SÓLIDO
+        </span>
+      );
+    }
+    if (clean.includes('FRAG') || clean.includes('ESEN') || clean.includes('AROM')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-emerald-500/10 text-emerald-400 border-emerald-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🧪</span> FRAGANCIA
+        </span>
+      );
+    }
+    if (clean.includes('PAST') || clean.includes('GEL') || clean.includes('EMUL') || clean.includes('CREM') || clean.includes('GRAS')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-blue-500/10 text-blue-400 border-blue-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🧴</span> PASTA/GEL
+        </span>
+      );
+    }
+    return (
+      <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase border ${
+        isDark ? 'bg-[#1A2434] text-slate-300 border-[#233146]' : 'bg-slate-100 text-slate-700 border-slate-300'
+      }`}>
+        {estadoFisico}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-5 font-sans">
@@ -269,8 +351,8 @@ export default function InventarioAdministracionPage() {
               {categories.map((cat) => {
                 const count =
                   cat === 'Todos'
-                    ? materialsData.length
-                    : materialsData.filter((m) => m.familia.toLowerCase() === cat.toLowerCase()).length;
+                    ? baseMaterials.length
+                    : baseMaterials.filter((m) => m.familia.toLowerCase() === cat.toLowerCase()).length;
                 return (
                   <option key={cat} value={cat}>
                     {cat === 'Todos' ? `Todas las Categorías (${count})` : `${cat} (${count})`}
@@ -324,6 +406,23 @@ export default function InventarioAdministracionPage() {
               🚨 Stock Crítico
             </button>
           </div>
+
+          <button
+            onClick={() => setSoloFisicos((v) => !v)}
+            className={`px-3 py-2 rounded-xl border text-xs font-black font-sans flex items-center gap-1.5 transition-all ${
+              soloFisicos
+                ? isDark
+                  ? 'bg-[#00F2C3]/15 border-[#00F2C3]/40 text-[#00F2C3]'
+                  : 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                : isDark
+                ? 'border-[#1A2232] text-slate-400 hover:text-white'
+                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+            }`}
+            title="Mostrar/ocultar insumos de solo fórmula (ESP)"
+          >
+            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] ${soloFisicos ? 'bg-[#00F2C3] border-[#00F2C3] text-[#06241B]' : 'border-current'}`}>{soloFisicos ? '✓' : ''}</span>
+            Ocultar ESP
+          </button>
         </div>
 
         {/* Materials Table — mismas columnas que Producción */}
@@ -340,24 +439,61 @@ export default function InventarioAdministracionPage() {
                 <th className="py-3 px-4">NIVEL STOCK</th>
                 <th className="py-3 px-4">PROVEEDOR ACTUAL</th>
                 <th className="py-3 px-4">ESTADO</th>
-                <th className="py-3 px-4 text-right">ACCIÓN</th>
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>
               {loading ? (
-                <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400 font-sans">
-                    Cargando inventario...
-                  </td>
-                </tr>
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-4 px-4"><div className="h-4 w-16 bg-slate-800/70 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-44 bg-slate-800/80 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-20 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-16 bg-slate-800/50 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-20 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-4 text-right"><div className="h-4 w-20 bg-slate-800/70 rounded ml-auto" /></td>
+                    <td className="py-4 px-4"><div className="h-2 w-full bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-24 bg-slate-800/50 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-5 w-16 bg-slate-800/60 rounded-full" /></td>
+                    <td className="py-4 px-4 text-right"><div className="h-6 w-20 bg-slate-800/40 rounded-lg ml-auto" /></td>
+                  </tr>
+                ))
               ) : errorMsg ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-rose-400 font-sans">{errorMsg}</td>
+                  <td colSpan={9} className="py-12 text-center font-sans">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="inline-flex p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                        <AlertTriangle className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-bold text-rose-400">{errorMsg}</p>
+                      <button
+                        onClick={cargarInventarioReal}
+                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all"
+                      >
+                        Reintentar Conexión
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ) : paginatedMaterials.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400 font-sans">
-                    No se encontraron materiales registrados.
+                  <td colSpan={9} className="py-8 font-sans">
+                    <ActionableEmptyState
+                      icon={Package}
+                      title="No se encontraron insumos"
+                      description={
+                        searchQuery || selectedCategory !== 'Todos' || selectedEstadoFilter !== 'TODOS'
+                          ? `No hay registros que coincidan con los filtros aplicados.`
+                          : 'No se encontraron insumos en el catálogo maestro.'
+                      }
+                      actionLabel="Restablecer Filtros"
+                      onAction={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('Todos');
+                        setSelectedEstadoFilter('TODOS');
+                      }}
+                      secondaryActionLabel="Actualizar"
+                      onSecondaryAction={cargarInventarioReal}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -378,9 +514,7 @@ export default function InventarioAdministracionPage() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${item.estadoFisico ? (isDark ? 'bg-[#1A2434] text-slate-300 border border-[#233146]' : 'bg-slate-100 text-slate-700 border border-slate-300') : ''}`}>
-                        {item.estadoFisico || '—'}
-                      </span>
+                      {renderEstadoFisicoBadge(item.estadoFisico, item.tipo, item.nombre)}
                     </td>
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="flex items-baseline justify-end gap-1.5 font-mono">
@@ -437,14 +571,6 @@ export default function InventarioAdministracionPage() {
                           <AlertTriangle className="h-3 w-3" /> CRITICAL
                         </span>
                       )}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        disabled
-                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold font-sans transition-all border opacity-40 cursor-not-allowed border-slate-700 text-slate-500"
-                      >
-                        Reaprovisionar
-                      </button>
                     </td>
                   </tr>
                 ))

@@ -16,7 +16,10 @@ interface DashboardApiResponse {
   timestamp: string;
 }
 
-export function useDashboardData(dateRange: DateRangeType) {
+export function useDashboardData(
+  dateRange: DateRangeType,
+  customDates?: { startDate: string; endDate: string }
+) {
   const [kpis, setKpis] = useState<KpiItem[]>([]);
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([]);
   const [compactMetrics, setCompactMetrics] = useState<CompactMetric[]>([]);
@@ -32,9 +35,11 @@ export function useDashboardData(dateRange: DateRangeType) {
     setLoading(true);
     setError(null);
     try {
-      const { data, ok } = await apiFetch<DashboardApiResponse>(
-        `/administracion/dashboard/stats?dateRange=${dateRange}`
-      );
+      let url = `/administracion/dashboard/stats?dateRange=${dateRange}`;
+      if (dateRange === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+        url += `&startDate=${encodeURIComponent(customDates.startDate)}&endDate=${encodeURIComponent(customDates.endDate)}`;
+      }
+      const { data, ok } = await apiFetch<DashboardApiResponse>(url);
 
       if (ok && data) {
         setKpis(data.kpis || []);
@@ -51,7 +56,7 @@ export function useDashboardData(dateRange: DateRangeType) {
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, customDates?.startDate, customDates?.endDate]);
 
   useEffect(() => {
     fetchDashboardData();

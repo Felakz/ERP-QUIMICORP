@@ -11,7 +11,7 @@ export class InsumosController {
   constructor(private readonly inventarioService: InventarioService) {}
 
   @Get()
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.ECOMMERCE_MARKETING, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.ECOMMERCE_MARKETING, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES)
   listar(
     @Query('search') search?: string,
     @Query('familiaId') familiaId?: string,
@@ -21,7 +21,7 @@ export class InsumosController {
   }
 
   @Get(':id')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.ECOMMERCE_MARKETING, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL, Role.ECOMMERCE_MARKETING, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES)
   obtenerPorId(@Param('id', ParseUUIDPipe) id: string) {
     return this.inventarioService.obtenerPorId(id);
   }

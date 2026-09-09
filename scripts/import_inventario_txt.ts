@@ -28,7 +28,7 @@ const VOLUMETRICOS_ML: Record<string, number> = {
   'ALCOHOL EXTRA NEUTRO 96%': 200000,
   'ALCOHOL ISOPROPILICO': 60903,
   'BENCINA': 31528,
-  'VARSOL': 25860,
+  'VARSOL': 27758, // L1 1490 g (1898 ml a 0.785 g/ml) + L2 25860 ml
 };
 
 function normalizeNombre(n: string): string {
@@ -44,18 +44,20 @@ function parseTXT(filePath: string): ParsedItem[] {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
 
-  const items: Map<string, { nombreOriginal: string; stock: number; unidadMedida: UnidadMedida; tipoFisico: string }> = new Map();
-  let currentSection = '';
+const items: Map<string, { nombreOriginal: string; stock: number; unidadMedida: UnidadMedida; tipoFisico: string }> = new Map();
+    const volumetricosAsignados = new Set<string>();
+    let currentSection = '';
 
   for (const line of lines) {
     if (line.includes('LISTA 2') || line.includes('CONTEO ADICIONAL')) currentSection = 'L2';
     else if (line.includes('LISTA 3') || line.includes('ESTANTES')) currentSection = 'L3';
     else if (line.includes('LISTA 4') || line.includes('COLORANTES')) currentSection = 'L4';
+    else if (line.includes('LISTA 5') || line.includes('CONTEO ADICIONAL FINAL')) currentSection = 'L5';
     else if (line.includes('EXCLUIDOS') || line.includes('REGISTRO TOTAL')) currentSection = 'EXCLUIDOS';
 
     if (currentSection === 'EXCLUIDOS') continue;
 
-    const match = line.match(/^\s*(?:EXTRA|\d{1,4}|COL\d{2})\s*\|\s*([^|]+?)\s*\|\s*([\d.,]+)\s*(L|g)?\s*\|\s*([^|]+?)\s*\|/);
+    const match = line.match(/^\s*(?:EXTRA|\d{1,4}B?|COL\d{2}|ADD\d{2})\s*\|\s*([^|]+?)\s*\|\s*([\d.,]+)\s*(L|g|GR|ML)?\s*\|\s*([^|]+?)\s*\|/);
     if (!match) continue;
 
     const [, nombreRaw, stockRaw, unidadRaw, tipoFisicoRaw] = match;
@@ -72,6 +74,8 @@ function parseTXT(filePath: string): ParsedItem[] {
     let unidadMedida: UnidadMedida = UnidadMedida.GR;
 
     if (esVolumetrico) {
+      if (volumetricosAsignados.has(key)) continue;
+      volumetricosAsignados.add(key);
       stockFinal = VOLUMETRICOS_ML[Object.keys(VOLUMETRICOS_ML).find(v => normalizeNombre(v) === key)!];
       unidadMedida = UnidadMedida.ML;
     } else if (unidadRaw && unidadRaw.toUpperCase() === 'L') {

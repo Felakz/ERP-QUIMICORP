@@ -107,14 +107,24 @@ export class ProduccionService {
     const supervisor = await this.prisma.usuario.findUnique({ where: { id: supervisorId } });
     if (!supervisor) {
       const fallback = await this.prisma.usuario.findFirst({
-        where: { rol: { nombre: 'PRODUCCION_ALMACEN' } },
+        where: {
+          rol: { nombre: 'PRODUCCION_ALMACEN' },
+          cargo: { contains: 'SUPERVISOR', mode: 'insensitive' },
+        },
       });
-      if (fallback) {
-        supervisorId = fallback.id;
+      if (!fallback) {
+        const cualquiera = await this.prisma.usuario.findFirst({
+          where: { rol: { nombre: 'PRODUCCION_ALMACEN' } },
+        });
+        if (cualquiera) {
+          supervisorId = cualquiera.id;
+        } else {
+          throw new BadRequestException(
+            'No hay usuario supervisor de planta disponible. Configure el personal de producción primero.',
+          );
+        }
       } else {
-        throw new BadRequestException(
-          'No hay usuario supervisor de planta disponible. Configure el personal de producción primero.',
-        );
+        supervisorId = fallback.id;
       }
     }
 
@@ -147,6 +157,7 @@ export class ProduccionService {
     const usuarios = await (this.prisma as any).usuario.findMany({
       where: {
         estado: 'ACTIVO',
+        NOT: [{ cargo: { contains: 'SUPERVISOR', mode: 'insensitive' } }],
         OR: [
           { rol: { nombre: 'PRODUCCION_ALMACEN' } },
           { cargo: { contains: 'operario', mode: 'insensitive' } },
@@ -339,6 +350,8 @@ export class ProduccionService {
 
       // 1. Salidas por Consumo de Materia Prima / Insumos
       for (const detalle of orden.formula.detalles) {
+        // Saltar detalles comodín sin insumo real vinculado (p.ej. "FRAGANCIA REFERENCIA")
+        if (!detalle.insumo) continue;
         const porcentaje = Number(detalle.porcentaje);
         const consumoCalculado = (Number(orden.cantidadPlanificada) * porcentaje) / 100;
         const stockActual = Number(detalle.insumo.stockReal);
@@ -463,7 +476,11 @@ export class ProduccionService {
     });
   }
 
-  async despacharEtiqueta(colaId: string, numeroGuia?: string) {
+  async despacharEtiqueta(
+    colaId: string,
+    numeroGuia?: string,
+    opciones?: { envaseSku?: string; envaseCantidad?: number },
+  ) {
     if (!colaId) {
       throw new BadRequestException('Se requiere colaId para registrar el despacho.');
     }
@@ -541,7 +558,95 @@ export class ProduccionService {
       });
     }
 
-    return colaActualizada;
+    // Descuento de envases consumidos en el despacho (1 etiqueta = 1 envase).
+    // Se registra salida en kardex (KardexMovimiento + KardexInmutable) y se actualiza stock.
+    let envaseDescontado: { sku: string; nombre: string; cantidad: number; saldo: number } | null = null;
+    if (opciones?.envaseSku) {
+      const cantidad = Number(opciones.envaseCantidad || 0);
+      if (!(cantidad > 0)) {
+        throw new BadRequestException('Indica la cantidad de envases consumidos en el despacho.');
+      }
+
+      const envase = await this.prisma.insumo.findFirst({
+        where: { codigo: opciones.envaseSku },
+        include: { familia: true },
+      });
+      if (!envase) {
+        throw new NotFoundException(`Envase ${opciones.envaseSku} no encontrado en el maestro de insumos.`);
+      }
+
+      // usuarioId es obligatorio en kardex_inmutable: se usa el supervisor del lote
+      // o, en su defecto, el usuario de sistema de importación (dni 70000000).
+      let usuarioRegistro: string = orden?.supervisorId || '';
+      if (!usuarioRegistro) {
+        const usrSistema = await this.prisma.usuario.findFirst({ where: { dni: '70000000' } });
+        usuarioRegistro = usrSistema?.id || '';
+      }
+      if (!usuarioRegistro) {
+        throw new BadRequestException('No se pudo determinar el usuario responsable del despacho.');
+      }
+
+      const documentoRef = numeroGuia?.trim() || `LOTE-${cola.loteCodigo}`;
+
+      // Descuento atómico: stock + KardexMovimiento + KardexInmutable en una sola transacción
+      await this.prisma.$transaction(async (tx) => {
+        const envaseTx = await tx.insumo.findFirstOrThrow({
+          where: { id: envase.id },
+        });
+        const stockActual = Number(envaseTx.stockReal);
+        if (stockActual < cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente de ${envase.codigo} (${envase.nombre}): hay ${stockActual} ${envase.unidadMedida} y el despacho consume ${cantidad}.`,
+          );
+        }
+        const nuevoSaldo = stockActual - cantidad;
+
+        await tx.insumo.update({
+          where: { id: envase.id },
+          data: { stockReal: nuevoSaldo },
+        });
+
+        await tx.kardexMovimiento.create({
+          data: {
+            categoriaKardex: CategoriaKardex.ENVASE,
+            productoNombre: envase.nombre,
+            familia: envase.familia?.nombre || 'ENVASES Y EMBALAJES',
+            categoriaNombre: envase.familia?.nombre || 'Envases y Embalajes',
+            proveedorCliente: `Despacho ${cola.loteCodigo} (${cola.clienteNombre || 'Cliente Quimicorp'})`,
+            unidadMedida: envase.unidadMedida,
+            fecha: new Date(),
+            tipoDoc: 'GUIA',
+            serie: 'REG',
+            numero: documentoRef,
+            otp: `OTP-${cola.loteCodigo}`,
+            tipoOperacion: TipoMovimiento.SALIDA_VENTA,
+            cantidadEntrada: 0,
+            cantidadSalida: cantidad,
+            saldoFinal: nuevoSaldo,
+            costoUnitario: Number(envase.costoUnitario || 0),
+            montoSalidaPen: cantidad * Number(envase.costoUnitario || 0),
+            montoSaldoPen: nuevoSaldo * Number(envase.costoUnitario || 0),
+            insumoId: envase.id,
+          },
+        });
+
+        await tx.kardexInmutable.create({
+          data: {
+            insumoId: envase.id,
+            tipoMovimiento: TipoMovimientoKardex.SALIDA,
+            cantidad,
+            stockAnterior: stockActual,
+            stockNuevo: nuevoSaldo,
+            documentoReferencia: documentoRef,
+            usuarioId: usuarioRegistro,
+          },
+        });
+
+        envaseDescontado = { sku: envase.codigo, nombre: envase.nombre, cantidad, saldo: nuevoSaldo };
+      });
+    }
+
+    return { ...colaActualizada, envaseDescontado };
   }
 
   async rechazarLote(dto: DecidirQADto) {

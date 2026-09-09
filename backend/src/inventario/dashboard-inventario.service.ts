@@ -218,6 +218,7 @@ export class DashboardInventarioService {
         proveedor: i.proveedorHistorico || 'ALMACÉN QUIMICORP',
         ubicacion: 'Almacén Principal Quimicorp',
         estado,
+        esSoloFormula: i.esSoloFormula ?? false,
       };
     });
 

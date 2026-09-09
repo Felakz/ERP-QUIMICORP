@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { KARDEX_REAL_SEED_DATA } from '@/lib/kardexRealData';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { ActionableEmptyState } from '@/components/ui/ActionableEmptyState';
 
 export type CategoriaKardexTab =
   | 'PRODUCTO_TERMINADO'
@@ -248,6 +250,8 @@ export default function KardexPage() {
   // Modal BOM de Fórmulas
   const [bomModalProducto, setBomModalProducto] = useState<string | null>(null);
 
+  const [unidad, setUnidad] = useState<'GR' | 'KG'>('GR');
+
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
@@ -374,6 +378,11 @@ export default function KardexPage() {
   const totalEntradas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadEntrada || 0), 0);
   const totalSalidas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadSalida || 0), 0);
 
+  const formatearPeso = (n: number): string =>
+    unidad === 'KG'
+      ? (n / 1000).toLocaleString('es-PE', { minimumFractionDigits: 2 })
+      : Math.round(n).toLocaleString('es-PE');
+
   const totalItemsUnicos = new Set(filteredMovimientos.map((m) => m.productoNombre)).size;
   const saldoMap = new Map<string, number>();
   filteredMovimientos.forEach((m) => {
@@ -466,7 +475,26 @@ export default function KardexPage() {
         })}
       </div>
 
-      {/* 3 Tarjetas KPI Principales */}
+      {/* 3. Tarjetas KPI Principales */}
+      <div className="flex items-center justify-end mb-3">
+        <div className={`inline-flex rounded-xl border p-0.5 ${isDark ? 'border-slate-700 bg-[#151D2A]' : 'border-slate-200 bg-slate-50'}`}>
+          {(['GR', 'KG'] as const).map((u) => (
+            <button
+              key={u}
+              onClick={() => setUnidad(u)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-black font-mono transition-all ${
+                unidad === u
+                  ? 'bg-[#00F2C3] text-[#06241B] shadow'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              {u}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* TOTAL ENTRADAS */}
         <div className={`rounded-2xl p-4 border transition-all shadow-sm space-y-1 ${cardBg}`}>
@@ -475,9 +503,9 @@ export default function KardexPage() {
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-emerald-400 font-mono">
-              +{totalEntradas.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+              +{formatearPeso(totalEntradas)}
             </span>
-            <span className="text-xs text-emerald-400 font-bold">?</span>
+            <span className="text-xs text-emerald-400 font-bold">{unidad}</span>
           </div>
         </div>
 
@@ -488,9 +516,9 @@ export default function KardexPage() {
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-rose-400 font-mono">
-              -{totalSalidas.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+              -{formatearPeso(totalSalidas)}
             </span>
-            <span className="text-xs text-rose-400 font-bold">?</span>
+            <span className="text-xs text-rose-400 font-bold">{unidad}</span>
           </div>
         </div>
 
@@ -594,10 +622,38 @@ export default function KardexPage() {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>
-              {paginatedMovimientos.length === 0 ? (
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-4 px-3"><div className="h-4 w-20 bg-slate-800/70 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-28 bg-slate-800/80 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-24 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-24 bg-slate-800/50 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-40 bg-slate-800/70 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-32 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-3 text-center"><div className="h-4 w-12 bg-slate-800/60 rounded mx-auto" /></td>
+                    <td className="py-4 px-3 text-right"><div className="h-4 w-16 bg-slate-800/60 rounded ml-auto" /></td>
+                    <td className="py-4 px-3 text-right"><div className="h-4 w-16 bg-slate-800/60 rounded ml-auto" /></td>
+                    <td className="py-4 px-3 text-right"><div className="h-4 w-20 bg-slate-800/70 rounded ml-auto" /></td>
+                  </tr>
+                ))
+              ) : paginatedMovimientos.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400 font-sans">
-                    No se encontraron movimientos registrados para {activeTab.replace('_', ' ')}.
+                  <td colSpan={10} className="py-8 font-sans">
+                    <ActionableEmptyState
+                      icon={Layers}
+                      title="Sin movimientos registrados"
+                      description={`No se encontraron movimientos para la categoría ${activeTab.replace('_', ' ')} con los filtros seleccionados.`}
+                      actionLabel="Restablecer Filtros"
+                      onAction={() => {
+                        setSearchQuery('');
+                        setTipoOperacionFiltro('TODAS');
+                        setFechaDesde('');
+                        setFechaHasta('');
+                      }}
+                      secondaryActionLabel="Actualizar"
+                      onSecondaryAction={fetchKardexData}
+                    />
                   </td>
                 </tr>
               ) : (

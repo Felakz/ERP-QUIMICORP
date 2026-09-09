@@ -19,6 +19,10 @@ interface DashboardHeaderProps {
   onChangeCurrency: (curr: CurrencyType) => void;
   dateRange: DateRangeType;
   onChangeDateRange: (range: DateRangeType) => void;
+  customStartDate?: string;
+  onChangeCustomStartDate?: (date: string) => void;
+  customEndDate?: string;
+  onChangeCustomEndDate?: (date: string) => void;
   onRefresh?: () => void;
 }
 
@@ -29,10 +33,24 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onChangeCurrency,
   dateRange,
   onChangeDateRange,
+  customStartDate,
+  onChangeCustomStartDate,
+  customEndDate,
+  onChangeCustomEndDate,
   onRefresh,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+
+  const meses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  const now = new Date();
+  const mesActualStr = `${meses[now.getMonth()]} ${now.getFullYear()}`;
+  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const mesAnteriorStr = `${meses[prevMonthDate.getMonth()]} ${prevMonthDate.getFullYear()}`;
+  const anioActual = now.getFullYear();
 
   const cardBg = isDark
     ? 'bg-[#0F141C] border-[#1A2232] shadow-[0_0_25px_rgba(0,242,195,0.03)]'
@@ -134,10 +152,41 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             <option value="HOY">📅 Hoy</option>
             <option value="AYER">📅 Ayer vs Hoy</option>
             <option value="ULTIMOS_7">📅 Últimos 7 días</option>
-            <option value="MES_ACTUAL">📅 Mes Actual (Agosto 2026)</option>
+            <option value="ULTIMOS_30">📅 Últimos 30 días</option>
+            <option value="MES_ACTUAL">📅 Mes Actual ({mesActualStr})</option>
+            <option value="MES_ANTERIOR">📅 Mes Anterior ({mesAnteriorStr})</option>
+            <option value="ESTE_ANO">📅 Todo el Año ({anioActual})</option>
+            <option value="CUSTOM">📆 Por Fechas (Rango Personalizado)...</option>
           </select>
           <Calendar className="w-3.5 h-3.5 text-cyan-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
+
+        {/* Selector de Rango Personalizado: Desde - Hasta */}
+        {dateRange === 'CUSTOM' && (
+          <div className={`flex items-center gap-1.5 p-1 rounded-xl border animate-in fade-in zoom-in duration-200 ${
+            isDark ? 'bg-[#151D2A] border-cyan-500/40 shadow-[0_0_15px_rgba(0,242,195,0.1)]' : 'bg-slate-50 border-blue-400 shadow-sm'
+          }`}>
+            <div className="flex items-center gap-1 px-2 py-0.5 text-xs">
+              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">Desde:</span>
+              <input
+                type="date"
+                value={customStartDate || ''}
+                onChange={(e) => onChangeCustomStartDate && onChangeCustomStartDate(e.target.value)}
+                className={`bg-transparent text-xs font-mono font-bold outline-none cursor-pointer ${isDark ? 'text-slate-200' : 'text-slate-800'}`}
+              />
+            </div>
+            <span className="text-slate-600 font-bold">•</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 text-xs">
+              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">Hasta:</span>
+              <input
+                type="date"
+                value={customEndDate || ''}
+                onChange={(e) => onChangeCustomEndDate && onChangeCustomEndDate(e.target.value)}
+                className={`bg-transparent text-xs font-mono font-bold outline-none cursor-pointer ${isDark ? 'text-slate-200' : 'text-slate-800'}`}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Refresh button */}
         {onRefresh && (

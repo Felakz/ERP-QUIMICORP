@@ -1,0 +1,2 @@
+SELECT id, "razonSocial", ruc FROM clientes WHERE ruc IN ('00000000','00000000000') OR "razonSocial" ILIKE '%MOSTRADOR%';
+SELECT "codigoFormula", id FROM formulas_master WHERE "codigoFormula" IN ('FM-0001','FM-0018','FM-0033','FM-0034','FM-0042','FM-0043','FM-0048','FM-0051','FM-0055','FM-0057','FM-0069','FM-0072','FM-0074','FM-0075','FM-0076');

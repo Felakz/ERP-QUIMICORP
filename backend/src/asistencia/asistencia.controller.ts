@@ -22,8 +22,8 @@ export class AsistenciaController {
   @Get('hoy')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.GERENTE_ADMINISTRATIVO, Role.RECURSOS_HUMANOS, Role.PRODUCCION_ALMACEN)
-  obtenerHoy(@Query('fecha') fecha?: string) {
-    return this.asistenciaService.obtenerAsistenciaHoy(fecha);
+  obtenerHoy(@Query('fecha') fecha?: string, @Query('area') area?: string) {
+    return this.asistenciaService.obtenerAsistenciaHoy(fecha, area);
   }
 
   @Get('marcaciones')

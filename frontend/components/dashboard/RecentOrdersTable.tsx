@@ -8,11 +8,14 @@ import { CommercialOrder, CurrencyType } from '@/types/dashboard';
 import { formatCurrency } from '@/lib/dashboardFormatters';
 import { ROUTES } from '@/config/routes';
 
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+
 interface RecentOrdersTableProps {
   orders: CommercialOrder[];
   includeIgv: boolean;
   currency: CurrencyType;
   exchangeRateUsd: number;
+  loading?: boolean;
 }
 
 export const RecentOrdersTable: React.FC<RecentOrdersTableProps> = ({
@@ -20,10 +23,15 @@ export const RecentOrdersTable: React.FC<RecentOrdersTableProps> = ({
   includeIgv,
   currency,
   exchangeRateUsd,
+  loading = false,
 }) => {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+
+  if (loading && (!orders || orders.length === 0)) {
+    return <TableSkeleton rows={5} cols={5} />;
+  }
 
   const cardBg = isDark
     ? 'bg-[#0F141C] border-[#1A2232] shadow-[0_0_20px_rgba(0,242,195,0.03)]'

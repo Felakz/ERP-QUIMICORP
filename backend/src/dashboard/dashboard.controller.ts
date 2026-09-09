@@ -19,8 +19,12 @@ export class DashboardController {
     Role.FINANZAS,
     Role.VENTAS_ATENCION_DIGITAL,
   )
-  async getStats(@Query('dateRange') dateRange?: string) {
-    return this.dashboardService.getDashboardStats(dateRange || 'MES_ACTUAL');
+  async getStats(
+    @Query('dateRange') dateRange?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.dashboardService.getDashboardStats(dateRange || 'MES_ACTUAL', startDate, endDate);
   }
 
   @Get('kpis')
@@ -32,8 +36,12 @@ export class DashboardController {
     Role.FINANZAS,
     Role.VENTAS_ATENCION_DIGITAL,
   )
-  async getKpis(@Query('dateRange') dateRange?: string) {
-    return this.dashboardService.getKpis(dateRange || 'MES_ACTUAL');
+  async getKpis(
+    @Query('dateRange') dateRange?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.dashboardService.getKpis(dateRange || 'MES_ACTUAL', startDate, endDate);
   }
 
   @Get('top-clients')

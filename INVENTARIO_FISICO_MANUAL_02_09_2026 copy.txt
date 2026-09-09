@@ -1,0 +1,405 @@
+=======================================================================================================================
+QUIMICORP PERU S.A.C. — INVENTARIO FISICO MANUAL COMPLETO (CONSOLIDADO 6 HOJAS)
+FECHA DE TOMA: 02/09/2026
+ESTANDAR METROLOGICO: Gramos (GR) | Tipos: Estado Fisico | EXCLUIDOS 100% PRODUCTOS VENCIDOS
+========================================================================================================================
+
+ITEM | PRODUCTO                              | STOCK (GR) | TIPO / ESTADO FISICO | DETALLE CONTEO FISICO / NOTAS
+-----+---------------------------------------+------------+----------------------+--------------------------------------------------
+4    | ACEITE DE JOJOBA                      | 2,761      | LIQUIDO              | 2761 g
+7    | ACEITE DE ROMERO                      | 9,935      | LIQUIDO              | 4822 g + 4050 g + 1063 g
+9    | ACEITE ESENCIAL TEA TREE               | 21,519     | LIQUIDO              | 129 g + 2390 g + 19000 g
+10   | ACEITE DE RICINO                      | 259        | LIQUIDO              | 259 g
+11   | ACIDO ACETICO                         | 12,686     | LIQUIDO              | 8852 g + 3834 g
+12   | ACIDO ASCORBICO                       | 3,350      | POLVO                | 3350 g
+13   | ACIDO BENZOICO                        | 727        | POLVO                | 727 g
+15   | ACIDO CITRICO                         | 1,679      | POLVO                | 1650 g
+17   | ACIDO FOSFORICO                       | 446        | LIQUIDO              | 446 g
+18   | ACIDO HIALURONICO                     | 642        | POLVO                | 642 g
+20   | ACIDO LACTICO                         | 915        | LIQUIDO              | 915 g
+22   | ACIDO OLEICO                          | 820        | LIQUIDO              | 820 g
+24   | ACIDO SALICILICO                      | 47,776     | POLVO                | 4776 g
+25   | ACIDO SULFONICO                       | 12,028     | LIQUIDO              | 1797 g + 271 g + 9960 g
+28   | ACTICIDE                              | 4,941      | LIQUIDO              | 4941 g
+30   | AGUA DESTILADA                        | 5,133      | LIQUIDO              | 1405 g + 3728 g
+31   | ALANTOINA                             | 410        | POLVO                | 410 g
+34   | ALCOHOL CETILICO                      | 7,499      | GRANO                | 7499 g
+36   | ALCOHOL LAURICO                       | 660        | LIQUIDO              | 59 g + 601 g
+39   | ANTIESPUMANTE BLANCO                  | 1,216      | LIQUIDO              | 677 g + 539 g
+40   | ANTIESPUMANTE INDUSTRIAL              | 1,541      | LIQUIDO              | 1541 g
+43   | BENZOATO                              | 1,304      | POLVO                | 409 g + 895 g (Shampoo)
+46   | BIOTINA                               | 984        | POLVO                | 984 g
+47   | BIOTINA 2%                            | 510        | POLVO                | 510 g
+49   | CAFEINA                               | 16,600     | POLVO                | 16600 g
+52   | CARBOPOL                              | 3,000      | POLVO                | 3000 g
+55   | CELLOSIZE                             | 514        | POLVO                | 514 g
+60   | CLORURO DE BENZALCONIO                | 1,226      | LIQUIDO              | 399 g + 827 g
+61   | CLORURO DE MAGNESIO                   | 17,050     | POLVO                | 17050 g
+72   | COLAGENO HIDROLIZADO                  | 12,662     | POLVO                | 12662 g
+74   | COUMARINA                             | 3,472      | GRANO                | 598 g + 2874 g
+75   | CURCUMA                               | 3,284      | POLVO                | 3284 g
+76   | DECYL GLUCIDE                         | 2,935      | LIQUIDO              | 2935 g
+79   | DIOXIDO DE TITANIO INDUSTRIAL         | 50,000     | POLVO                | 50000 g (50 kg)
+79B  | DIOXIDO DE TITANIO FOOD GRADE         | 23,000     | POLVO                | 23000 g (23 kg)
+81   | EDTA TETRASODICO                      | 7,179      | POLVO                | 2179 g + 5000 g
+84   | ESTABILIZADOR DE PEROXIDO             | 5,829      | LIQUIDO              | 3847 g + 1982 g
+97   | EXXOL                                 | 1,754      | LIQUIDO              | 1754 g
+98   | FORMOL                                | 2,928      | LIQUIDO              | 2928 g
+99   | FRAGANCIA ARIEL INTENSE               | 317        | LIQUIDO              | 317 g
+100  | FRAGANCIA ARIS ACTIFIT                | 586        | LIQUIDO              | 586 g
+101  | FRAGANCIA AVENA Y MIEL                | 1,627      | LIQUIDO              | 1627 g
+103  | FRAGANCIA BABY POWERS                 | 200        | LIQUIDO              | 200 g
+105  | FRAGANCIA BLUE CHANEL                 | 184        | LIQUIDO              | 184 g
+106  | FRAGANCIA BORN IN ROMA                | 188        | LIQUIDO              | 188 g
+108  | FRAGANCIA BRITNEY SPEARS              | 4,219      | LIQUIDO              | 652 g + 3567 g
+109  | FRAGANCIA CALVIN KLEIN                | 4,720      | LIQUIDO              | 4720 g
+110  | FRAGANCIA CANELA Y MANZANA            | 2,307      | LIQUIDO              | 2307 g
+113  | FRAGANCIA COCO INTENSE                | 1,053      | LIQUIDO              | 1053 g
+116  | FRAGANCIA DELICATE FLOWERS            | 513        | LIQUIDO              | 513 g
+120  | FRAGANCIA EUCALIPTO                   | 981        | LIQUIDO              | 981 g (Obs: 13/09/25)
+123  | FRAGANCIA FRESA                       | 3,966      | LIQUIDO              | 3966 g
+126  | FRAGANCIA GODINA                      | 4,362      | LIQUIDO              | 2232 g + 2130 g
+128  | FRAGANCIA GREEN TEA                   | 2,394      | LIQUIDO              | 2337 g + 57 g
+131  | FRAGANCIA JAZMIN                      | 5,734      | LIQUIDO              | 4971 g + 763 g
+136  | FRAGANCIA LRV FRESH                   | 679        | LIQUIDO              | 679 g
+137  | FRAGANCIA MANZANA                     | 4,377      | LIQUIDO              | 4377 g
+138  | FRAGANCIA MANZANILLA                  | 4,325      | LIQUIDO              | 4325 g
+139  | FRAGANCIA MARACUYA                    | 1,620      | LIQUIDO              | 1620 g
+140  | FRAGANCIA MENTA                       | 5,165      | LIQUIDO              | 165 g + 5000 g
+141  | FRAGANCIA MIEL                        | 1,143      | LIQUIDO              | 1143 g
+142  | FRAGANCIA MIL FLORES                  | 135        | LIQUIDO              | 135 g
+144  | FRAGANCIA NARANJA                     | 3,982      | LIQUIDO              | 3982 g
+147  | FRAGANCIA PACO LUCKY                  | 11,948     | LIQUIDO              | 11948 g
+148  | FRAGANCIA PACO RABAN (ANTIGUO)        | 826        | LIQUIDO              | 826 g
+149  | FRAGANCIA PURE FREEDOM 212            | 849        | LIQUIDO              | 849 g
+150  | FRAGANCIA RITCHIE CHANNE              | 228        | LIQUIDO              | 228 g
+152  | FRAGANCIA ROSAS                       | 606        | LIQUIDO              | 606 g
+155  | FRAGANCIA VAINILLA                    | 2,637      | LIQUIDO              | 2637 g (Excluido frasco de 926 g vencido)
+157  | GALAXOLIDE                            | 3,147      | LIQUIDO              | 1244 g + 1903 g
+159  | GLUCONATO DE CLORHEXIDINA             | 278        | LIQUIDO              | 278 g
+161  | HIPOCLORITO DE SODIO                  | 873        | POLVO                | 873 g (Excluido lote de 1716 g vencido)
+169  | MANTECA DE KARITE                     | 59,300     | BLOQUE               | 59300 g
+170  | MAQBLEND                              | 845        | LIQUIDO              | 845 g
+172  | MENTOL CRISTAL                        | 867        | CRISTAL              | 867 g
+174  | MONO (MONOPROPILENGLICOL)             | 9,930      | LIQUIDO              | 9930 g
+183  | NIACINAMIDA VITAMINA B3               | 15,800     | POLVO                | 15800 g
+184  | NP10                                  | 9,954      | LIQUIDO              | 9954 g
+185  | OXIDO DE ZINC                         | 241        | POLVO                | 241 g
+189  | PEROXIDO                              | 15,000     | LIQUIDO              | 15000 g
+192  | POLYQUATERNARIUM 7                    | 10,966     | LIQUIDO              | 3338 g + 3641 g + 3987 g
+194  | PROCIDE 1.5                           | 864        | LIQUIDO              | 864 g
+195  | PROCIDE CG                            | 18,654     | LIQUIDO              | 4582 g + 14072 g
+197  | PROPIONATO DE SODIO                   | 1,02      | POLVO                | 102 g
+210  | SILICATO DE SODIO                     | 2,882      | LIQUIDO              | 1875 g + 1007 g
+212  | SILICONA 1501                         | 9,216      | LIQUIDO              | 9216 g
+213  | SILICONA 3031                         | 6,60      | LIQUIDO              | 660 g
+214  | SILICONA 350                          | 3,943      | LIQUIDO              | 3943 g
+216  | SORBATO DE POTASIO                    | 1,301      | GRANO                | 1301 g
+217  | SORBITOL                              | 4,984      | LIQUIDO              | 4984 g (Excluido lote de 6795 g vencido)
+218  | TALCO                                 | 24130      | POLVO                | 24130 g
+219  | TAURINA                               | 4,86      | POLVO                | 486 g
+220  | TRIETANOLAMINA (TEA)                  | 906        | LIQUIDO              | 906 g
+221  | TERBINAFINA HCL                       | 514        | POLVO                | 514 g
+222  | TETRACAINA HCL                        | 23         | POLVO                | 23 g
+224  | TRIETIL CITRATO                       | 503        | LIQUIDO              | 503 g
+225  | UREA                                  | 9,500      | POLVO                | 9500 g
+226  | VARSOL                                | 1,490      | LIQUIDO              | 1490 g
+230  | VITAMINA E                            | 2,378      | LIQUIDO              | 2378 g
+231  | ZACARINA (SACARINA)                   | 1,586      | GRANO                | 486 g + 1100 g
+232  | COPERLAND                             | 9,375      | POLVO                | 9375 g
+233  | SAL                                   | 6,000      | POLVO                | 6000 g
+========================================================================================================================
+TOTAL INSUMOS VALIDOS CON STOCK FISICO: 102
+========================================================================================================================
+
+------------------------------------------------------------------------------------------------------------------------
+REGISTRO TOTAL DE INSUMOS Y LOTES EXCLUIDOS POR ESTAR MARCADOS COMO VENCIDOS:
+------------------------------------------------------------------------------------------------------------------------
+- Item 127: FRAGANCIA GOOD GIRL (3,000 g Vencido) -> EXCLUIDO
+- Item 130: FRAGANCIA INVICTUS INTENSE (Vencido) -> EXCLUIDO
+- Item 143: FRAGANCIA MIX FRUTA (3,650 g + 2,672 g Vencido) -> EXCLUIDO
+- Item 153: FRAGANCIA SPARROW NECTAR (174 g Vencido) -> EXCLUIDO
+- Item 155: FRAGANCIA VAINILLA (Frasco de 926 g Vencido excluido del total)
+- Item 161: GOMA XANTANA (Lote de 1,716 g Vencido excluido del total)
+- Item 202: SAB. CHICLE (1,979 g Vencido) -> EXCLUIDO
+- Item 203: SAB. CLAVO DE OLOR (621 g + 979 g Vencido) -> EXCLUIDO
+- Item 207: SAB. LIMON TRADICIONAL (1,358 g + 742 g Vencido) -> EXCLUIDO
+- Item 217: SORBITOL (Lote de 6,795 g Vencido excluido del total)
+========================================================================================================================
+
+========================================================================================================================
+LISTA 2 — CONTEO ADICIONAL / ALMACÉN GENERAL (COMPAÑERO)
+========================================================================================================================
+
+ITEM | PRODUCTO                              | STOCK (GR / L) | TIPO / ESTADO FISICO | DETALLE CONTEO FISICO / NOTAS
+-----+---------------------------------------+----------------+----------------------+--------------------------------------------------
+10   | ACEITE DE RICINO                      | 60,087 g       | LIQUIDO              | 20000 g + 20000 g + 2670 g (Atrás vestidor) + 17417 g
+14   | ACIDO BORICO                          | 6,440 g        | POLVO                | 6440 g (Atrás vestidor)
+15   | ACIDO CITRICO                         | 15,482 g       | POLVO                | 15482 g (Atrás vestidor)
+16   | ACIDO ESTEARICO                       | 75,255 g       | POLVO                | 25082 g + 25090 g + 25083 g (03 sacos Jabonería - Vcto 12/2028)
+20   | ACIDO LACTICO                         | 9,920 g        | LIQUIDO              | 9920 g (Vcto 10/2029)
+29   | AGUA DESIONIZADA                      | 364,568 g      | LIQUIDO              | 13638 g + 350930 g (364.57 kg)
+32   | ALCANFOR                              | 13,516 g       | POLVO                | 13516 g (Vcto 05/2028)
+33   | ALCOHOL EXTRA NEUTRO 96%              | 200.00 L       | LIQUIDO (L)          | 200 Lt aprox (200,000 ml)
+35   | ALCOHOL ISOPROPILICO                  | 60.90 L        | LIQUIDO (L)          | 60,903 ml (Balanza: 47,870 g [15120+9850+12300+10600] a d=0.786 g/ml)
+36   | ALCOHOL LAURICO                       | 200,000 g      | LIQUIDO              | 200 kg aprox (200,000 g)
+42   | BENCINA                               | 31.53 L        | LIQUIDO (L)          | 31,528 ml (Balanza: 22,700 g [9200g+7000g+6500g] a d=0.720 g/ml)
+43   | BENZOATO                              | 14,845 g       | POLVO                | 6744 g + 8101 g (Atrás vestidor)
+44   | BETAINA                               | 150,000 g      | LIQUIDO              | 150 kg aprox (150,000 g)
+45   | BICARBONATO FOOD GRADE                | 18,019 g       | POLVO                | 18019 g (Atrás vestidor)
+48   | BUTIL (BUTILGLICOL)                   | 24,490 g       | LIQUIDO              | 9600 g + 14890 g
+49   | CAFEINA                               | 20,000 g       | POLVO                | 20000 g (Vcto 10/2030)
+50   | CAL                                   | 26,131 g       | POLVO                | 8359 g + 17772 g (Atrás vestidor)
+52   | CARBOPOL                              | 21,300 g       | POLVO                | 21300 g (Vcto 11/2027)
+53   | CARBONATO 1000                        | 48,310 g       | POLVO                | 9098 g (Atrás vestidor) + 16005 g + 23207 g
+54   | CARBONATO 400                         | 42,247 g       | POLVO                | 22035 g + 20212 g (Atrás vestidor)
+55   | CELLOSIZE                             | 7,680 g        | POLVO                | 7680 g (Atrás vestidor)
+56   | CERA CARNAUBA                         | 32,900 g       | GRANO                | 25000 g + 7900 g (Atrás vestidor - Vcto 2036)
+57   | CERA DE ABEJA VIRGEN                  | 78,677 g       | BLOQUE               | 12250 g + 27290 g + 18137 g + 21000 g
+57B  | CERA DE ABEJA REFINADA (TRANSPARENTE) | 18,750 g       | BLOQUE               | 18750 g (Vcto 10/2027)
+58   | CICLOMETICONA                         | 5,430 g        | LIQUIDO              | 5430 g
+59   | CLORHIDRATO DE ALUMINIO               | 25,000 g       | POLVO                | 25000 g (Clorhidróxido Sólido - Vcto 08/2029)
+72   | COLAGENO HIDROLIZADO                  | 20,000 g       | POLVO                | 20000 g (Vcto 08/2031)
+77   | DEHYQUART                             | 80,000 g       | LIQUIDO              | 80 kg aprox (80,000 g)
+80   | DIPROPILENGLICOL                      | 19,000 g       | LIQUIDO              | 19000 g (19 kg)
+82   | EMULGADE 1000                         | 71,310 g       | GRANO                | 25000 g + 25000 g (02 sacos) + 8300 g (Atrás vestidor) + 4240 g + 8770 g
+158  | GLICERINA                             | 5,000 g        | LIQUIDO              | 5000 g
+163  | IMPERMEABILIZANTE                     | 197,637 g      | LIQUIDO              | 20 kg + 20 kg + 19960 g + 19918 g + 19985 g + 19970 g + 18810 g + 18890 g + 20800 g + 20100 g + 19084 g
+164  | ISOPROPILO DE MIRISTATO               | 494,798 g      | LIQUIDO              | 19988 g + 8300 g + 20030 g + 20080 g + 240000 g + 56400 g + 120000 g + 10000 g
+168  | LIDOCAINA HCL                         | 11,000 g       | POLVO                | 11000 g (Vcto 09/2030)
+169  | MANTECA DE KARITE                     | 3,550 g        | BLOQUE               | 3550 g (Atrás vestidor)
+171  | MECELLOSE                             | 25,837 g       | POLVO                | 8665 g (Atrás vestidor) + 9203 g + 7969 g
+172  | MENTOL CRISTAL                        | 13,046 g       | CRISTAL              | 13046 g (Vcto 04/2028)
+184  | NP10                                  | 37,000 g       | LIQUIDO              | 20000 g + 17000 g
+185  | OXIDO DE ZINC                         | 15,000 g       | POLVO                | 15000 g (Vcto 05/2028)
+187  | PARAFINA SOLIDA                       | 10,080 g       | BLOQUE               | 10080 g (Atrás vestidor)
+188  | PARAFINA LIQUIDA                      | 1,160 g        | LIQUIDO              | 1160 g (Atrás vestidor)
+190  | POLISORBATO 20                        | 40,000 g       | LIQUIDO              | 20000 g + 20000 g (Vcto 06/2029)
+196  | PROPILENGLICOL                        | 120 g          | LIQUIDO              | 120 g
+200  | NEUTRALIZADOR QP700                   | 38,850 g       | LIQUIDO              | 19250 g + 19600 g
+201  | RESINOX                               | 40,000 g       | LIQUIDO              | 20000 g + 20000 g (40,000 g)
+211  | SILICONA 1000                         | 18,906 g       | LIQUIDO              | 18906 g
+213  | SILICONA 3031                         | 72,432 g       | LIQUIDO              | 24614 g + 25100 g + 22718 g (72.43 kg)
+220  | TRIETANOLAMINA (TEA)                  | 180 g          | LIQUIDO              | 180 g
+223  | TEXAPON (TEXAPON 70%)                 | 85,000 g       | PASTA / LIQUIDO      | 85 kg (85,000 g)
+226  | VARSOL                                | 25.86 L        | LIQUIDO (L)          | 25,860 ml (Balanza: 6 kg + 14.3 kg = 20.3 kg a d=0.785 g/ml)
+227  | VASELINA LIQUIDA                      | 100,000 g      | LIQUIDO              | 100 kg (100,000 g)
+228  | VASELINA SOLIDA                       | 82,500 g       | BLOQUE / PASTA       | 82.5 kg (82,500 g)
+EXTRA| SILICONA A LA GRASA                   | 51,790 g       | GRASA / PASTA        | 18360 g + 15420 g + 18010 g (51,790 g)
+========================================================================================================================
+TOTAL INSUMOS EN LISTA 2 (ALMACÉN GENERAL): 53
+========================================================================================================================
+
+
+========================================================================================================================
+LISTA 3 (ESTANTES / LABORATORIO Y FRAGANCIAS - TOMA 02/09/2026)
+========================================================================================================================
+ITEM | PRODUCTO                              | STOCK FISICO   | TIPO FISICO          | DETALLE / CONTEOS BALANZA
+========================================================================================================================
+EXTRA| ACEITE ESENCIAL DE CITRONELA          | 105 g          | LIQUIDO / ESENCIA    | 105 g
+1    | ACEITE DE ALMENDRAS                   | 6,530 g        | ACEITE ESENCIAL      | 4768 g + 1762 g
+2    | ACEITE DE CALENDULA                   | 7,081 g        | ACEITE ESENCIAL      | 2931 g + 4150 g
+3    | ACEITE ESENCIAL EUCALIPTO             | 1,133 g        | ACEITE ESENCIAL      | 1133 g
+4    | ACEITE DE JOJOBA                      | 3,362 g        | ACEITE ESENCIAL      | 3362 g
+5    | ACEITE ESENCIAL LAVANDA               | 9,706 g        | ACEITE ESENCIAL      | 5398 g + 900 g + 3408 g
+6    | ACEITE ESENCIAL MENTA                 | 1,452 g        | ACEITE ESENCIAL (LT) | 1452 g
+8    | ACEITE ROSA MOSQUETA                  | 4,258 g        | ACEITE ESENCIAL      | 4258 g
+10   | ACEITE DE RICINO                      | 348 g          | LIQUIDO              | 248 g + 100 g
+12   | ACIDO ASCORBICO                       | 4,000 g        | POLVO                | 4000 g
+18   | ACIDO HIALURONICO                     | 3,000 g        | POLVO                | 3000 g
+19   | ACIDO KOJICO                          | 7,266 g        | POLVO                | 2000 g + 2327 g + 2939 g
+21   | ACIDO MANDELICO                       | 1,872 g        | POLVO (USP)          | 1000 g + 872 g
+26   | ACIDO TIOGLICOLICO                    | 4,515 g        | LIQUIDO              | 4515 g
+27   | ACIDO UNDECILEICO                     | 285 g          | LIQUIDO              | 285 g
+31   | ALANTOINA                             | 3,700 g        | POLVO                | 3700 g
+36   | ALCOHOL LAURICO                       | 169 g          | LIQUIDO              | 169 g
+40   | ANTIESPUMANTE INDUSTRIAL              | 352 g          | LIQUIDO              | 352 g 
+41   | AUROL NACARANTE SDS                   | 812 g          | LIQUIDO              | 812 g
+58   | CICLOMETICONA                         | 891 g          | LIQUIDO (1 Litro)    | 891 g
+62   | CMC                                   | 4,243 g        | POLVO                | 4243 g
+64   | COLORANTE AMARILLO DISPERSANTE       | 936 g          | LIQUIDO              | 936 g
+65   | COLORANTE AZUL DISPERSANTE           | 940 g          | LIQUIDO              | 940 g
+67   | COLORANTE OXIDO DE HIERRO AMARILLO   | 202 g          | POLVO                | 202 g
+68   | COLORANTE OXIDO DE HIERRO ROJO       | 146 g          | POLVO                | 146 g
+70   | COLORANTE ROJO DISPERSANTE           | 572 g          | LIQUIDO              | 572 g
+71   | COLORANTE VERDE DISPERSANTE          | 1,211 g        | LIQUIDO              | 1211 g
+77   | DECYL GLUCIDE                         | 10,000 g       | PASTA / LIQUIDO      | 10000 g (10 kg)
+80   | DIPROPILENGLICOL                      | 1,000 g        | LIQUIDO              | 1 kg (1000 g)
+85   | EXTRACTO DE CENTELLA ASIATICA         | 11,671 g       | EXTRACTO LIQUIDO     | 10665 g + 1006 g
+86   | EXTRACTO DE ALOE VERA                 | 20,667 g       | EXTRACTO LIQUIDO     | 19878 g + 789 g
+87   | EXTRACTO DE HAMAMELIS                 | 14,871 g       | EXTRACTO LIQUIDO     | 11310 g + 3561 g
+88   | EXTRACTO DE CALENDULA                 | 11,280 g       | EXTRACTO LIQUIDO     | 11280 g
+89   | EXTRACTO DE CASTAÑA DE INDIAS         | 12,156 g       | EXTRACTO LIQUIDO     | 11320 g + 836 g
+90   | EXTRACTO DE GINSENG                   | 6,173 g        | EXTRACTO LIQUIDO     | 5356 g + 817 g
+91   | EXTRACTO DE JENGIBRE                  | 16,001 g       | EXTRACTO LIQUIDO     | 16001 g
+92   | EXTRACTO DE MANZANILLA                | 12,182 g       | EXTRACTO LIQUIDO     | 9564 g + 2618 g
+93   | EXTRACTO DE ROMERO                    | 11,755 g       | EXTRACTO LIQUIDO     | 11305 g + 450 g
+94   | EXTRACTO NATURAL DE ARNICA            | 9,736 g        | EXTRACTO LIQUIDO     | 1737 g + 7999 g
+95   | EXTRACTO NATURAL DE AVENA             | 10,945 g       | EXTRACTO LIQUIDO     | 9506 g + 1439 g
+96   | EXTRACTO DE ORTIGA                    | 8,991 g        | EXTRACTO LIQUIDO     | 8991 g
+100  | FRAGANCIA ARIS ACTIFIT                | 48 g           | FRAGANCIA LIQUIDA    | 48 g
+102  | FRAGANCIA B INTENSE                   | 1,076 g        | FRAGANCIA LIQUIDA    | 76 g + 1000 g
+105  | FRAGANCIA BELLE                       | 57 g           | FRAGANCIA LIQUIDA    | 57 g
+108  | FRAGANCIA BOSMAN                      | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+111  | FRAGANCIA CARO LA ROSE                | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+112  | FRAGANCIA CHICLE MIX                  | 69 g           | FRAGANCIA LIQUIDA    | 69 g
+113  | FRAGANCIA COCO INTENSE                | 2,500 g        | FRAGANCIA LIQUIDA    | 2500 g
+114  | FRAGANCIA COCO PASION                 | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+115  | FRAGANCIA MANZANA INTENSE             | 12 g           | FRAGANCIA LIQUIDA    | 12 g
+117  | FRAGANCIA DESIRE MAGNET               | 60 g           | FRAGANCIA LIQUIDA    | 60 g
+EXTRA| FRAGANCIA CHERRY                      | 226 g          | FRAGANCIA LIQUIDA    | 226 g
+EXTRA| FRAGANCIA PRO CUIDADO                 | 250 g          | FRAGANCIA LIQUIDA    | 250 g
+EXTRA| FRAGANCIA FRUTOS ROJOS                | 400 g          | FRAGANCIA LIQUIDA    | 400 g
+EXTRA| FRAGANCIA ENCAPSULADO                 | 660 g          | FRAGANCIA LIQUIDA    | 660 g
+EXTRA| FRAGANCIA BABY AMERICA SOL            | 9 g            | FRAGANCIA LIQUIDA    | 9 g
+118  | FRAGANCIA DIGIOMEN                    | 44 g           | FRAGANCIA LIQUIDA    | 44 g
+119  | FRAGANCIA DRAKYA                      | 94 g           | FRAGANCIA LIQUIDA    | 94 g
+121  | FRAGANCIA LIMACHEN                    | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+122  | FRAGANCIA FLOREX                      | 2 g            | FRAGANCIA LIQUIDA    | 2 g
+124  | FRAGANCIA FUN MINISTRY                | 99 g           | FRAGANCIA LIQUIDA    | 99 g
+126  | FRAGANCIA GODINA                      | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+129  | FRAGANCIA INVICTUS                    | 98 g           | FRAGANCIA LIQUIDA    | 98 g
+130  | FRAGANCIA INVICTUS INTENSE            | 46 g           | FRAGANCIA LIQUIDA    | 46 g
+133  | FRAGANCIA LAVANDA INTENSE             | 66 g           | FRAGANCIA LIQUIDA    | 66 g
+134  | FRAGANCIA LIMON CITRUS                | 62 g           | FRAGANCIA LIQUIDA    | 62 g
+135  | FRAGANCIA LIMON INTENSE               | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+136  | FRAGANCIA LRV FRESH                   | 250 g          | FRAGANCIA LIQUIDA    | 250 g
+137  | FRAGANCIA MANZANA                     | 250 g          | FRAGANCIA LIQUIDA    | 250 g
+138  | FRAGANCIA MANZANILLA                  | 79 g           | FRAGANCIA LIQUIDA    | 79 g
+143  | FRAGANCIA MIL FLORES                  | 500 g          | FRAGANCIA LIQUIDA    | 500 g
+146  | FRAGANCIA NEW CARE                    | 374 g          | FRAGANCIA LIQUIDA    | 153 g + 221 g
+148  | FRAGANCIA PACO RABAN (ANTO - INVICTO) | 433 g          | FRAGANCIA LIQUIDA    | 291 g + 142 g
+153  | FRAGANCIA ULTRAMAN                    | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+156  | FRAGANCIA VICARO                      | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+EXTRA| FRAGANCIA FANTASY PF. (NORPERU)       | 47 g           | FRAGANCIA LIQUIDA    | 47 g
+EXTRA| FRAGANCIA PACO 212                    | 42 g           | FRAGANCIA LIQUIDA    | 42 g
+EXTRA| FRAGANCIA ONE MILLION LUCKY           | 37 g           | FRAGANCIA LIQUIDA    | 37 g
+161  | GOMA XANTANA                          | 2,250 g        | POLVO                | 2250 g
+164  | ISOPROPILO DE MIRISTATO               | 3,994 g        | LIQUIDO              | 2367 g + 1627 g
+165  | KETOCONAZOL                           | 398 g          | POLVO                | 398 g
+166  | LACA CSP                              | 1,489 g        | LIQUIDO              | 1489 g
+167  | LAURIL SULFATO DE SODIO (96%)         | 245 g          | POLVO                | 245 g
+168  | LIDOCAINA HCL                         | 64 g           | POLVO                | 64 g
+173  | MINOXIDIL                             | 7,286 g        | POLVO                | 2369 g + 2000 g + 2917 g
+175  | NEUTRADOR ALCOHOL                     | 203 g          | LIQUIDO              | 203 g
+176  | NEUTRADOR AMONIACO                    | 307 g          | LIQUIDO              | 307 g
+177  | NEUTRADOR ORINE DE MASCOTAS           | 313 g          | LIQUIDO              | 313 g
+179  | NEUTRADOR FRESCURA AMARILLA           | 295 g          | LIQUIDO              | 295 g
+180  | NEUTRADOR MASCOTAS                    | 305 g          | LIQUIDO              | 305 g
+181  | NEUTRADOR NEW B.                      | 300 g          | LIQUIDO              | 300 g
+182  | NEUTRADOR VAM                         | 309 g          | LIQUIDO              | 309 g
+190  | POLISORBATO 20                        | 2,930 g        | LIQUIDO              | 2930 g
+191  | POLISORBATO 80                        | 8,452 g        | LIQUIDO              | 8452 g
+193  | PRILOCAINA HCL                        | 70 g           | POLVO (USP)          | 70 g
+195  | NEUTRADOR FRESCURA NARANJA            | 313 g          | LIQUIDO              | 313 g
+EXTRA| EDTA TETRASODICO                      | 2,225 g        | POLVO                | 2.225 kg (2225 g)
+199  | PROTEINA HIDROLIZADA DE SOYA          | 3,325 g        | POLVO                | 3325 g
+216  | SORBATO DE POTASIO                    | 3,000 g        | GRANO                | 3 kg (3000 g)
+222  | TETRACAINA HCL                        | 1,008 g        | POLVO                | 1008 g
+224  | TRIETIL CITRATO                       | 3,512 g        | LIQUIDO              | 3512 g
+229  | VINAGRE DE MANZANA                    | 6,617 g        | LIQUIDO              | 6017 g + 600 g
+EXTRA| GLUCONATO                             | 1,988 g        | POLVO                | 1.988 kg (1988 g)
+238  | EXTRACTO TE VERDE                     | 9,882 g        | EXTRACTO LIQUIDO     | 9882 g
+241  | VITAMINA E EN POLVO                   | 1,000 g        | POLVO                | 1000 g
+EXTRA| FRAGANCIA NEW CAR                     | 965 g          | FRAGANCIA LIQUIDA    | 965 g
+EXTRA| FRAGANCIA PURE SEDUCTION              | 1,001 g        | FRAGANCIA LIQUIDA    | 1001 g
+EXTRA| FRAGANCIA BOSQUE BAMBU                | 179 g          | FRAGANCIA LIQUIDA    | 179 g
+EXTRA| FRAGANCIA SAUVAGE ELIXIR DIOR         | 3,169 g        | FRAGANCIA LIQUIDA    | 3169 g
+EXTRA| FRAGANCIA TEA TREE                    | 1,944 g        | FRAGANCIA LIQUIDA    | 1944 g
+EXTRA| FENOXIETANOL                          | 1,000 g        | LIQUIDO              | 1000 g
+EXTRA| SILICONA XIAMETER                     | 1,000 g    | LIQUIDO / SILICONA   | 1000 g 
+EXTRA| KION EN POLVO                         | 12,800 g       | POLVO                | 3800 g + 9000 g
+EXTRA| OXIDO DE HIERRO AZUL ULTRAMAR 462     | 482 g          | POLVO                | 482 g
+EXTRA| PERLADO DORADO RC-300                 | 249 g          | POLVO                | 249 g
+EXTRA| PERLADO DORADO RC-303                 | 183 g          | POLVO                | 183 g
+EXTRA| OXIDO DE HIERRO VERDE                 | 232 g          | POLVO                | 232 g
+EXTRA| OXIDO DE HIERRO AZUL (AZUL MILORI)    | 240 g          | POLVO                | 240 g
+EXTRA| POLVO DORADO DE BRONCE RPG            | 249 g          | POLVO                | 249 g
+EXTRA| COLORANTE VERDE FLUORESCENTE          | 132 g          | COLORANTE POLVO      | 132 g
+EXTRA| FRAGANCIA KING OF PARTIES             | 100 g          | FRAGANCIA LIQUIDA    | 100 g
+========================================================================================================================
+TOTAL INSUMOS EN LISTA 3 (ESTANTES): 121
+========================================================================================================================
+
+
+========================================================================================================================
+LISTA 4 (COLORANTES Y PIGMENTOS - TOMA 02/09/2026) — CATEGORÍA: COLORANTES / PIGMENTOS
+========================================================================================================================
+ITEM | PRODUCTO                              | STOCK FISICO   | CATEGORÍA / TIPO     | DETALLE CONTEO FISICO / NOTAS
+========================================================================================================================
+COL01| COLORANTE VERDE                       | 135 g          | COLORANTE (POLVO)    | 135 gr
+COL02| COLORANTE S-NEGRO                     | 1,004 g        | COLORANTE (POLVO)    | 24 gr + 980 gr
+COL03| COLORANTE AZUL CRISTAL                | 109 g          | COLORANTE (POLVO)    | 109 gr
+COL04| COLORANTE AL AGUA NARANJA             | 244 g          | COLORANTE (LIQUIDO)  | 244 gr
+COL05| COLORANTE AMARILLO                    | 96 g           | COLORANTE (POLVO)    | 96 gr
+COL06| COLORANTE ROJO CLARO                  | 245 g          | COLORANTE (POLVO)    | 245 gr
+COL07| COLORANTE ROJO SANGRE                 | 134 g          | COLORANTE (POLVO)    | 134 gr
+COL08| COLORANTE NARANJA                     | 115 g          | COLORANTE (POLVO)    | 115 gr
+COL09| COLORANTE MARRON CROMO                | 250 g          | COLORANTE (POLVO)    | 250 gr
+COL10| COLORANTE ROJO RODAMIDA (RODAMINA)    | 238 g          | COLORANTE (POLVO)    | 238 gr
+COL11| COLORANTE AZUL OSCURO                 | 1,572 g        | COLORANTE (POLVO)    | 811 gr + 761 gr
+COL12| COLORANTE VIOLETA                     | 43 g           | COLORANTE (POLVO)    | 43 gr
+COL13| COLORANTE VIOLETA MORADO              | 361 g          | COLORANTE (POLVO)    | 361 gr
+COL14| COLORANTE VERDE LAVAVAJILLAS          | 102 g          | COLORANTE (POLVO)    | 102 gr
+COL15| COLORANTE ROJO PULSO                  | 476 g          | COLORANTE (POLVO)    | 476 gr
+COL16| FIPRONIL                              | 1,000 g        | ACTIVO (POLVO)       | 1 K. (1000 g)
+COL17| COLORANTE ACIDO ROJO ESCARLATA        | 238 g          | COLORANTE (POLVO)    | 200 gr + 38 gr
+COL18| OXIDO DE HIERRO NARANJA MOLIBDEN NL   | 146 g          | PIGMENTO / OXIDO     | 146 gr
+COL19| COLORANTE ACIDO ROJO AMARANTO         | 91 g           | COLORANTE (POLVO)    | 91 gr
+COL20| OXIDO DE HIERRO MARRON 610 (PARDO)    | 254 g          | PIGMENTO / OXIDO     | 254 gr
+COL21| COLORANTE ACIDO NEGRO                 | 115 g          | COLORANTE (POLVO)    | 115 gr
+COL22| COLORANTE AMARILLO CLARO AL AGUA      | 114 g          | COLORANTE (LIQUIDO)  | 114 gr
+COL23| COLORANTE ACIDO ROJO (RODAMINA B)     | 112 g          | COLORANTE (POLVO)    | 112 gr
+COL24| COLORANTE ACIDO VIOLETA               | 88 g           | COLORANTE (POLVO)    | 88 gr
+COL25| COLORANTE ACIDO VERDE BRILLANTE       | 129 g          | COLORANTE (POLVO)    | 129 gr
+COL26| COLORANTE ACIDO NARANJA II            | 108 g          | COLORANTE (POLVO)    | 108 gr
+COL27| COLORANTE ACIDO AZUL                  | 495 g          | COLORANTE (POLVO)    | 495 gr
+COL28| COLORANTE ACIDO AMARILLO              | 209 g          | COLORANTE (POLVO)    | 209 gr
+COL29| COLORANTE ACIDO MARRON CROMO          | 258 g          | COLORANTE (POLVO)    | 258 gr
+COL30| COLORANTE A LA GRASA AZUL             | 14 g           | COLORANTE A LA GRASA | 14 gr
+COL31| COLORANTE A LA GRASA AMARILLO         | 36 g           | COLORANTE A LA GRASA | 36 gr
+COL32| COLORANTE A LA GRASA ROJO             | 103 g          | COLORANTE A LA GRASA | 103 gr
+COL33| COLORANTE A LA GRASA NARANJA          | 812 g          | COLORANTE A LA GRASA | 812 gr
+COL34| COLORANTE A LA GRASA NEGRO            | 100 g          | COLORANTE A LA GRASA | 100 gr
+COL35| COLORANTE B AMARILLO ORO              | 5,225 g        | COLORANTE (POLVO)    | 5.225 kg (5225 g)
+========================================================================================================================
+TOTAL INSUMOS EN LISTA 4 (COLORANTES Y PIGMENTOS): 35
+========================================================================================================================
+
+
+========================================================================================================================
+LISTA 5 (CONTEO ADICIONAL FINAL - HOJA 7 - TOMA 05/09/2026) — INSUMOS, DISPERSANTES Y BASES
+========================================================================================================================
+ITEM | PRODUCTO                              | STOCK FISICO   | CATEGORÍA / TIPO     | DETALLE CONTEO FISICO / NOTAS
+========================================================================================================================
+ADD01| VAINILLINA                            | 2,218 g        | POLVO                | 1992 g + 226 g
+ADD02| FRAGANCIA ALOE VERA                   | 383 g          | FRAGANCIA LIQUIDA    | 383 g
+ADD03| D-PANTENOL O PANTENOL                 | 13,385 g       | LIQUIDO              | 13385 g (13.385 kg)
+ADD04| ACEITE DE NEEM                        | 1,924 g        | LIQUIDO              | 1924 g
+ADD05| AGUA DESTILADA                        | 10,443 g       | LIQUIDO              | 10443 g (Pesaje adicional)
+ADD06| ESPESANTE ACRILICO                    | 4,594 g        | LIQUIDO              | 4594 g
+ADD07| DISPERSANTE NEGRO                     | 11,278 g       | LIQUIDO              | 7081 g + 4197 g
+ADD08| ARCILLA BLANCA                        | 23,660 g       | POLVO                | 23660 g (23.66 kg)
+ADD09| SILICONA EMULSIONADA                  | 1,600 g        | LIQUIDO              | 1600 g
+ADD10| DISPERSANTE BLANCO CONCENTRADO        | 5,000 g        | CREMA                | 5000 g (5.0 kg)
+ADD11| DISPERSANTE MORADO                    | 5,964 g        | CREMA                | 1867 g + 4097 g
+ADD12| CARBOPOL                              | 3,000 g        | POLVO                | 3000 g (3.0 kg)
+ADD13| BETAINA                               | 22,001 g       | LIQUIDO              | 6571 g + 15430 g (Adicional almacén)
+ADD14| GLICERINA                             | 3,210 g        | LIQUIDO              | 3210 g (Adicional almacén)
+========================================================================================================================
+TOTAL INSUMOS EN LISTA 5 (CONTEO ADICIONAL FINAL): 14
+========================================================================================================================
+
+========================================================================================================================
+RESUMEN GENERAL GLOBAL DE INVENTARIO FISICO QUIMICORP PERU S.A.C.:
+------------------------------------------------------------------------------------------------------------------------
+- LISTA 1 (CONSOLIDADO 6 HOJAS / PRINCIPAL)    : 102 INSUMOS
+- LISTA 2 (ALMACÉN GENERAL / COMPAÑERO)        : 53 INSUMOS
+- LISTA 3 (ESTANTES / LABORATORIO Y FRAGANCIAS): 121 INSUMOS
+- LISTA 4 (COLORANTES Y PIGMENTOS)             : 35 INSUMOS
+- LISTA 5 (CONTEO ADICIONAL FINAL - HOJA 7)    : 14 INSUMOS
+------------------------------------------------------------------------------------------------------------------------
+GRAN TOTAL DE REGISTROS DE CONTEO FÍSICO VALIDOS : 325 INSUMOS
+MASA TOTAL FÍSICA INVENTARIADA                   : 4,118,197.79 g (4,118.20 kg)
+INSUMOS / LOTES EXCLUIDOS POR VENCIMIENTO        : 10 REGISTROS
+========================================================================================================================

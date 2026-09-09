@@ -163,7 +163,7 @@ export class PedidosAdminService {
       } else {
         const nuevo = await db.cliente.create({
           data: {
-            razonSocial: dto.cliente || dto.clienteInline?.razonSocial || 'Cliente Comercial',
+            razonSocial: dto.cliente || dto.clienteInline?.razonSocial || 'Cliente General',
             ruc: targetRuc,
             telefono: dto.telefono || dto.clienteInline?.telefono || null,
             direccion: dto.direccion || dto.clienteInline?.direccion || null,
@@ -614,6 +614,86 @@ export class PedidosAdminService {
         motivoDevolucion,
       },
     });
+  }
+
+  // 5.2 Editar pedido/cotización (CRUD de administración)
+  async actualizarPedido(id: string, dto: any) {
+    const db = this.prisma as any;
+    const pedido = await db.pedidoComercial.findUnique({ where: { id } });
+    if (!pedido) {
+      throw new NotFoundException('Pedido no encontrado.');
+    }
+
+    const data: any = {};
+    const camposPermitidos: Record<string, string> = {
+      clienteNombre: 'clienteNombre',
+      clienteRuc: 'clienteRuc',
+      productoNombre: 'productoNombre',
+      cantidadSolicitada: 'cantidadSolicitada',
+      unidadMedida: 'unidadMedida',
+      montoTotal: 'montoTotal',
+      condicionPago: 'condicionPago',
+      fechaPrometida: 'fechaPrometida',
+      prioridad: 'prioridad',
+      estado: 'estado',
+      codigoOrden: 'codigoOrden',
+      tipoComprobante: 'tipoComprobante',
+      codigoRefAdmin: 'codigoRefAdmin',
+      aroma: 'aroma',
+      color: 'color',
+      aromaText: 'aromaText',
+      colorText: 'colorText',
+      notasAdmin: 'notasAdmin',
+      motivoDevolucion: 'motivoDevolucion',
+      direccionDespacho: 'direccionDespacho',
+      contactoNombre: 'contactoNombre',
+      contactoTelefono: 'contactoTelefono',
+      repComercial: 'repComercial',
+    };
+
+    for (const key of Object.keys(camposPermitidos)) {
+      if (dto[key] !== undefined) {
+        data[camposPermitidos[key]] = dto[key];
+      }
+    }
+
+    // Resolver formulaId seguro si viene por código FM-xxx o por id
+    if (dto.formulaId !== undefined) {
+      if (dto.formulaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.formulaId)) {
+        const exists = await this.prisma.formulaMaster.findUnique({ where: { id: dto.formulaId } }).catch(() => null);
+        if (exists) data.formulaId = exists.id;
+      } else if (typeof dto.formulaId === 'string') {
+        const matchCode = (dto.formulaId).match(/FM-\d+[\w-]*/i)?.[0];
+        if (matchCode) {
+          const found = await this.prisma.formulaMaster.findFirst({
+            where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
+          }).catch(() => null);
+          if (found && !data.formulaId) data.formulaId = found.id;
+        }
+      }
+    }
+
+    // Resolver clienteId seguro si viene RUC
+    if (dto.clienteId !== undefined || (dto.clienteRuc !== undefined && dto.clienteRuc)) {
+      if (dto.clienteId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.clienteId)) {
+        const c = await db.cliente.findUnique({ where: { id: dto.clienteId } }).catch(() => null);
+        if (c) data.clienteId = c.id;
+      } else if (dto.clienteRuc !== undefined) {
+        const existing = await db.cliente.findUnique({ where: { ruc: dto.clienteRuc } }).catch(() => null);
+        if (existing) data.clienteId = existing.id;
+      }
+    }
+
+    if (dto.fechaPrometida !== undefined && dto.fechaPrometida) {
+      const parsed = new Date(dto.fechaPrometida);
+      if (!isNaN(parsed.getTime())) data.fechaPrometida = parsed;
+    }
+
+    const actualizado = await db.pedidoComercial.update({
+      where: { id },
+      data,
+    });
+    return actualizado;
   }
 
   // 5.5 Convertir Cotización Comercial en Pedido de Producción (Aceptado por Cliente)

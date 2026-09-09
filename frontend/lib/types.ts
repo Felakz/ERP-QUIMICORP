@@ -32,6 +32,9 @@ export interface Insumo {
   stockMinimo: string;
   costoUnitario: string;
   estado: EstadoGenerico;
+  tipo?: string | null;
+  estadoFisico?: string | null;
+  esSoloFormula?: boolean;
 }
 
 export interface FormulaDetalle {

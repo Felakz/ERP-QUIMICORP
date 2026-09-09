@@ -13,6 +13,7 @@ interface TopCustomersListProps {
   includeIgv: boolean;
   currency: CurrencyType;
   exchangeRateUsd: number;
+  loading?: boolean;
 }
 
 export const TopCustomersList: React.FC<TopCustomersListProps> = ({
@@ -20,6 +21,7 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
   includeIgv,
   currency,
   exchangeRateUsd,
+  loading = false,
 }) => {
   const router = useRouter();
   const { theme } = useTheme();
@@ -28,6 +30,34 @@ export const TopCustomersList: React.FC<TopCustomersListProps> = ({
   const cardBg = isDark
     ? 'bg-[#0F141C] border-[#1A2232] shadow-[0_0_20px_rgba(0,242,195,0.03)]'
     : 'bg-white border-slate-200 shadow-sm';
+
+  if (loading && (!customers || customers.length === 0)) {
+    return (
+      <div className={`p-6 rounded-2xl border ${cardBg} h-full flex flex-col justify-between space-y-4`}>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="h-5 w-40 bg-slate-800/60 rounded-md animate-pulse" />
+            <div className="h-3 w-56 bg-slate-800/40 rounded-md animate-pulse" />
+          </div>
+          <div className="h-5 w-20 bg-slate-800/40 rounded-full animate-pulse" />
+        </div>
+        <div className="space-y-3 flex-1">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="p-3 rounded-xl border border-slate-800/40 bg-slate-900/30 flex items-center justify-between gap-3 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-800/70" />
+                <div className="space-y-1.5">
+                  <div className="h-3.5 w-32 bg-slate-800/70 rounded" />
+                  <div className="h-2.5 w-24 bg-slate-800/40 rounded" />
+                </div>
+              </div>
+              <div className="h-4 w-16 bg-slate-800/60 rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`p-6 rounded-2xl border ${cardBg} h-full flex flex-col justify-between space-y-4`}>

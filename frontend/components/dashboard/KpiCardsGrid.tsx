@@ -17,11 +17,14 @@ import { CurrencyType, KpiItem } from '@/types/dashboard';
 import { formatCurrency } from '@/lib/dashboardFormatters';
 import { ROUTES } from '@/config/routes';
 
+import { EnterpriseKpiCard, KpiVariant } from '@/components/ui/EnterpriseKpiCard';
+
 interface KpiCardsGridProps {
   kpis: KpiItem[];
   includeIgv: boolean;
   currency: CurrencyType;
   exchangeRateUsd: number;
+  loading?: boolean;
 }
 
 export const KpiCardsGrid: React.FC<KpiCardsGridProps> = ({
@@ -29,10 +32,22 @@ export const KpiCardsGrid: React.FC<KpiCardsGridProps> = ({
   includeIgv,
   currency,
   exchangeRateUsd,
+  loading = false,
 }) => {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+
+  if (loading && (!kpis || kpis.length === 0)) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <EnterpriseKpiCard title="Facturación Bruta" value="" icon={DollarSign} loading={true} />
+        <EnterpriseKpiCard title="Pedidos en Proceso" value="" icon={TrendingUp} loading={true} />
+        <EnterpriseKpiCard title="Cobranzas Pendientes" value="" icon={Wallet} loading={true} />
+        <EnterpriseKpiCard title="Alertas de Stock" value="" icon={AlertTriangle} loading={true} />
+      </div>
+    );
+  }
 
   const getKpiRoute = (id: string, iconName: string) => {
     switch (iconName) {

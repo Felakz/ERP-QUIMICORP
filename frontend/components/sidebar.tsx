@@ -15,6 +15,7 @@ import {
   AlertOctagon,
   Scale,
   FileSpreadsheet,
+  BookOpen,
 } from 'lucide-react';
 
 export interface SidebarSubItem {
@@ -162,6 +163,16 @@ export const adminSidebarItems: SidebarSection[] = [
         icon: FileSpreadsheet,
         href: '/administracion/reportes',
         restrictedForAsistente: true,
+      },
+    ],
+  },
+  {
+    category: '8. CAPACITACIÓN Y AYUDA',
+    items: [
+      {
+        label: 'Manual Interactivo',
+        icon: BookOpen,
+        href: '/administracion/manual',
       },
     ],
   },

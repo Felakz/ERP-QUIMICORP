@@ -4,6 +4,7 @@ import { RegistrarMarcacionDto, VincularUsuarioDto } from './dto/marcacion.dto';
 
 const TIPO_SALIDA_ALMUERZO = 'SALIDA_ALMUERZO';
 const TIPO_RETORNO_ALMUERZO = 'RETORNO_ALMUERZO';
+const NOMBRE_TURNO_SABADO = 'SABADO';
 
 @Injectable()
 export class AsistenciaService {
@@ -19,6 +20,35 @@ export class AsistenciaService {
     if (!h || !h.includes(':')) return 0;
     const [hh, mm] = h.split(':').map((n) => parseInt(n, 10) || 0);
     return hh * 60 + mm;
+  }
+
+  private esSabado(d: Date): boolean {
+    return d.getDay() === 6;
+  }
+
+  /**
+   * Turno efectivo para una fecha: de lunes a viernes usa el turno del empleado;
+   * los sábados aplica automáticamente el turno configurado como "SABADO"
+   * (p.ej. 08:00 - 13:00, sin almuerzo) para las marcas que lleguen del huellero.
+   */
+  private async turnoEfectivo(
+    turno: { id: string; horaInicio: string; horaFin: string; toleranciaMinutos: number; almuerzoTope: string } | null,
+    fecha: Date,
+  ) {
+    if (!turno) return null;
+    if (this.esSabado(fecha)) {
+      const sabado = await this.prisma.turno.findUnique({ where: { nombre: NOMBRE_TURNO_SABADO } });
+      if (sabado) {
+        return {
+          id: sabado.id,
+          horaInicio: sabado.horaInicio,
+          horaFin: sabado.horaFin,
+          toleranciaMinutos: sabado.toleranciaMinutos,
+          almuerzoTope: sabado.almuerzoTope,
+        };
+      }
+    }
+    return turno;
   }
 
   /**
@@ -82,7 +112,8 @@ export class AsistenciaService {
     ts: Date,
   ) {
     const hm = this.toHm(ts);
-    const turnoId = usuario.turno?.id ?? null;
+    const turno = await this.turnoEfectivo(usuario.turno, fecha);
+    const turnoId = turno?.id ?? null;
     const base = {
       turnoId,
       fecha,
@@ -104,8 +135,8 @@ export class AsistenciaService {
 
     if (tipo === 'ENTRADA') {
       update.horaEntrada = asistencia.horaEntrada ?? hm;
-      if (!asistencia.horaEntrada && usuario.turno) {
-        const inicio = this.minutosDeHora(usuario.turno.horaInicio) + (usuario.turno.toleranciaMinutos || 0);
+      if (!asistencia.horaEntrada && turno) {
+        const inicio = this.minutosDeHora(turno.horaInicio) + (turno.toleranciaMinutos || 0);
         const llegada = this.minutosDeHora(hm);
         update.minutosTardanza = llegada > inicio ? llegada - inicio : 0;
         update.estadoAsistencia = update.minutosTardanza > 0 ? 'TARDANZA' : 'PUNTUAL';
@@ -113,8 +144,8 @@ export class AsistenciaService {
     } else if (tipo === TIPO_SALIDA_ALMUERZO) {
       update.estadoAlmuerzo = 'EN_ALMUERZO';
     } else if (tipo === TIPO_RETORNO_ALMUERZO) {
-      if (usuario.turno) {
-        const tope = this.minutosDeHora(usuario.turno.almuerzoTope || '14:00');
+      if (turno) {
+        const tope = this.minutosDeHora(turno.almuerzoTope || '14:00');
         const retorno = this.minutosDeHora(hm);
         update.estadoAlmuerzo = retorno > tope ? 'EXCEDIDO' : 'COMPLETO';
       } else {
@@ -122,7 +153,7 @@ export class AsistenciaService {
       }
     } else if (tipo === 'SALIDA') {
       update.horaSalida = hm;
-      if (asistencia.horaEntrada && usuario.turno) {
+      if (asistencia.horaEntrada && turno) {
         const ent = this.minutosDeHora(asistencia.horaEntrada);
         const sal = this.minutosDeHora(hm);
         const horas = Math.max(0, (sal - ent) / 60);
@@ -151,6 +182,8 @@ export class AsistenciaService {
 
     for (const a of yaCobradas) {
       if (!a.usuario.turno) continue;
+      // Los sábados (turno corto 08:00 - 13:00) no aplica almuerzo obligatorio
+      if (this.esSabado(a.fecha)) continue;
       if (esHoy && ahora.getHours() * 60 + ahora.getMinutes() >= topeHoy) {
         await this.prisma.asistencia.update({
           where: { id: a.id },
@@ -167,14 +200,24 @@ export class AsistenciaService {
   }
 
   /** Vista diaria de todos los empleados (para el panel de biometría de Administración). */
-  async obtenerAsistenciaHoy(fechaInput?: string) {
+  async obtenerAsistenciaHoy(fechaInput?: string, area?: string) {
     const fecha = fechaInput ? new Date(fechaInput + 'T00:00:00') : new Date();
     fecha.setHours(0, 0, 0, 0);
 
     await this.aplicarReglaAlmuerzo(fecha);
 
+    const turnoSabado = this.esSabado(fecha)
+      ? await this.prisma.turno.findUnique({ where: { nombre: NOMBRE_TURNO_SABADO } })
+      : null;
+
+    // Excluye al usuario de sistema (importación) y, con area=planta, solo al personal de producción
+    const where: any = { estado: 'ACTIVO', dni: { not: '70000000' } };
+    if (area === 'planta') {
+      where.rol = { nombre: 'PRODUCCION_ALMACEN' };
+    }
+
     const usuarios = await this.prisma.usuario.findMany({
-      where: { estado: 'ACTIVO' },
+      where,
       include: {
         turno: true,
         sucursal: true,
@@ -192,7 +235,9 @@ export class AsistenciaService {
     return usuarios.map((u) => {
       const a = u.asistencias[0];
       const turnoTexto = u.turno
-        ? `${u.turno.nombre} (${u.turno.horaInicio} - ${u.turno.horaFin})`
+        ? turnoSabado
+          ? `${turnoSabado.nombre} (${turnoSabado.horaInicio} - ${turnoSabado.horaFin})`
+          : `${u.turno.nombre} (${u.turno.horaInicio} - ${u.turno.horaFin})`
         : 'Sin turno asignado';
       const tieneTurnoHoy = !!u.turno;
       const sinMarcar = !a;

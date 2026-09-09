@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
-import { ROLES_KEY } from '../decorators/roles.decorator';
+import { ROLES_KEY, ROLES_EXCLUDED_KEY } from '../decorators/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -20,6 +20,15 @@ export class RolesGuard implements CanActivate {
     const { user } = context.switchToHttp().getRequest();
     if (!user || !user.role) {
       throw new ForbiddenException('Acceso denegado: Usuario no autenticado');
+    }
+
+    // Exclusión explícita de roles para endpoints sensibles (p.ej. emisión de comprobantes)
+    const excludedRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_EXCLUDED_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (excludedRoles?.includes(user.role as Role)) {
+      throw new ForbiddenException(`Acceso denegado: El rol ${user.role} está excluido de esta ruta`);
     }
 
     // Mapeo jerárquico de permisos de administración

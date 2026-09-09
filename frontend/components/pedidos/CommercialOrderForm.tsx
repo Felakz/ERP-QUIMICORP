@@ -275,6 +275,10 @@ export function CommercialOrderForm({
 
   // Submit Order / Quotation
   const handleSubmit = async (bypassStockCheck = false) => {
+    if (!clientSearchQuery.trim()) {
+      setToastMessage('⚠️ Ingrese o seleccione la Razón Social o Nombre del cliente.');
+      return;
+    }
     setIsSaving(true);
     try {
       const mainItem = items[0];
@@ -282,14 +286,14 @@ export function CommercialOrderForm({
         mode,
         clienteId: selectedClient?.id || null,
         clienteInline: {
-          razonSocial: clientSearchQuery.trim() || 'Cliente Comercial',
-          ruc: clientRuc.trim() || '20600000001',
+          razonSocial: clientSearchQuery.trim(),
+          ruc: clientRuc.trim() || '00000000',
           telefono: telefono.trim() || undefined,
           direccion: direccion.trim() || undefined,
           condicionPago,
         },
         cliente: clientSearchQuery.trim(),
-        ruc: clientRuc.trim(),
+        ruc: clientRuc.trim() || '00000000',
         contacto: contacto.trim() || undefined,
         telefono: telefono.trim() || undefined,
         direccion: direccion.trim() || undefined,

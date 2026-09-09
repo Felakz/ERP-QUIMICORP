@@ -21,6 +21,7 @@ interface CompactMetricsCardsProps {
   includeIgv: boolean;
   currency: CurrencyType;
   exchangeRateUsd: number;
+  loading?: boolean;
 }
 
 export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
@@ -28,10 +29,37 @@ export const CompactMetricsCards: React.FC<CompactMetricsCardsProps> = ({
   includeIgv,
   currency,
   exchangeRateUsd,
+  loading = false,
 }) => {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+
+  if (loading && (!metrics || metrics.length === 0)) {
+    return (
+      <div className="grid grid-cols-2 gap-4 h-full">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className={`p-4 rounded-2xl border flex flex-col justify-between animate-pulse ${
+              isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-slate-800/70" />
+            </div>
+            <div className="mt-4 space-y-2">
+              <div className="h-6 w-24 bg-slate-800/80 rounded" />
+              <div className="h-3 w-20 bg-slate-800/50 rounded" />
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-800/40 flex justify-between">
+              <div className="h-3 w-16 bg-slate-800/40 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const getTargetRoute = (type: string) => {
     switch (type) {

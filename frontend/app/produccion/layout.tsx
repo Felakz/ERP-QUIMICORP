@@ -17,6 +17,7 @@ import {
   Sliders,
   Clock,
   LogOut,
+  BookOpen,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -60,6 +61,12 @@ const PRODUCCION_PLANTA_SECTIONS: NavSection[] = [
     title: 'PERSONAL DE PLANTA',
     items: [
       { href: '/produccion/biometria', label: 'Biometría & Turnos', icon: Clock },
+    ],
+  },
+  {
+    title: 'CAPACITACIÓN & SOPORTE',
+    items: [
+      { href: '/produccion/manual', label: 'Manual del Operario', icon: BookOpen },
     ],
   },
 ];

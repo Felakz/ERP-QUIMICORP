@@ -1,6 +1,14 @@
 export type CurrencyType = 'PEN' | 'USD';
 
-export type DateRangeType = 'HOY' | 'AYER' | 'ULTIMOS_7' | 'MES_ACTUAL';
+export type DateRangeType =
+  | 'HOY'
+  | 'AYER'
+  | 'ULTIMOS_7'
+  | 'ULTIMOS_30'
+  | 'MES_ACTUAL'
+  | 'MES_ANTERIOR'
+  | 'ESTE_ANO'
+  | 'CUSTOM';
 
 export type CommercialDocType = 'TODOS' | 'COTIZACION' | 'FACTURA' | 'NOTA_VENTA';
 

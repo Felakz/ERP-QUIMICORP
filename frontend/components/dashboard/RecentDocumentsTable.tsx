@@ -8,11 +8,15 @@ import { CommercialDocType, CommercialDocument, CurrencyType } from '@/types/das
 import { formatCurrency } from '@/lib/dashboardFormatters';
 import { ROUTES } from '@/config/routes';
 
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { ActionableEmptyState } from '@/components/ui/ActionableEmptyState';
+
 interface RecentDocumentsTableProps {
   documents: CommercialDocument[];
   includeIgv: boolean;
   currency: CurrencyType;
   exchangeRateUsd: number;
+  loading?: boolean;
 }
 
 export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
@@ -20,12 +24,17 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
   includeIgv,
   currency,
   exchangeRateUsd,
+  loading = false,
 }) => {
   const router = useRouter();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
   const [activeTab, setActiveTab] = useState<CommercialDocType>('TODOS');
+
+  if (loading && (!documents || documents.length === 0)) {
+    return <TableSkeleton rows={5} cols={6} />;
+  }
 
   const cardBg = isDark
     ? 'bg-[#0F141C] border-[#1A2232] shadow-[0_0_20px_rgba(0,242,195,0.03)]'
@@ -50,10 +59,34 @@ export const RecentDocumentsTable: React.FC<RecentDocumentsTableProps> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> Pendiente
           </span>
         );
-      default:
+      case 'APROBADO':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1.5 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Aprobado
+          </span>
+        );
+      case 'EN_PROCESO':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-400 border border-blue-500/30 inline-flex items-center gap-1.5 shadow-[0_0_8px_rgba(59,130,246,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" /> En Proceso
+          </span>
+        );
+      case 'VENCIDO':
         return (
           <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5 shadow-[0_0_8px_rgba(244,63,94,0.2)]">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> Vencido
+          </span>
+        );
+      case 'RECHAZADO':
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-500/15 text-rose-400 border border-rose-500/30 inline-flex items-center gap-1.5 shadow-[0_0_8px_rgba(244,63,94,0.2)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> Rechazado
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-slate-500/15 text-slate-400 border border-slate-500/30 inline-flex items-center gap-1.5">
+            {status || 'Sin Estado'}
           </span>
         );
     }

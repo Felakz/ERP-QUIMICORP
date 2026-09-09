@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Search,
@@ -16,11 +16,16 @@ import {
   Building2,
   RefreshCw,
   Sparkles,
-  DollarSign,
-  TrendingUp,
+  Info,
+  Beaker,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useTheme } from '@/lib/ThemeContext';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { ActionableEmptyState } from '@/components/ui/ActionableEmptyState';
 
 export type CategoriaKardexTab =
   | 'PRODUCTO_TERMINADO'
@@ -46,58 +51,189 @@ interface KardexMovimientoUI {
   cantidadEntrada: number;
   cantidadSalida: number;
   saldoFinal: number;
-  costoUnitarioPen?: number;
-  valorTotalPen?: number;
-  montoEntradaPen?: number;
-  montoSalidaPen?: number;
-  montoSaldoPen?: number;
 }
 
-const categoriesConfig: {
-  id: CategoriaKardexTab;
-  label: string;
-  description: string;
-  icon: any;
-  badgeColor: string;
-}[] = [
-  {
-    id: 'PRODUCTO_TERMINADO',
-    label: 'Productos Terminados',
-    description: 'Detergentes, Cloros, Lavavajillas, Quitamanchas formulados en planta.',
-    icon: Sparkles,
-    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-  },
-  {
-    id: 'MATERIA_PRIMA',
-    label: 'Materia Prima Base',
-    description: 'Bases químicas pesadas (Texapon, LABSA, Soda Cáustica, Hipoclorito).',
-    icon: Layers,
-    badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  },
-  {
-    id: 'INSUMO',
-    label: 'Insumos & Fragancias',
-    description: 'Fragancias finas, colorantes, conservantes y espesantes.',
-    icon: Package,
-    badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
-  },
-  {
-    id: 'ENVASE',
-    label: 'Envases & Botellas',
-    description: 'Galoneras 4L, Bidones 20L, Botellas 1L y tapas precinto.',
-    icon: Box,
-    badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  },
-  {
-    id: 'EMBALAJE',
-    label: 'Embalaje & Empaque',
-    description: 'Cajas de cartón corrugado, precintos termoencogibles y etiquetas.',
-    icon: Truck,
-    badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
-  },
-];
+interface InsumoDetalleBOM {
+  id: string;
+  insumoId: string;
+  porcentaje: number;
+  pesoMasaTeorico: number;
+  insumo: {
+    nombre: string;
+    unidadMedida: string;
+    costoUnitario?: number;
+    familia?: { nombre: string };
+  };
+}
 
-const ITEMS_PER_PAGE = 25;
+interface FormulaBOM {
+  id: string;
+  codigoFormula: string;
+  nombreProducto: string;
+  densidadTeorica: number;
+  estado: string;
+  detalles: InsumoDetalleBOM[];
+}
+
+function BOMModal({
+  productoNombre,
+  isOpen,
+  onClose,
+  isDark,
+}: {
+  productoNombre: string;
+  isOpen: boolean;
+  onClose: () => void;
+  isDark: boolean;
+}) {
+  const [bom, setBom] = useState<FormulaBOM | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isOpen || !productoNombre) return;
+    let isMounted = true;
+    setLoading(true);
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+    const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+
+    fetch(`http://localhost:3001/api/v1/kardex/bom?nombre=${encodeURIComponent(productoNombre)}`, {
+      headers: authHeader,
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted) {
+          setBom(data || null);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, productoNombre]);
+
+  if (!isOpen) return null;
+
+  const sumaPorcentajes = bom?.detalles?.reduce((acc, d) => acc + Number(d.porcentaje || 0), 0) || 0;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div
+        className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-4 font-sans ${
+          isDark ? 'bg-[#0F141C] border-purple-500/30 text-white' : 'bg-white border-purple-200 text-slate-900'
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-purple-500/20 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+              <Beaker className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold flex items-center gap-2">
+                <span>Fórmula BOM de Insumos</span>
+                <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  {bom?.codigoFormula || 'FÓRMULA'}
+                </span>
+              </h3>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                Composición de materias primas para <span className="font-semibold text-purple-400">{productoNombre}</span>
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`p-1.5 rounded-lg border transition-all ${
+              isDark ? 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-100'
+            }`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs font-mono text-purple-400">
+            <RefreshCw className="w-6 h-6 animate-spin" />
+            <span>Consultando Fórmula Maestra en PostgreSQL...</span>
+          </div>
+        ) : !bom || !bom.detalles || bom.detalles.length === 0 ? (
+          <div className="py-10 text-center space-y-1">
+            <p className="text-sm font-bold text-slate-400">No hay fórmula maestra asignada</p>
+            <p className="text-xs text-slate-500 font-mono">
+              No se encontró una fórmula activa configurada para este producto en la base de datos.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3 font-mono">
+            <div className={`p-3 rounded-xl border text-xs flex flex-wrap justify-between gap-2 ${
+              isDark ? 'bg-purple-950/20 border-purple-500/20 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-900'
+            }`}>
+              <span>Densidad Teórica: <strong>{Number(bom.densidadTeorica || 1).toFixed(3)} g/mL</strong></span>
+              <span>Estado: <strong className="text-emerald-400">{bom.estado}</strong></span>
+              <span>Componentes: <strong>{bom.detalles.length} Insumos</strong></span>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-purple-500/20">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className={isDark ? 'bg-[#151D2A] text-slate-400' : 'bg-slate-100 text-slate-600'}>
+                    <th className="py-2.5 px-3">INSUMO / MATERIA PRIMA</th>
+                    <th className="py-2.5 px-3">FAMILIA</th>
+                    <th className="py-2.5 px-3 text-center">UNIDAD</th>
+                    <th className="py-2.5 px-3 text-right">% COMPOSICIÓN</th>
+                    <th className="py-2.5 px-3 text-right">MASA TEÓRICA</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+                  {bom.detalles.map((d) => (
+                    <tr key={d.id} className={isDark ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}>
+                      <td className={`py-2.5 px-3 font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                        {d.insumo?.nombre || 'Insumo'}
+                      </td>
+                      <td className="py-2.5 px-3 text-[11px] text-slate-400">
+                        {d.insumo?.familia?.nombre || 'GENERAL'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center text-slate-400">
+                        {d.insumo?.unidadMedida || 'KG'}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-bold text-purple-400">
+                        {Number(d.porcentaje).toFixed(2)} %
+                      </td>
+                      <td className={`py-2.5 px-3 text-right ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {Number(d.pesoMasaTeorico).toFixed(3)} {d.insumo?.unidadMedida || 'KG'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className={`font-bold border-t ${isDark ? 'bg-[#151D2A] text-purple-300' : 'bg-purple-50 text-purple-950'}`}>
+                    <td colSpan={3} className="py-2.5 px-3 text-right uppercase text-[10px]">
+                      Suma Total Composición:
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-emerald-400 font-black">
+                      {sumaPorcentajes.toFixed(2)} %
+                    </td>
+                    <td className="py-2.5 px-3 text-right">100.00 %</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-lg shadow-purple-600/20"
+          >
+            Cerrar Modal
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdministracionInventarioKardexPage() {
   const { theme } = useTheme();
@@ -105,133 +241,160 @@ export default function AdministracionInventarioKardexPage() {
 
   const [activeTab, setActiveTab] = useState<CategoriaKardexTab>('PRODUCTO_TERMINADO');
   const [searchQuery, setSearchQuery] = useState('');
-  const [tipoOperacionFiltro, setTipoOperacionFiltro] = useState<'TODOS' | 'ENTRADAS' | 'SALIDAS'>('TODOS');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [tipoOperacionFiltro, setTipoOperacionFiltro] = useState<string>('TODAS');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [movimientos, setMovimientos] = useState<KardexMovimientoUI[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Modal BOM de Fórmulas
+  const [bomModalProducto, setBomModalProducto] = useState<string | null>(null);
+
+  const [unidad, setUnidad] = useState<'GR' | 'KG'>('GR');
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
-  const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
+  const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
   const inputBg = isDark
-    ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500 focus:border-[#00F2C3]'
-    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-blue-500';
+    ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500'
+    : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400';
+
+  const fetchKardexData = async () => {
+    setLoading(true);
+    let apiData: KardexMovimientoUI[] = [];
+    try {
+      let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
+      if (!savedToken || savedToken.startsWith('jwt_mock')) {
+        savedToken = null;
+      }
+
+      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+
+      const queryParams = new URLSearchParams();
+      queryParams.append('categoria', activeTab);
+      if (searchQuery) queryParams.append('search', searchQuery);
+      if (tipoOperacionFiltro !== 'TODAS') queryParams.append('tipoOperacion', tipoOperacionFiltro);
+      if (fechaDesde) queryParams.append('desde', fechaDesde);
+      if (fechaHasta) queryParams.append('hasta', fechaHasta);
+
+      const res = await fetch(`http://localhost:3001/api/v1/kardex/categorizado?${queryParams.toString()}`, {
+        headers: authHeader,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json)) {
+          apiData = json;
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching kardex endpoint (administracion):', error);
+    }
+
+    setMovimientos(apiData || []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    let activo = true;
-    (async () => {
-      setLoading(true);
-      let apiData: KardexMovimientoUI[] = [];
-      try {
-        let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-        if (!savedToken || savedToken.startsWith('jwt_mock')) savedToken = null;
-        const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
-
-        const queryParams = new URLSearchParams();
-        queryParams.append('categoria', activeTab);
-        if (searchQuery.trim()) queryParams.append('search', searchQuery);
-        if (tipoOperacionFiltro !== 'TODOS') queryParams.append('tipoOperacion', tipoOperacionFiltro);
-        queryParams.append('take', '500');
-
-        const res = await fetch(`http://localhost:3001/api/v1/kardex/categorizado?${queryParams.toString()}`, {
-          headers: authHeader,
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (Array.isArray(json)) {
-            apiData = json.map((k: any) => ({
-              id: k.id,
-              categoriaKardex: k.categoriaKardex as CategoriaKardexTab,
-              productoNombre: k.productoNombre,
-              familia: k.familia,
-              categoriaNombre: k.categoriaNombre,
-              proveedorCliente: k.proveedorCliente,
-              unidadMedida: k.unidadMedida,
-              fecha: k.fecha,
-              tipoDoc: k.tipoDoc,
-              serie: k.serie,
-              numero: k.numero,
-              otp: k.otp,
-              tipoOperacion: k.tipoOperacion,
-              cantidadEntrada: Number(k.cantidadEntrada) || 0,
-              cantidadSalida: Number(k.cantidadSalida) || 0,
-              saldoFinal: Number(k.saldoFinal) || 0,
-              costoUnitarioPen: Number(k.costoUnitario) || 0,
-              montoEntradaPen: Number(k.montoEntradaPen) || 0,
-              montoSalidaPen: Number(k.montoSalidaPen) || 0,
-              montoSaldoPen: Number(k.montoSaldoPen) || 0,
-            }));
-          }
-        }
-      } catch (error) {
-        console.log('Error fetching kardex endpoint (admin):', error);
-      }
-      if (activo) {
-        setMovimientos(apiData || []);
-        setLoading(false);
-      }
-    })();
+    fetchKardexData();
+    window.addEventListener('storage', fetchKardexData);
     return () => {
-      activo = false;
+      window.removeEventListener('storage', fetchKardexData);
     };
-  }, [activeTab, searchQuery, tipoOperacionFiltro]);
+  }, [activeTab, searchQuery, tipoOperacionFiltro, fechaDesde, fechaHasta]);
 
-  const filteredMovimientos = useMemo(() => {
-    return movimientos.filter((m) => {
-      if (activeTab && m.categoriaKardex !== activeTab) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchName = m.productoNombre.toLowerCase().includes(q);
-        const matchProv = (m.proveedorCliente || '').toLowerCase().includes(q);
-        const matchFam = (m.familia || '').toLowerCase().includes(q);
-        const matchDoc = `${m.tipoDoc}-${m.serie}-${m.numero}`.toLowerCase().includes(q);
-        if (!matchName && !matchProv && !matchFam && !matchDoc) return false;
-      }
-      if (tipoOperacionFiltro === 'ENTRADAS' && m.cantidadEntrada <= 0) return false;
-      if (tipoOperacionFiltro === 'SALIDAS' && m.cantidadSalida <= 0) return false;
-      return true;
-    });
-  }, [movimientos, activeTab, searchQuery, tipoOperacionFiltro]);
+  const categoriesConfig: {
+    id: CategoriaKardexTab;
+    label: string;
+    description: string;
+    icon: React.ElementType;
+    badgeColor: string;
+  }[] = [
+    {
+      id: 'PRODUCTO_TERMINADO',
+      label: 'Producto Terminado',
+      description: 'Detergentes, Resinas, Desinfectantes envasados para venta',
+      icon: Package,
+      badgeColor: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10',
+    },
+    {
+      id: 'MATERIA_PRIMA',
+      label: 'Materia Prima',
+      description: 'Ácido Oleico, Soda Cáustica, Ácido Sulfúrico, Reactivos',
+      icon: Layers,
+      badgeColor: 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10',
+    },
+    {
+      id: 'INSUMO',
+      label: 'Insumos',
+      description: 'LESS 70%, Fragancias, Tensioactivos, Preservantes',
+      icon: RefreshCw,
+      badgeColor: 'border-purple-500/40 text-purple-400 bg-purple-500/10',
+    },
+    {
+      id: 'ENVASE',
+      label: 'Envases',
+      description: 'Bidones PEAD, Galones, Frascos plásticos y cilindros',
+      icon: Box,
+      badgeColor: 'border-amber-500/40 text-amber-400 bg-amber-500/10',
+    },
+    {
+      id: 'EMBALAJE',
+      label: 'Embalajes',
+      description: 'Parihuelas de madera, Cajas de cartón, Cintas',
+      icon: Truck,
+      badgeColor: 'border-blue-500/40 text-blue-400 bg-blue-500/10',
+    },
+  ];
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 60;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, tipoOperacionFiltro, fechaDesde, fechaHasta]);
+
+  const filteredMovimientos = movimientos.filter((m) => {
+    if (activeTab && m.categoriaKardex !== activeTab) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchName = m.productoNombre.toLowerCase().includes(q);
+      const matchProv = (m.proveedorCliente || '').toLowerCase().includes(q);
+      const matchFam = (m.familia || '').toLowerCase().includes(q);
+      const matchDoc = `${m.tipoDoc}-${m.serie}-${m.numero}`.toLowerCase().includes(q);
+      const matchOtp = (m.otp || '').toLowerCase().includes(q);
+      if (!matchName && !matchProv && !matchDoc && !matchOtp && !matchFam) return false;
+    }
+    if (tipoOperacionFiltro === 'ENTRADAS' && Number(m.cantidadEntrada) <= 0) return false;
+    if (tipoOperacionFiltro === 'SALIDAS' && Number(m.cantidadSalida) <= 0) return false;
+    return true;
+  });
 
   const totalPages = Math.ceil(filteredMovimientos.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedMovimientos = filteredMovimientos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // KPIs
-  const totalEntradas = useMemo(
-    () => filteredMovimientos.reduce((acc, m) => acc + m.cantidadEntrada, 0),
-    [filteredMovimientos]
-  );
-  const totalSalidas = useMemo(
-    () => filteredMovimientos.reduce((acc, m) => acc + m.cantidadSalida, 0),
-    [filteredMovimientos]
-  );
-  const saldoMap = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredMovimientos.forEach((m) => {
-      map.set(m.productoNombre, m.saldoFinal);
-    });
-    return map;
-  }, [filteredMovimientos]);
-  const totalSaldoAcumulado = useMemo(
-    () => Array.from(saldoMap.values()).reduce((acc, v) => acc + v, 0),
-    [saldoMap]
-  );
+  const totalEntradas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadEntrada || 0), 0);
+  const totalSalidas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadSalida || 0), 0);
+
+  const formatearPeso = (n: number): string =>
+    unidad === 'KG'
+      ? (n / 1000).toLocaleString('es-PE', { minimumFractionDigits: 2 })
+      : Math.round(n).toLocaleString('es-PE');
 
   const handleExportExcel = () => {
     const rows = filteredMovimientos.map((m) => ({
       Categoria: m.categoriaKardex,
-      Fecha: m.fecha,
-      Producto: m.productoNombre,
-      Familia: m.familia,
+      Fecha: new Date(m.fecha).toLocaleDateString('es-PE'),
+      Documento: `${m.tipoDoc || ''} ${m.serie ? m.serie + '-' : ''}${m.numero || 'INV'}`.trim(),
+      OTP_Lote: m.otp || '—',
       Operacion: m.tipoOperacion,
-      Documento: `${m.tipoDoc} ${m.serie}-${m.numero}`.trim(),
-      OTP_Lote: m.otp,
-      Proveedor_Cliente: m.proveedorCliente,
-      Entrada: m.cantidadEntrada,
-      Salida: m.cantidadSalida,
-      Saldo_Final: m.saldoFinal,
+      Familia: m.familia || '—',
+      Producto_Insumo: m.productoNombre,
+      Proveedor_Cliente: m.proveedorCliente || 'PROVEEDOR QUIMICORP',
       Unidad: m.unidadMedida,
+      Entrada: Number(m.cantidadEntrada) || 0,
+      Salida: Number(m.cantidadSalida) || 0,
+      Saldo_Final: Number(m.saldoFinal) || 0,
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -247,35 +410,35 @@ export default function AdministracionInventarioKardexPage() {
         className={`rounded-2xl p-5 border flex flex-wrap items-center justify-between gap-4 transition-all shadow-sm ${cardBg}`}
       >
         <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-[#00F2C3] shadow-[0_0_15px_rgba(0,242,195,0.15)]">
+          <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-[#00F2C3] shadow-[0_0_12px_rgba(0,242,195,0.2)]">
             <FileText className="w-6 h-6" />
           </div>
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className={`text-lg font-black font-sans tracking-tight ${textValue}`}>
-                Kardex de Inventario Inmutable & Valorizado
+                Kardex de Inventario Inmutable
               </h2>
-              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider font-mono bg-cyan-500/10 border border-cyan-500/30 text-[#00F2C3] uppercase">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00F2C3] animate-pulse" />
-                AUDITADO SUNAT & PLANTA
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-cyan-500/10 border border-cyan-500/30 text-[#00F2C3] uppercase flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 led-pulse" />
+                SINCRONIZADO POSTGRES & EXCEL
               </span>
             </div>
             <p className="text-xs text-slate-400 font-sans mt-0.5">
-              Registro histórico oficial Quimicorp: Stock Inicial, Entradas, Salidas y Saldos por Categorías.
+              Control gerencial oficial: Stock Inicial, Entradas, Salidas y Saldos categorizados.
             </p>
           </div>
         </div>
 
         <button
           onClick={handleExportExcel}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black font-sans text-xs tracking-wider uppercase transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black font-sans text-xs tracking-wider uppercase transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 card-hover-lift active:scale-95"
         >
           <Download className="w-4 h-4" />
-          <span>Exportar .XLSX</span>
+          <span>Exportar a Excel Oficial</span>
         </button>
       </div>
 
-      {/* 2. 5 Tarjetas Horizontales de Categorías */}
+      {/* 2. Cinco Tarjetas Horizontales de Categorías */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {categoriesConfig.map((cat) => {
           const isSelected = activeTab === cat.id;
@@ -283,10 +446,7 @@ export default function AdministracionInventarioKardexPage() {
           return (
             <button
               key={cat.id}
-              onClick={() => {
-                setActiveTab(cat.id);
-                setCurrentPage(1);
-              }}
+              onClick={() => setActiveTab(cat.id)}
               className={`rounded-2xl p-4 border text-left transition-all duration-200 flex flex-col justify-between gap-3 group relative overflow-hidden card-hover-lift ${
                 isSelected
                   ? isDark
@@ -327,209 +487,383 @@ export default function AdministracionInventarioKardexPage() {
         })}
       </div>
 
-      {/* 3. 3 Tarjetas KPI Principales */}
+      {/* 3. Tarjetas KPI Principales */}
+      <div className="flex items-center justify-end mb-3">
+        <div className={`inline-flex rounded-xl border p-0.5 ${isDark ? 'border-slate-700 bg-[#151D2A]' : 'border-slate-200 bg-slate-50'}`}>
+          {(['GR', 'KG'] as const).map((u) => (
+            <button
+              key={u}
+              onClick={() => setUnidad(u)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-black font-mono transition-all ${
+                unidad === u
+                  ? 'bg-[#00F2C3] text-[#06241B] shadow'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              {u}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* TOTAL ENTRADAS */}
-        <div className={`rounded-2xl p-4 border transition-all card-hover-lift space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border transition-all shadow-sm space-y-1 ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
             TOTAL ENTRADAS / COMPRAS ({activeTab.replace('_', ' ')})
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-emerald-400 font-mono">
-              +{totalEntradas.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+              +{formatearPeso(totalEntradas)}
             </span>
-            <span className="text-xs text-emerald-400 font-bold">UNIDADES</span>
+            <span className="text-xs text-emerald-400 font-bold">{unidad}</span>
           </div>
         </div>
 
         {/* TOTAL SALIDAS */}
-        <div className={`rounded-2xl p-4 border transition-all card-hover-lift space-y-1 ${cardBg}`}>
+        <div className={`rounded-2xl p-4 border transition-all shadow-sm space-y-1 ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
-            TOTAL SALIDAS / PRODUCCIÓN ({activeTab.replace('_', ' ')})
+            TOTAL SALIDAS / CONSUMO ({activeTab.replace('_', ' ')})
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-rose-400 font-mono">
-              -{totalSalidas.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+              -{formatearPeso(totalSalidas)}
             </span>
-            <span className="text-xs text-rose-400 font-bold">UNIDADES</span>
+            <span className="text-xs text-rose-400 font-bold">{unidad}</span>
           </div>
         </div>
 
-        {/* SALDO ACUMULADO */}
-        <div className={`rounded-2xl p-4 border transition-all card-hover-lift space-y-1 ${cardBg}`}>
+        {/* REGISTROS AUDITABLES EXCEL */}
+        <div className={`rounded-2xl p-4 border transition-all shadow-sm space-y-1 ${cardBg}`}>
           <span className={`text-[10px] font-bold tracking-widest uppercase font-sans ${textTitle}`}>
-            SALDO DISPONIBLE EN ALMACÉN ({activeTab.replace('_', ' ')})
+            REGISTROS AUDITABLES EXCEL
           </span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#00F2C3] font-mono">
-              {totalSaldoAcumulado.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+            <span className="text-2xl font-black text-cyan-400 font-mono">
+              {filteredMovimientos.length}
             </span>
-            <span className="text-xs text-[#00F2C3] font-bold">EN STOCK</span>
+            <span className="text-xs text-slate-400 font-sans font-medium">Sincronizados en BD</span>
           </div>
         </div>
       </div>
 
-      {/* 4. Barra de Búsqueda y Filtros */}
-      <div className={`rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${cardBg}`}>
-        <div className="flex items-center gap-1.5 bg-[#151D2A] p-1 rounded-xl border border-[#1A2232]">
-          {[
-            { id: 'TODOS', label: 'Todos' },
-            { id: 'ENTRADAS', label: 'Solo Entradas' },
-            { id: 'SALIDAS', label: 'Solo Salidas' },
-          ].map((op) => (
-            <button
-              key={op.id}
-              onClick={() => {
-                setTipoOperacionFiltro(op.id as any);
-                setCurrentPage(1);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                tipoOperacionFiltro === op.id
-                  ? 'bg-[#00F2C3] text-slate-950 shadow-[0_0_10px_rgba(0,242,195,0.4)]'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {op.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+      {/* 4. Barra de Filtros y Búsqueda */}
+      <div className={`rounded-2xl p-3.5 border flex flex-wrap items-center justify-between gap-3 shadow-sm ${cardBg}`}>
+        {/* Buscador */}
+        <div className="relative flex-1 min-w-[280px]">
+          <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Buscar por producto, lote, doc o proveedor..."
+            placeholder="Buscar por Producto, Insumo, Familia, Proveedor o Doc..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`w-full rounded-xl border py-2 pl-9 pr-3 text-xs focus:outline-none transition-all ${inputBg}`}
+            className={`w-full rounded-xl border py-2 pl-10 pr-4 text-xs focus:border-[#00F2C3] focus:outline-none transition-all font-sans ${inputBg}`}
           />
+        </div>
+
+        {/* Filtro de Fechas */}
+        <div className="flex items-center gap-2 text-xs font-sans">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-[#151D2A]/60 border-[#1A2232]">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-[10px] text-slate-400 uppercase font-bold">Desde:</span>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              className="bg-transparent text-xs text-slate-200 focus:outline-none font-mono"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-[#151D2A]/60 border-[#1A2232]">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-[10px] text-slate-400 uppercase font-bold">Hasta:</span>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              className="bg-transparent text-xs text-slate-200 focus:outline-none font-mono"
+            />
+          </div>
+        </div>
+
+        {/* Pills de Operación */}
+        <div className="flex items-center gap-1.5 font-sans">
+          {(['TODAS', 'ENTRADAS', 'SALIDAS'] as const).map((tipo) => {
+            const isSel = tipoOperacionFiltro === tipo;
+            const labels = { TODAS: 'Todas', ENTRADAS: 'Entradas / Compras', SALIDAS: 'Salidas / Consumo' };
+            return (
+              <button
+                key={tipo}
+                onClick={() => setTipoOperacionFiltro(tipo)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  isSel
+                    ? 'bg-[#00F2C3] text-slate-950 shadow-md shadow-[#00F2C3]/20'
+                    : isDark
+                    ? 'bg-[#151D2A] text-slate-300 border border-[#1A2232] hover:text-white'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
+                }`}
+              >
+                {labels[tipo]}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 5. Tabla de Kardex Auditada */}
-      <div className={`rounded-2xl border overflow-hidden ${cardBg}`}>
+      {/* 5. Tabla Principal de Movimientos */}
+      <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className={`border-b ${isDark ? 'border-[#1A2232] text-slate-400 bg-[#0B0F17]' : 'border-slate-200 text-slate-600 bg-slate-50'}`}>
-                <th className="py-3 px-4 font-bold">FECHA</th>
-                <th className="py-3 px-4 font-bold">PRODUCTO / ITEM</th>
-                <th className="py-3 px-4 font-bold">DOC / SERIE</th>
-                <th className="py-3 px-4 font-bold">OPERACIÓN / PROVEEDOR</th>
-                <th className="py-3 px-4 font-bold text-right text-emerald-400">ENTRADA</th>
-                <th className="py-3 px-4 font-bold text-right text-rose-400">SALIDA</th>
-                <th className="py-3 px-4 font-bold text-right text-[#00F2C3]">SALDO FINAL</th>
-                <th className="py-3 px-4 font-bold text-right text-slate-400">COSTO S/</th>
-                <th className="py-3 px-4 font-bold text-right text-emerald-400">MONTO ENT S/</th>
-                <th className="py-3 px-4 font-bold text-right text-rose-400">MONTO SAL S/</th>
-                <th className="py-3 px-4 font-bold text-right text-[#00F2C3]">MONTO SALDO S/</th>
-                <th className="py-3 px-3 font-bold text-center">UND</th>
+              <tr
+                className={`border-b text-[10px] font-bold tracking-widest uppercase ${
+                  isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-500'
+                }`}
+              >
+                <th className="py-3 px-3">FECHA</th>
+                <th className="py-3 px-3">DETALLE COMPROBANTE</th>
+                <th className="py-3 px-3">TIPO OPERACIÓN</th>
+                <th className="py-3 px-3">FAMILIA & CATEGORÍA</th>
+                <th className="py-3 px-3">PRODUCTO / INSUMO</th>
+                <th className="py-3 px-3">PROVEEDOR / CLIENTE</th>
+                <th className="py-3 px-3 text-center">UNIDAD</th>
+                <th className="py-3 px-3 text-right">ENTRADAS</th>
+                <th className="py-3 px-3 text-right">SALIDAS</th>
+                <th className="py-3 px-3 text-right">SALDO FINAL</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/40">
-              {paginatedMovimientos.map((m) => (
-                <tr
-                  key={m.id}
-                  className={`transition-colors ${
-                    isDark ? 'hover:bg-[#151D2A]/60' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <td className="py-3 px-4 text-slate-400 whitespace-nowrap">{m.fecha}</td>
-
-                  <td className="py-3 px-4 font-sans font-bold">
-                    <span className={isDark ? 'text-slate-100' : 'text-slate-900'}>
-                      {m.productoNombre}
-                    </span>
-                    {m.familia && (
-                      <span className="text-[10px] text-slate-400 font-mono block">
-                        {m.familia}
-                      </span>
-                    )}
+            <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-4 px-3"><div className="h-4 w-20 bg-slate-800/70 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-28 bg-slate-800/80 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-24 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-24 bg-slate-800/50 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-40 bg-slate-800/70 rounded" /></td>
+                    <td className="py-4 px-3"><div className="h-4 w-32 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-3 text-center"><div className="h-4 w-12 bg-slate-800/60 rounded mx-auto" /></td>
+                    <td className="py-4 px-3 text-right"><div className="h-4 w-16 bg-slate-800/60 rounded ml-auto" /></td>
+                    <td className="py-4 px-3 text-right"><div className="h-4 w-16 bg-slate-800/60 rounded ml-auto" /></td>
+                    <td className="py-4 px-3 text-right"><div className="h-4 w-20 bg-slate-800/70 rounded ml-auto" /></td>
+                  </tr>
+                ))
+              ) : paginatedMovimientos.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-8 font-sans">
+                    <ActionableEmptyState
+                      icon={Layers}
+                      title="Sin movimientos registrados"
+                      description={`No se encontraron movimientos para la categoría ${activeTab.replace('_', ' ')} con los filtros seleccionados.`}
+                      actionLabel="Restablecer Filtros"
+                      onAction={() => {
+                        setSearchQuery('');
+                        setTipoOperacionFiltro('TODAS');
+                        setFechaDesde('');
+                        setFechaHasta('');
+                      }}
+                      secondaryActionLabel="Actualizar"
+                      onSecondaryAction={fetchKardexData}
+                    />
                   </td>
-
-                  <td className="py-3 px-4 text-slate-300 font-mono">
-                    {m.tipoDoc ? `${m.tipoDoc} ${m.serie}-${m.numero}` : m.otp || '—'}
-                  </td>
-
-                  <td className="py-3 px-4 text-slate-300 font-sans">
-                    <span className="font-bold text-slate-200 block">{m.tipoOperacion}</span>
-                    <span className="text-[10px] text-slate-400">{m.proveedorCliente || '—'}</span>
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-black text-emerald-400">
-                    {m.cantidadEntrada > 0 ? `+${m.cantidadEntrada.toLocaleString('es-PE', { minimumFractionDigits: 2 })}` : '—'}
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-black text-rose-400">
-                    {m.cantidadSalida > 0 ? `-${m.cantidadSalida.toLocaleString('es-PE', { minimumFractionDigits: 2 })}` : '—'}
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-black text-[#00F2C3]">
-                    {m.saldoFinal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-bold text-slate-400">
-                    {Number(m.costoUnitarioPen || 0).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                    {Number(m.montoEntradaPen || 0) > 0
-                      ? `S/ ${Number(m.montoEntradaPen).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
-                      : '—'}
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-bold text-rose-400">
-                    {Number(m.montoSalidaPen || 0) > 0
-                      ? `S/ ${Number(m.montoSalidaPen).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
-                      : '—'}
-                  </td>
-
-                  <td className="py-3 px-4 text-right font-bold text-[#00F2C3]">
-                    {Number(m.montoSaldoPen || 0) > 0
-                      ? `S/ ${Number(m.montoSaldoPen).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
-                      : '—'}
-                  </td>
-
-                  <td className="py-3 px-3 text-center text-slate-400 font-bold">{m.unidadMedida}</td>
                 </tr>
-              ))}
+              ) : (
+                paginatedMovimientos.map((m) => {
+                  const isStockInicial = m.tipoOperacion === 'STOCK_INICIAL' || m.tipoDoc === 'INV';
+                  const fechaFormatted = new Date(m.fecha).toLocaleDateString('es-PE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  });
+
+                  return (
+                    <tr
+                      key={m.id}
+                      className={`transition-colors ${
+                        isStockInicial
+                          ? isDark
+                            ? 'bg-cyan-500/5 hover:bg-cyan-500/10'
+                            : 'bg-cyan-50/70 hover:bg-cyan-100/60'
+                          : isDark
+                          ? 'hover:bg-[#151D2A]/50'
+                          : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      {/* Fecha */}
+                      <td className="py-3.5 px-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                        {fechaFormatted}
+                      </td>
+
+                      {/* Detalle Comprobante */}
+                      <td className="py-3.5 px-3">
+                        <div className="font-mono text-xs font-bold text-cyan-400">
+                          {m.tipoDoc ? `${m.tipoDoc} ` : ''}{m.serie ? `${m.serie}-` : ''}{m.numero || 'INVENTARIO'}
+                        </div>
+                        {m.otp && (
+                          <div className="text-[10px] text-slate-400 font-sans">
+                            OTP: {m.otp}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Tipo Operación */}
+                      <td className="py-3.5 px-3 font-mono whitespace-nowrap">
+                        {(() => {
+                          const tipo = String(m.tipoOperacion || '');
+                          let cls = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                          let label = tipo.replace(/_/g, ' ');
+                          if (isStockInicial || tipo.includes('ENTRADA')) {
+                            cls = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                            label = tipo === 'ENTRADA_PRODUCCION' ? 'ENTRADA PRODUCCIÓN' : label;
+                          } else if (tipo.includes('SALIDA_CONSUMO')) {
+                            cls = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+                            label = 'SALIDA POR CONSUMO';
+                          } else if (tipo.includes('MERMA') || tipo.includes('DESCARTE')) {
+                            cls = 'bg-rose-600/20 text-rose-500 border-rose-600/40';
+                            label = 'MERMA / DESCARTE';
+                          } else if (tipo.includes('DEVOLU')) {
+                            cls = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30';
+                          }
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${cls}`}>
+                              {isStockInicial ? 'ENTRADA COMPRA' : label}
+                            </span>
+                          );
+                        })()}
+                      </td>
+
+                      {/* Familia & Categoría */}
+                      <td className="py-3.5 px-3">
+                        <div className="font-sans text-xs font-semibold text-slate-300">
+                          {m.familia || 'Materia Prima Real'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-sans">
+                          {m.categoriaNombre || 'Control Físico Planta'}
+                        </div>
+                      </td>
+
+                      {/* Producto / Insumo */}
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-sans text-xs font-bold uppercase tracking-wide ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                            {m.productoNombre}
+                          </span>
+                          {m.categoriaKardex === 'PRODUCTO_TERMINADO' && (
+                            <button
+                              onClick={() => setBomModalProducto(m.productoNombre)}
+                              title="Ver Fórmula BOM de Insumos"
+                              className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold transition-all flex items-center gap-1 ${
+                                isDark
+                                  ? 'bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20'
+                                  : 'bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100'
+                              }`}
+                            >
+                              <Beaker className="w-3 h-3 text-purple-400" />
+                              <span>BOM</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Proveedor / Cliente */}
+                      <td className={`py-3.5 px-3 font-sans text-xs uppercase ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {m.proveedorCliente || 'PROVEEDOR QUIMICORP'}
+                      </td>
+
+                      {/* Unidad Medida */}
+                      <td className="py-3.5 px-3 text-center font-mono text-slate-400 font-bold">
+                        {m.unidadMedida}
+                      </td>
+
+                      {/* Entradas */}
+                      <td className="py-3.5 px-3 text-right font-mono text-xs font-bold text-emerald-400">
+                        {Number(m.cantidadEntrada) > 0
+                          ? `+${Number(m.cantidadEntrada).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
+                          : '-'}
+                      </td>
+
+                      {/* Salidas */}
+                      <td className="py-3.5 px-3 text-right font-mono text-xs font-bold text-rose-400">
+                        {Number(m.cantidadSalida) > 0
+                          ? `-${Number(m.cantidadSalida).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`
+                          : '-'}
+                      </td>
+
+                      {/* Saldo Final */}
+                      <td
+                        className={`py-3.5 px-3 text-right font-mono text-xs font-black ${
+                          Number(m.saldoFinal) < 0
+                            ? 'text-rose-400'
+                            : isDark
+                            ? 'text-[#00F2C3]'
+                            : 'text-cyan-700'
+                        }`}
+                      >
+                        {Number(m.saldoFinal).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Paginación */}
-        <div className={`p-4 border-t flex items-center justify-between text-xs ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200 text-slate-600'}`}>
-          <span>
-            {loading
-              ? 'Consultando Kardex en PostgreSQL...'
-              : `Mostrando ${startIndex + 1} - ${Math.min(startIndex + ITEMS_PER_PAGE, filteredMovimientos.length)} de ${filteredMovimientos.length} registros`}
-          </span>
+        {/* Control de Paginación de 60 en 60 */}
+        <div className={`p-4 border-t flex flex-wrap items-center justify-between gap-3 text-xs font-mono ${isDark ? 'border-[#1A2232] bg-[#0D121B]' : 'border-slate-200 bg-slate-50'}`}>
+          <div className="text-slate-400 font-sans">
+            Mostrando registros <strong className={isDark ? 'text-white' : 'text-slate-900'}>{filteredMovimientos.length === 0 ? 0 : startIndex + 1}</strong> al{' '}
+            <strong className={isDark ? 'text-white' : 'text-slate-900'}>
+              {Math.min(startIndex + ITEMS_PER_PAGE, filteredMovimientos.length)}
+            </strong>{' '}
+            de <strong className="text-[#00F2C3]">{filteredMovimientos.length}</strong> movimientos en total
+          </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
               disabled={currentPage === 1}
-              className={`px-3 py-1.5 rounded-lg border font-bold disabled:opacity-30 ${
-                isDark ? 'border-[#1A2232] bg-[#151D2A] text-slate-200' : 'border-slate-300 bg-white text-slate-800'
+              className={`px-3 py-1.5 rounded-lg border font-bold font-sans transition-all flex items-center gap-1.5 ${
+                currentPage === 1
+                  ? 'opacity-30 cursor-not-allowed border-slate-700 text-slate-500'
+                  : isDark
+                  ? 'bg-[#151D2A] border-[#1A2232] text-slate-300 hover:text-white hover:border-[#00F2C3]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              Anterior
+              <ChevronLeft className="w-4 h-4" />
+              <span>Anterior</span>
             </button>
-            <span className="font-mono font-bold text-cyan-400">
+
+            <span className="px-3.5 py-1.5 rounded-lg border border-slate-700 font-bold bg-[#151D2A] text-[#00F2C3]">
               Página {currentPage} de {totalPages}
             </span>
+
             <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className={`px-3 py-1.5 rounded-lg border font-bold disabled:opacity-30 ${
-                isDark ? 'border-[#1A2232] bg-[#151D2A] text-slate-200' : 'border-slate-300 bg-white text-slate-800'
+              className={`px-3 py-1.5 rounded-lg border font-bold font-sans transition-all flex items-center gap-1.5 ${
+                currentPage === totalPages
+                  ? 'opacity-30 cursor-not-allowed border-slate-700 text-slate-500'
+                  : isDark
+                  ? 'bg-[#151D2A] border-[#1A2232] text-slate-300 hover:text-white hover:border-[#00F2C3]'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
               }`}
             >
-              Siguiente
+              <span>Siguiente</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
+
+      <BOMModal
+        productoNombre={bomModalProducto || ''}
+        isOpen={!!bomModalProducto}
+        onClose={() => setBomModalProducto(null)}
+        isDark={isDark}
+      />
     </div>
   );
 }

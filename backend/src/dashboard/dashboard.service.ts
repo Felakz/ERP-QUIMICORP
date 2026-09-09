@@ -5,38 +5,71 @@ import { PrismaService } from '../common/prisma/prisma.service';
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * KPI Cards Gerenciales calculados exclusivamente contra PostgreSQL
-   */
-  async getKpis(dateRange: string) {
+  private resolveDateRange(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
     const today = new Date();
     let startDate = new Date();
+    let endDate: Date | undefined = undefined;
     let prevStartDate = new Date();
     let prevEndDate = new Date();
 
-    if (dateRange === 'HOY') {
+    if (startDateStr && endDateStr) {
+      startDate = new Date(`${startDateStr}T00:00:00`);
+      endDate = new Date(`${endDateStr}T23:59:59.999`);
+      const diffMs = Math.max(86400000, endDate.getTime() - startDate.getTime());
+      prevEndDate = new Date(startDate.getTime() - 1);
+      prevStartDate = new Date(prevEndDate.getTime() - diffMs);
+    } else if (dateRange === 'HOY') {
       startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(today);
+      endDate.setHours(23, 59, 59, 999);
       prevStartDate.setDate(today.getDate() - 1);
       prevStartDate.setHours(0, 0, 0, 0);
       prevEndDate = new Date(startDate);
     } else if (dateRange === 'AYER') {
       startDate.setDate(today.getDate() - 1);
       startDate.setHours(0, 0, 0, 0);
-      const endOfAyer = new Date(startDate);
-      endOfAyer.setHours(23, 59, 59, 999);
+      endDate = new Date(startDate);
+      endDate.setHours(23, 59, 59, 999);
       prevStartDate.setDate(today.getDate() - 2);
       prevStartDate.setHours(0, 0, 0, 0);
       prevEndDate = new Date(startDate);
     } else if (dateRange === 'ULTIMOS_7') {
       startDate.setDate(today.getDate() - 7);
+      startDate.setHours(0, 0, 0, 0);
       prevStartDate.setDate(today.getDate() - 14);
+      prevStartDate.setHours(0, 0, 0, 0);
       prevEndDate = new Date(startDate);
+    } else if (dateRange === 'ULTIMOS_30') {
+      startDate.setDate(today.getDate() - 30);
+      startDate.setHours(0, 0, 0, 0);
+      prevStartDate.setDate(today.getDate() - 60);
+      prevStartDate.setHours(0, 0, 0, 0);
+      prevEndDate = new Date(startDate);
+    } else if (dateRange === 'MES_ANTERIOR') {
+      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      endDate = new Date(today.getFullYear(), today.getMonth(), 0, 23, 59, 59, 999);
+      prevStartDate = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+      prevEndDate = new Date(today.getFullYear(), today.getMonth() - 1, 0, 23, 59, 59, 999);
+    } else if (dateRange === 'ESTE_ANO') {
+      startDate = new Date(today.getFullYear(), 0, 1);
+      prevStartDate = new Date(today.getFullYear() - 1, 0, 1);
+      prevEndDate = new Date(today.getFullYear(), 0, 1);
     } else {
       // MES_ACTUAL
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       prevStartDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       prevEndDate = new Date(startDate);
     }
+
+    const whereDate = endDate ? { gte: startDate, lte: endDate } : { gte: startDate };
+    return { startDate, endDate, prevStartDate, prevEndDate, whereDate };
+  }
+
+  /**
+   * KPI Cards Gerenciales calculados exclusivamente contra PostgreSQL
+   */
+  async getKpis(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
+    const { startDate, endDate, prevStartDate, prevEndDate, whereDate } = this.resolveDateRange(dateRange, startDateStr, endDateStr);
 
     // 1. Ventas & Facturación acumulada real (Actual vs. Anterior)
     // Fuente primaria: pedidos_comerciales (flujo operativo).
@@ -45,7 +78,7 @@ export class DashboardService {
       await Promise.all([
         this.prisma.pedidoComercial.findMany({
           where: {
-            createdAt: { gte: startDate },
+            createdAt: whereDate,
             estado: { not: 'RECHAZADO' },
           },
           select: { montoTotal: true },
@@ -58,7 +91,7 @@ export class DashboardService {
           select: { montoTotal: true },
         }),
         this.prisma.cuentaCobrar.findMany({
-          where: { fechaEmision: { gte: startDate } },
+          where: { fechaEmision: whereDate },
           select: { montoTotal: true },
         }),
         this.prisma.cuentaCobrar.findMany({
@@ -84,7 +117,7 @@ export class DashboardService {
     // 2. Utilidad Neta Real basada en costo real de insumos / fórmulas en las OPs
     const pedidosConFormula = await this.prisma.pedidoComercial.findMany({
       where: {
-        createdAt: { gte: startDate },
+        createdAt: whereDate,
         estado: { not: 'RECHAZADO' },
       },
       include: {
@@ -117,7 +150,7 @@ export class DashboardService {
       // Fallback desde cuentas por cobrar: la utilidad real detectable es el
       // efectivo ya cobrado (no se fuerza un margen inventado).
       const cobrado = await this.prisma.cuentaCobrar.aggregate({
-        where: { fechaEmision: { gte: startDate } },
+        where: { fechaEmision: whereDate },
         _sum: { montoTotal: true, saldoPendiente: true },
       });
       totalCobradoPen =
@@ -187,8 +220,16 @@ export class DashboardService {
       {
         id: 'kpi-1',
         title:
-          dateRange === 'MES_ACTUAL'
+          startDateStr && endDateStr
+            ? `Ventas & Facturación (${startDateStr} al ${endDateStr})`
+            : dateRange === 'MES_ACTUAL'
             ? 'Ventas & Facturación del Mes'
+            : dateRange === 'MES_ANTERIOR'
+            ? 'Ventas & Facturación (Mes Anterior)'
+            : dateRange === 'ESTE_ANO'
+            ? 'Ventas & Facturación (Año Completo)'
+            : dateRange === 'ULTIMOS_30'
+            ? 'Ventas & Facturación (30 Días)'
             : dateRange === 'HOY'
             ? 'Ventas & Facturación (Hoy)'
             : dateRange === 'AYER'
@@ -249,19 +290,18 @@ export class DashboardService {
   }
 
   /**
-   * Top 10 Clientes Frecuentes ordenados por facturación del mes actual
+   * Top 10 Clientes Frecuentes ordenados por facturación del período
    */
-  async getTopCustomers() {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  async getTopCustomers(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
+    const { whereDate } = this.resolveDateRange(dateRange, startDateStr, endDateStr);
 
-    // Fuente primaria: cuentas_cobrar (ventas reales facturadas del mes / Excel).
-    // Fallback: pedidos_comerciales cuando no hay cuentas del mes.
+    // Fuente primaria: cuentas_cobrar (ventas reales facturadas del período / Excel).
+    // Fallback: pedidos_comerciales cuando no hay cuentas del período.
     const pedidosClientes = await this.prisma.cliente.findMany({
       include: {
         pedidos: {
           where: {
-            createdAt: { gte: startOfMonth },
+            createdAt: whereDate,
             estado: { not: 'RECHAZADO' },
           },
           select: {
@@ -276,10 +316,10 @@ export class DashboardService {
 
     const tienePedidos = pedidosClientes.some((c: any) => (c.pedidos || []).length > 0);
 
-    // Agregación por cliente desde cuentas por cobrar del mes actual
+    // Agregación por cliente desde cuentas por cobrar del período
     const cuentasCliente = await this.prisma.cuentaCobrar.groupBy({
       by: ['clienteRuc', 'clienteNombre'],
-      where: { fechaEmision: { gte: startOfMonth } },
+      where: { fechaEmision: whereDate },
       _sum: { montoTotal: true, saldoPendiente: true },
       _count: true,
     });
@@ -371,25 +411,23 @@ export class DashboardService {
     const db = this.prisma;
     const pastYearDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
 
-    const pedidos = await db.pedidoComercial.findMany({
-      where: {
-        createdAt: { gte: pastYearDate },
-        estado: { not: 'RECHAZADO' },
-      },
-      select: {
-        montoTotal: true,
-        cantidadSolicitada: true,
-        createdAt: true,
-      },
-    });
-
-    // Fallback: ventas reales desde cuentas por cobrar (facturado por mes)
-    const cuentas = await db.cuentaCobrar.findMany({
-      where: { fechaEmision: { gte: pastYearDate } },
-      select: { montoTotal: true, fechaEmision: true },
-    });
-
-    const usarCuentas = pedidos.length === 0 && cuentas.length > 0;
+    const [pedidos, cuentas] = await Promise.all([
+      db.pedidoComercial.findMany({
+        where: {
+          createdAt: { gte: pastYearDate },
+          estado: { not: 'RECHAZADO' },
+        },
+        select: {
+          montoTotal: true,
+          cantidadSolicitada: true,
+          createdAt: true,
+        },
+      }),
+      db.cuentaCobrar.findMany({
+        where: { fechaEmision: { gte: pastYearDate } },
+        select: { montoTotal: true, fechaEmision: true },
+      }),
+    ]);
 
     const result = [];
     for (let i = 11; i >= 0; i--) {
@@ -397,23 +435,21 @@ export class DashboardService {
       const mIdx = monthDate.getMonth();
       const mYear = monthDate.getFullYear();
 
-      let totalMonto = 0;
-      let totalVol = 0;
+      const monthCuentas = cuentas.filter((c: any) => {
+        const d = new Date(c.fechaEmision);
+        return d.getMonth() === mIdx && d.getFullYear() === mYear;
+      });
+      const monthOrders = pedidos.filter((p: any) => {
+        const d = new Date(p.createdAt);
+        return d.getMonth() === mIdx && d.getFullYear() === mYear;
+      });
 
-      if (usarCuentas) {
-        const monthCuentas = cuentas.filter((c: any) => {
-          const d = new Date(c.fechaEmision);
-          return d.getMonth() === mIdx && d.getFullYear() === mYear;
-        });
-        totalMonto = monthCuentas.reduce((acc: number, c: any) => acc + Number(c.montoTotal || 0), 0);
-      } else {
-        const monthOrders = pedidos.filter((p: any) => {
-          const d = new Date(p.createdAt);
-          return d.getMonth() === mIdx && d.getFullYear() === mYear;
-        });
-        totalMonto = monthOrders.reduce((acc: number, p: any) => acc + Number(p.montoTotal || 0), 0);
-        totalVol = monthOrders.reduce((acc: number, p: any) => acc + Number(p.cantidadSolicitada || 0), 0);
-      }
+      const montoCuentas = monthCuentas.reduce((acc: number, c: any) => acc + Number(c.montoTotal || 0), 0);
+      const montoPedidos = monthOrders.reduce((acc: number, p: any) => acc + Number(p.montoTotal || 0), 0);
+      const totalVol = monthOrders.reduce((acc: number, p: any) => acc + Number(p.cantidadSolicitada || 0), 0);
+
+      // Consolidación de ingresos reales: facturas importadas + pedidos operativos nuevos
+      const totalMonto = montoCuentas + montoPedidos;
 
       result.push({
         month: months[mIdx],
@@ -435,15 +471,15 @@ export class DashboardService {
   async getInvoiceTerms() {
     const db = this.prisma;
 
-    // Fuente primaria: clientes (condición de pago). Fallback: cuentas por cobrar.
-    const clientes = await db.cliente.findMany({
-      select: { condicionPago: true },
-    });
-
-    // Cuentas por cobrar para monto real por plazo de pago
-    const cuentas = await db.cuentaCobrar.findMany({
-      select: { condicionPago: true, montoTotal: true },
-    });
+    // Fuente primaria: clientes (condición de pago). Fallback: cuentas por cobrar y pedidos.
+    const [clientes, cuentas, pedidos] = await Promise.all([
+      db.cliente.findMany({ select: { condicionPago: true } }),
+      db.cuentaCobrar.findMany({ select: { condicionPago: true, montoTotal: true } }),
+      db.pedidoComercial.findMany({
+        where: { estado: { not: 'RECHAZADO' } },
+        select: { condicionPago: true, montoTotal: true },
+      }),
+    ]);
 
     const cuentasCond = (c: any) => (c.condicionPago || 'Contado').trim();
     const bucket = (cond: string): string => {
@@ -461,12 +497,16 @@ export class DashboardService {
     const monto: Record<string, number> = {};
     keys.forEach((k) => { counts[k] = 0; monto[k] = 0; });
 
-    if (cuentas.length > 0) {
-      // Fallback real: agrupar facturas emitidas por condición de pago y sumar montos
+    if (cuentas.length > 0 || pedidos.length > 0) {
       cuentas.forEach((c: any) => {
         const b = bucket(cuentasCond(c));
         counts[b] = (counts[b] || 0) + 1;
         monto[b] = (monto[b] || 0) + Number(c.montoTotal || 0);
+      });
+      pedidos.forEach((p: any) => {
+        const b = bucket(cuentasCond(p));
+        counts[b] = (counts[b] || 0) + 1;
+        monto[b] = (monto[b] || 0) + Number(p.montoTotal || 0);
       });
     } else {
       clientes.forEach((c: any) => {
@@ -553,26 +593,24 @@ export class DashboardService {
    */
   async getRecentDocs() {
     const db = this.prisma;
-    const docsBD = await db.pedidoComercial.findMany({
-      take: 10,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        codigoOrden: true,
-        clienteNombre: true,
-        clienteRuc: true,
-        cantidadSolicitada: true,
-        montoTotal: true,
-        createdAt: true,
-        fechaPrometida: true,
-        estado: true,
-        docType: true,
-      },
-    });
-
-    if (!docsBD || docsBD.length === 0) {
-      // Fallback: documentos reales desde cuentas por cobrar (facturado)
-      const cuentas = await db.cuentaCobrar.findMany({
+    const [docsBD, cuentas] = await Promise.all([
+      db.pedidoComercial.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          codigoOrden: true,
+          clienteNombre: true,
+          clienteRuc: true,
+          cantidadSolicitada: true,
+          montoTotal: true,
+          createdAt: true,
+          fechaPrometida: true,
+          estado: true,
+          docType: true,
+        },
+      }).catch(() => []),
+      db.cuentaCobrar.findMany({
         take: 10,
         orderBy: { fechaEmision: 'desc' },
         select: {
@@ -585,28 +623,26 @@ export class DashboardService {
           estado: true,
           condicionPago: true,
         },
-      });
+      }).catch(() => []),
+    ]);
 
-      if (!cuentas || cuentas.length === 0) return [];
+    const mappedCuentas = (cuentas || []).map((c: any) => ({
+      id: c.codigoDoc || String(c.clienteRuc),
+      docNumber: c.codigoDoc || 'DOC-',
+      customerName: c.clienteNombre,
+      ruc: c.clienteRuc,
+      volumeKgLt: 0,
+      issueDate: c.fechaEmision,
+      dueDate: c.fechaVencimiento || c.fechaEmision,
+      totalAmountPenNeto: Number(c.montoTotal || 0),
+      type: 'FACTURA',
+      status:
+        c.estado === 'PAGADO' ? 'PAGADO'
+        : c.estado === 'VENCIDO' ? 'VENCIDO'
+        : 'PENDIENTE',
+    }));
 
-      return cuentas.map((c: any) => ({
-        id: c.codigoDoc || String(c.clienteRuc),
-        docNumber: c.codigoDoc || 'DOC-',
-        customerName: c.clienteNombre,
-        ruc: c.clienteRuc,
-        volumeKgLt: 0,
-        issueDate: c.fechaEmision,
-        dueDate: c.fechaVencimiento || c.fechaEmision,
-        totalAmountPenNeto: Number(c.montoTotal || 0),
-        type: 'FACTURA',
-        status:
-          c.estado === 'PAGADO' ? 'PAGADO'
-          : c.estado === 'VENCIDO' ? 'VENCIDO'
-          : 'PENDIENTE',
-      }));
-    }
-
-    return docsBD.map((d: any) => ({
+    const mappedPedidos = (docsBD || []).map((d: any) => ({
       id: d.id,
       docNumber: d.codigoOrden || `DOC-${d.id.substring(0, 6)}`,
       customerName: d.clienteNombre,
@@ -618,6 +654,13 @@ export class DashboardService {
       type: d.docType === 'COT' ? 'COTIZACION' : d.docType === 'NV' ? 'NOTA_VENTA' : 'FACTURA',
       status: d.estado === 'APROBADO' ? 'APROBADO' : d.estado === 'EN_PRODUCCION' ? 'EN_PROCESO' : d.estado === 'RECHAZADO' ? 'RECHAZADO' : 'PENDIENTE',
     }));
+
+    // Combinar ambos y ordenar cronológicamente descendente
+    const all = [...mappedPedidos, ...mappedCuentas].sort(
+      (a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
+    );
+
+    return all.slice(0, 10);
   }
 
   /**
@@ -685,9 +728,9 @@ export class DashboardService {
   /**
    * Resumen general y métricas de soporte con datos 100% reales de la BD
    */
-  async getDashboardStats(dateRange: string) {
-    const kpis = await this.getKpis(dateRange);
-    const topCustomers = await this.getTopCustomers();
+  async getDashboardStats(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
+    const kpis = await this.getKpis(dateRange, startDateStr, endDateStr);
+    const topCustomers = await this.getTopCustomers(dateRange, startDateStr, endDateStr);
     const salesAnalytics = await this.getSalesAnalytics();
     const invoiceTerms = await this.getInvoiceTerms();
     const paymentCategories = await this.getPaymentCategories();

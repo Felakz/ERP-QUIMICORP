@@ -29,6 +29,7 @@ import {
   Receipt,
   Check,
   Layers,
+  Pencil,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -70,7 +71,7 @@ export default function AdministracionPedidosComercialesPage() {
   const { user } = useAuth();
   const { socket } = useSocket();
   const isDark = theme === 'dark';
-  const canApprove = isGerenteUser(user?.role);
+  const canApprove = isGerenteUser(user?.role) || user?.role === 'ASISTENTE_ADMINISTRATIVO';
 
   const [pedidos, setPedidos] = useState<PedidoEmitido[]>([]);
   const [loadingPedidos, setLoadingPedidos] = useState<boolean>(true);
@@ -105,6 +106,23 @@ export default function AdministracionPedidosComercialesPage() {
   // Convert Quotation to Order Modal State
   const [convertModalItem, setConvertModalItem] = useState<PedidoEmitido | null>(null);
   const [isConverting, setIsConverting] = useState<boolean>(false);
+
+  // Modal de Edición de Pedido
+  const [editModalItem, setEditModalItem] = useState<PedidoEmitido | null>(null);
+  const [editCliente, setEditCliente] = useState<string>('');
+  const [editRuc, setEditRuc] = useState<string>('');
+  const [editProducto, setEditProducto] = useState<string>('');
+  const [editCantidad, setEditCantidad] = useState<string>('0');
+  const [editUnidad, setEditUnidad] = useState<string>('KG');
+  const [editMonto, setEditMonto] = useState<string>('0');
+  const [editCondicion, setEditCondicion] = useState<string>('Contado');
+  const [editPrioridad, setEditPrioridad] = useState<'URGENTE' | 'NORMAL' | 'PROGRAMADO'>('NORMAL');
+  const [editEstado, setEditEstado] = useState<string>('NUEVO');
+  const [editFechaPrometida, setEditFechaPrometida] = useState<string>('');
+  const [editTipoComprobante, setEditTipoComprobante] = useState<string>('FACTURA');
+  const [editFormulaId, setEditFormulaId] = useState<string>('');
+  const [editLoading, setEditLoading] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string>('');
 
   // Navegación de fecha por días
   const handlePrevDay = () => {
@@ -354,6 +372,91 @@ export default function AdministracionPedidosComercialesPage() {
       console.error('Error convirtiendo cotización a pedido:', e);
     } finally {
       setIsConverting(false);
+    }
+  };
+
+  const toISODate = (local: string) => {
+    const m = local.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : local || '';
+  };
+
+  const abrirModalEditar = (p: PedidoEmitido) => {
+    setEditModalItem(p);
+    setEditCliente(p.cliente);
+    setEditRuc(p.ruc);
+    setEditProducto(p.producto);
+    setEditCantidad(String(p.cantidad));
+    setEditUnidad(p.unidad);
+    setEditMonto(String(p.montoTotal));
+    setEditCondicion(p.condicionPago);
+    setEditPrioridad((p.prioridad || 'NORMAL') as 'URGENTE' | 'NORMAL' | 'PROGRAMADO');
+    setEditEstado(p.estado);
+    setEditTipoComprobante(p.tipoComprobante || 'FACTURA');
+    setEditFormulaId(
+      Array.isArray(p.itemsList) && p.itemsList[0]?.codigoFM ? String(p.itemsList[0].codigoFM) : ''
+    );
+    setEditFechaPrometida(toISODate(p.fechaPrometida));
+    setEditError('');
+  };
+
+  const handleGuardarEdicionPedido = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModalItem) return;
+    setEditLoading(true);
+    setEditError('');
+
+    const payload: any = {
+      clienteNombre: editCliente,
+      clienteRuc: editRuc,
+      productoNombre: editProducto,
+      cantidadSolicitada: Number(editCantidad),
+      unidadMedida: editUnidad,
+      montoTotal: Number(editMonto),
+      condicionPago: editCondicion,
+      prioridad: editPrioridad,
+      estado: editEstado,
+      fechaPrometida: editFechaPrometida,
+      tipoComprobante: editTipoComprobante || undefined,
+    };
+    if (editFormulaId.trim()) payload.formulaId = editFormulaId.trim();
+
+    try {
+      const { ok, error } = await apiFetch(`/pedidos-admin/${editModalItem.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      if (!ok) {
+        setEditError(error || 'No se pudo actualizar el pedido.');
+        return;
+      }
+
+      setPedidos((prev) =>
+        prev.map((p) =>
+          p.id === editModalItem.id
+            ? {
+                ...p,
+                cliente: editCliente,
+                ruc: editRuc,
+                producto: editProducto,
+                cantidad: Number(editCantidad) || 0,
+                unidad: editUnidad,
+                montoTotal: Number(editMonto) || 0,
+                condicionPago: editCondicion,
+                prioridad: editPrioridad,
+                estado: editEstado,
+                tipoComprobante: editTipoComprobante || null,
+              }
+            : p
+        )
+      );
+      setToastMsg(`✓ Pedido ${editModalItem.codigoOrden} actualizado correctamente.`);
+      setEditModalItem(null);
+      cargarPedidos();
+    } catch (err) {
+      console.error('Error al actualizar pedido:', err);
+      setEditError('Error de conexión al actualizar el pedido.');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -894,6 +997,19 @@ export default function AdministracionPedidosComercialesPage() {
                                 <Receipt className="w-3.5 h-3.5" />
                                 <span>Emitir Comp.</span>
                               </button>
+
+                              {/* Botón Editar Cotización / Pedido */}
+                              <button
+                                onClick={() => abrirModalEditar(p)}
+                                className={`p-1.5 rounded-lg border transition-all active:scale-90 ${
+                                  isDark
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-blue-400 hover:text-white hover:border-blue-400 shadow-sm'
+                                    : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                                }`}
+                                title="Editar datos del pedido o cotización"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
                             </>
                           ) : (
                             <>
@@ -923,6 +1039,19 @@ export default function AdministracionPedidosComercialesPage() {
                               >
                                 <Receipt className="w-3.5 h-3.5" />
                                 <span>Emitir Comp.</span>
+                              </button>
+
+                              {/* Botón Editar Cotización / Pedido */}
+                              <button
+                                onClick={() => abrirModalEditar(p)}
+                                className={`p-1.5 rounded-lg border transition-all active:scale-90 ${
+                                  isDark
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-blue-400 hover:text-white hover:border-blue-400 shadow-sm'
+                                    : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                                }`}
+                                title="Editar datos del pedido o cotización"
+                              >
+                                <Pencil className="w-4 h-4" />
                               </button>
                             </>
                           )}
@@ -1103,6 +1232,216 @@ export default function AdministracionPedidosComercialesPage() {
                 <span>{emitLoading ? 'Emitiendo...' : 'Emitir Comprobante'}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL EDITAR PEDIDO / COTIZACIÓN ── */}
+      {editModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 font-sans animate-in fade-in duration-200">
+          <div className={`w-full max-w-2xl rounded-2xl p-6 border space-y-4 shadow-2xl ${cardBg}`}>
+            <div className={`flex items-center gap-3 border-b pb-3 ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+              <Pencil className="w-6 h-6" />
+              <div>
+                <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Editar Pedido / Cotización</h3>
+                <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Actualiza los datos comerciales del documento {editModalItem.codigoOrden}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleGuardarEdicionPedido} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Cliente *</label>
+                  <input
+                    type="text"
+                    value={editCliente}
+                    onChange={(e) => setEditCliente(e.target.value)}
+                    required
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>RUC / DNI</label>
+                  <input
+                    type="text"
+                    value={editRuc}
+                    onChange={(e) => setEditRuc(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg}`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Producto *</label>
+                <input
+                  type="text"
+                  value={editProducto}
+                  onChange={(e) => setEditProducto(e.target.value)}
+                  required
+                  className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Cantidad *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editCantidad}
+                    onChange={(e) => setEditCantidad(e.target.value)}
+                    required
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${inputBg}`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Unidad</label>
+                  <select
+                    value={editUnidad}
+                    onChange={(e) => setEditUnidad(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  >
+                    <option value="KG">KG</option>
+                    <option value="G">G</option>
+                    <option value="LT">LT</option>
+                    <option value="ML">ML</option>
+                    <option value="UN">UN</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Monto Total (S/) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editMonto}
+                    onChange={(e) => setEditMonto(e.target.value)}
+                    required
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${inputBg}`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Condición de Pago</label>
+                  <select
+                    value={editCondicion}
+                    onChange={(e) => setEditCondicion(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  >
+                    <option value="Contado">Contado</option>
+                    <option value="Crédito 30 días">Crédito 30 días</option>
+                    <option value="Crédito 07 días">Crédito 07 días</option>
+                    <option value="Crédito 15 días">Crédito 15 días</option>
+                    <option value="Crédito 20 días">Crédito 20 días</option>
+                    <option value="Crédito 60 días">Crédito 60 días</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Prioridad</label>
+                  <select
+                    value={editPrioridad}
+                    onChange={(e) => setEditPrioridad(e.target.value as 'URGENTE' | 'NORMAL' | 'PROGRAMADO')}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  >
+                    <option value="URGENTE">URGENTE</option>
+                    <option value="NORMAL">NORMAL</option>
+                    <option value="PROGRAMADO">PROGRAMADO</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Fecha Prometida</label>
+                  <input
+                    type="date"
+                    value={editFechaPrometida}
+                    onChange={(e) => setEditFechaPrometida(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Estado</label>
+                  <select
+                    value={editEstado}
+                    onChange={(e) => setEditEstado(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  >
+                    <option value="NUEVO">NUEVO</option>
+                    <option value="PENDIENTE_REVISION">PENDIENTE_REVISION</option>
+                    <option value="VALIDANDO">VALIDANDO</option>
+                    <option value="APROBADO">APROBADO</option>
+                    <option value="EN_PRODUCCION">EN_PRODUCCION</option>
+                    <option value="DEVUELTO">DEVUELTO</option>
+                    <option value="RECHAZADO">RECHAZADO</option>
+                    <option value="ENTREGADO">ENTREGADO</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Tipo Comprobante</label>
+                  <select
+                    value={editTipoComprobante}
+                    onChange={(e) => setEditTipoComprobante(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  >
+                    <option value="FACTURA">FACTURA</option>
+                    <option value="BOLETA">BOLETA</option>
+                    <option value="NOTA_VENTA">NOTA VENTA</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Fórmula (FM-xxx) <span className="font-normal text-slate-500">— opcional</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormulaId}
+                    onChange={(e) => setEditFormulaId(e.target.value)}
+                    placeholder="Ej: FM-0042"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg}`}
+                  />
+                </div>
+              </div>
+
+              {editError && (
+                <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
+                  isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
+                }`}>
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  {editError}
+                </div>
+              )}
+
+              <div className={`flex items-center justify-end gap-3 pt-3 border-t ${
+                isDark ? 'border-slate-800' : 'border-slate-200'
+              }`}>
+                <button
+                  type="button"
+                  onClick={() => setEditModalItem(null)}
+                  className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors ${
+                    isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{editLoading ? 'Guardando...' : 'Guardar Cambios'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

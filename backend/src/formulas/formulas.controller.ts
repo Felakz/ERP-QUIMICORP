@@ -18,13 +18,13 @@ export class FormulasController {
   }
 
   @Get()
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN, Role.DISENO_MULTIMEDIA, Role.VENTAS_ATENCION_DIGITAL)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.PRODUCCION_ALMACEN, Role.DISENO_MULTIMEDIA, Role.VENTAS_ATENCION_DIGITAL)
   listar(@Query('search') search?: string) {
     return this.formulasService.listar(search);
   }
 
   @Get(':id')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN, Role.DISENO_MULTIMEDIA, Role.VENTAS_ATENCION_DIGITAL)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.PRODUCCION_ALMACEN, Role.DISENO_MULTIMEDIA, Role.VENTAS_ATENCION_DIGITAL)
   obtenerPorId(@Param('id', ParseUUIDPipe) id: string) {
     return this.formulasService.obtenerPorId(id);
   }
@@ -72,7 +72,7 @@ export class FormulasController {
   }
 
   @Get(':id/variants')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
   listarVariantes(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('clienteId') clienteId?: string,

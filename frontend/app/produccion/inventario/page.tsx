@@ -5,6 +5,8 @@ import { Search, RefreshCw, AlertTriangle, Package, Warehouse, CheckCircle2, Che
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 import { useSocket } from '@/lib/socketContext';
+import { TableSkeleton } from '@/components/ui/TableSkeleton';
+import { ActionableEmptyState } from '@/components/ui/ActionableEmptyState';
 
 interface MaterialItem {
   sku: string;
@@ -20,6 +22,7 @@ interface MaterialItem {
   unidadMedidaVisual?: string;
   proveedor?: string;
   ubicacion: string;
+  esSoloFormula?: boolean;
   estado: 'OK' | 'LOW STOCK' | 'CRITICAL';
 }
 
@@ -49,6 +52,7 @@ export default function InventariosPage() {
   const [stockCriticoCount, setStockCriticoCount] = useState(0);
   const [stockBajoCount, setStockBajoCount] = useState(0);
   const [insumosCriticosDetalle, setInsumosCriticosDetalle] = useState<any[]>([]);
+  const [soloFisicos, setSoloFisicos] = useState(true);
 
   // Estado del Modal de Reaprovisionamiento en Masa (Mltiples productos)
   const [modalReaprovisionamiento, setModalReaprovisionamiento] = useState(false);
@@ -134,12 +138,14 @@ export default function InventariosPage() {
     };
   }, [socket]);
 
+  const baseMaterials = soloFisicos ? materialsData.filter((m) => !m.esSoloFormula) : materialsData;
+
   const categories = [
     'Todos',
-    ...Array.from(new Set(materialsData.map((m) => m.familia))),
+    ...Array.from(new Set(baseMaterials.map((m) => m.familia))),
   ];
 
-  const filteredMaterials = materialsData.filter((item) => {
+  const filteredMaterials = baseMaterials.filter((item) => {
     const matchesSearch =
       item.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.sku.toLowerCase().includes(searchQuery.toLowerCase());
@@ -278,6 +284,82 @@ export default function InventariosPage() {
     setModalReaprovisionamiento(false);
   };
 
+  const renderEstadoFisicoBadge = (estadoFisico?: string | null, tipo?: string | null, nombre?: string | null) => {
+    const raw = (estadoFisico || '').toUpperCase().trim();
+    const tipClean = (tipo || '').toUpperCase().trim();
+    const nomClean = (nombre || '').toUpperCase().trim();
+
+    // 1. Envases específicos (Baldes, Galoneras, Bidones, etc.)
+    if (raw.includes('BALDE') || nomClean.includes('BALDE')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-amber-500/15 text-amber-400 border-amber-500/30 tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+          <span>🪣</span> BALDE
+        </span>
+      );
+    }
+    if (raw.includes('GALON') || raw.includes('BIDON') || nomClean.includes('GALON') || nomClean.includes('BIDON')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-teal-500/15 text-teal-300 border-teal-500/30 tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+          <span>🛢️</span> GALONERA
+        </span>
+      );
+    }
+    if (tipClean.includes('ENVASE') || raw.includes('ENVASE') || raw.includes('EMBALA') || nomClean.includes('TAPA') || nomClean.includes('BOTELLA') || nomClean.includes('FRASCO')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-orange-500/15 text-orange-400 border-orange-500/30 tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+          <span>📦</span> ENVASE
+        </span>
+      );
+    }
+
+    if (!estadoFisico) {
+      return <span className="text-[10px] text-slate-500 font-bold">—</span>;
+    }
+    const clean = raw;
+    if (clean.includes('LIQ')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-cyan-500/10 text-cyan-400 border-cyan-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>💧</span> LÍQUIDO
+        </span>
+      );
+    }
+    if (clean.includes('POLV')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-purple-500/10 text-purple-400 border-purple-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🌫️</span> POLVO
+        </span>
+      );
+    }
+    if (clean.includes('GRAN') || clean.includes('CRIST') || clean.includes('ESCAM') || clean.includes('PERL') || clean.includes('HOJ') || clean.includes('BLOQ') || clean.includes('SOLI')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-amber-500/10 text-amber-400 border-amber-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🧱</span> SÓLIDO
+        </span>
+      );
+    }
+    if (clean.includes('FRAG') || clean.includes('ESEN') || clean.includes('AROM')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-emerald-500/10 text-emerald-400 border-emerald-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🧪</span> FRAGANCIA
+        </span>
+      );
+    }
+    if (clean.includes('PAST') || clean.includes('GEL') || clean.includes('EMUL') || clean.includes('CREM') || clean.includes('GRAS')) {
+      return (
+        <span className="rounded-lg px-2 py-0.5 text-[10px] font-black border bg-blue-500/10 text-blue-400 border-blue-500/30 tracking-wider inline-flex items-center gap-1">
+          <span>🧴</span> PASTA/GEL
+        </span>
+      );
+    }
+    return (
+      <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase border ${
+        isDark ? 'bg-[#1A2434] text-slate-300 border-[#233146]' : 'bg-slate-100 text-slate-700 border-slate-300'
+      }`}>
+        {estadoFisico}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6 font-mono min-h-screen">
       {/* Banner Dinámico de Alerta de Stock Crítico */}
@@ -402,7 +484,7 @@ export default function InventariosPage() {
               }`}
             >
               {categories.map((cat) => {
-                const count = cat === 'Todos' ? materialsData.length : materialsData.filter(m => m.familia.toLowerCase() === cat.toLowerCase()).length;
+                const count = cat === 'Todos' ? baseMaterials.length : baseMaterials.filter(m => m.familia.toLowerCase() === cat.toLowerCase()).length;
                 return (
                   <option key={cat} value={cat}>
                     {cat === 'Todos' ? `Todas las Categoras (${count})` : `${cat} (${count})`}
@@ -457,6 +539,23 @@ export default function InventariosPage() {
               🚨 Stock Crítico
             </button>
           </div>
+
+          <button
+            onClick={() => setSoloFisicos((v) => !v)}
+            className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+              soloFisicos
+                ? isDark
+                  ? 'bg-[#00F2C3]/15 border-[#00F2C3]/40 text-[#00F2C3]'
+                  : 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                : isDark
+                ? 'border-[#1A2232] text-slate-400 hover:text-white'
+                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+            }`}
+            title="Mostrar/ocultar insumos de solo fórmula (ESP)"
+          >
+            <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] ${soloFisicos ? 'bg-[#00F2C3] border-[#00F2C3] text-[#06241B]' : 'border-current'}`}>{soloFisicos ? '✓' : ''}</span>
+            Ocultar ESP
+          </button>
         </div>
 
         {/* Materials Table */}
@@ -477,10 +576,37 @@ export default function InventariosPage() {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60' : 'divide-slate-200'}`}>
-              {paginatedMaterials.length === 0 ? (
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-4 px-4"><div className="h-4 w-16 bg-slate-800/70 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-44 bg-slate-800/80 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-20 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-16 bg-slate-800/50 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-20 bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-4 text-right"><div className="h-4 w-20 bg-slate-800/70 rounded ml-auto" /></td>
+                    <td className="py-4 px-4"><div className="h-2 w-full bg-slate-800/60 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-4 w-24 bg-slate-800/50 rounded" /></td>
+                    <td className="py-4 px-4"><div className="h-5 w-16 bg-slate-800/60 rounded-full" /></td>
+                    <td className="py-4 px-4 text-right"><div className="h-6 w-20 bg-slate-800/40 rounded-lg ml-auto" /></td>
+                  </tr>
+                ))
+              ) : paginatedMaterials.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400 font-sans">
-                    No se encontraron materiales registrados.
+                  <td colSpan={10} className="py-8 font-sans">
+                    <ActionableEmptyState
+                      icon={Package}
+                      title="No se encontraron insumos"
+                      description="No hay registros que coincidan con los filtros seleccionados."
+                      actionLabel="Restablecer Filtros"
+                      onAction={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('Todos');
+                        setSelectedEstadoFilter('TODOS');
+                      }}
+                      secondaryActionLabel="Actualizar Catálogo"
+                      onSecondaryAction={cargarInventarioReal}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -503,9 +629,7 @@ export default function InventariosPage() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${item.estadoFisico ? (isDark ? 'bg-[#1A2434] text-slate-300 border border-[#233146]' : 'bg-slate-100 text-slate-700 border border-slate-300') : ''}`}>
-                        {item.estadoFisico || '—'}
-                      </span>
+                      {renderEstadoFisicoBadge(item.estadoFisico, item.tipo, item.nombre)}
                     </td>
 
                     {/* CANTIDAD DISPONIBLE EN NMEROS */}

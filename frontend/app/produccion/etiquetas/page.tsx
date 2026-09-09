@@ -36,6 +36,14 @@ import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 import { ModalFichaTecnicaInsumos, FichaTecnicaData } from '@/components/produccion/ModalFichaTecnicaInsumos';
 
+export interface EnvaseDisponible {
+  id: string;
+  codigo: string;
+  nombre: string;
+  stockReal: number;
+  unidadMedida: string;
+}
+
 export interface PedidoEtiquetaItem {
   id: string;
   idPedido: string;
@@ -62,6 +70,7 @@ export interface PedidoEtiquetaItem {
   // Metrología por pedido
   tipoEnvase: string;
   taraGramos: number;
+  envaseSku?: string;
   // Parámetros QA
   phMedido: number;
   phRango: string;
@@ -89,6 +98,7 @@ export default function EtiquetasDespachoPage() {
 
   // Pedidos Reales de Producción
   const [pedidosCola, setPedidosCola] = useState<PedidoEtiquetaItem[]>([]);
+  const [envases, setEnvases] = useState<EnvaseDisponible[]>([]);
 
   const [selectedPedidoId, setSelectedPedidoId] = useState<string>('');
   const [showManualDrawer, setShowManualDrawer] = useState<boolean>(false);
@@ -143,6 +153,7 @@ export default function EtiquetasDespachoPage() {
                 estadoImpresion: c.estado || 'LISTO_PARA_IMPRIMIR',
                 tipoEnvase: c.tipoEnvase || 'Envase estándar',
                 taraGramos: c.taraGramos || 0,
+                envaseSku: c.envaseSku || 'ENV-001',
                 phMedido: 6.5,
                 phRango: '6.0 - 7.0',
                 viscosidadMedida: '—',
@@ -166,10 +177,46 @@ export default function EtiquetasDespachoPage() {
     };
   }, []);
 
+  // Cargar los envases reales del maestro de insumos (tipo ENVASE) para asociar el despacho
+  const cargarEnvases = React.useCallback(async () => {
+    try {
+      const { data, ok } = await apiFetch<any[]>('/inventario/insumos?tipo=ENVASE');
+      if (ok && Array.isArray(data)) {
+        const list = data
+          .filter((e: any) => e && e.codigo)
+          .map((e: any) => ({
+            id: e.id,
+            codigo: e.codigo,
+            nombre: e.nombre,
+            stockReal: Number(e.stockReal ?? 0),
+            unidadMedida: e.unidadMedida || 'UN',
+          }));
+        setEnvases(list);
+        if (list.length === 0) {
+          setEnvases([
+            { id: '', codigo: 'ENV-001', nombre: 'BALDE DE 20 LITROS CON TAPA', stockReal: 0, unidadMedida: 'UN' },
+            { id: '', codigo: 'ENV-002', nombre: 'GALONERA / BIDON DE 120 LITROS', stockReal: 0, unidadMedida: 'UN' },
+          ]);
+        }
+      }
+    } catch {
+      // Sin envases en backend: se usan los valores por defecto del maestro
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarEnvases();
+  }, [cargarEnvases]);
+
   // Pedido Actual
   const pedidoActivo = useMemo(() => {
     return pedidosCola.find((p) => p.id === selectedPedidoId) || pedidosCola[0];
   }, [pedidosCola, selectedPedidoId]);
+
+  // Envase efectivo del pedido (seleccionado o primer envase del maestro)
+  const envaseActivo = useMemo(() => {
+    return envases.find((e) => e.codigo === pedidoActivo?.envaseSku) || envases[0];
+  }, [envases, pedidoActivo]);
 
   // Cálculos Metrológicos Dinámicos por Pedido — KG/L validado (peso real de balanza)
   const taraKg = (pedidoActivo?.taraGramos ?? 985) / 1000;
@@ -390,17 +437,23 @@ export default function EtiquetasDespachoPage() {
 
     setDespachando(true);
     try {
-      const { ok, error } = await apiFetch<{ id: string }>('/produccion/etiquetas/despachar', {
+      const { ok, error, data } = await apiFetch<any>('/produccion/etiquetas/despachar', {
         method: 'POST',
         body: JSON.stringify({
           colaId: p.colaId,
           numeroGuia: numeroGuia?.trim() || p.numeroGuia || null,
+          envaseSku: envaseActivo?.codigo || p.envaseSku || 'ENV-001',
+          envaseCantidad: Number(p.unidadesPedidas) || 1,
         }),
       });
 
       if (!ok) {
         throw new Error(error || 'Error al registrar el despacho.');
       }
+
+      const envaseInfo = data?.envaseDescontado
+        ? `\n\n• ${data.envaseDescontado.sku} — ${data.envaseDescontado.nombre}: -${data.envaseDescontado.cantidad} (nuevo stock: ${data.envaseDescontado.saldo})`
+        : '';
 
       // Sacar de la cola de Etiquetas (solo quedan LISTO_PARA_IMPRIMIR) — queda en historial del cliente como ENTREGADO
       setPedidosCola((prev) => prev.filter((it) => it.id !== p.id));
@@ -411,6 +464,7 @@ export default function EtiquetasDespachoPage() {
         }
         return curr;
       });
+      cargarEnvases();
 
       alert(
         `✅ DESPACHO REGISTRADO CON ÉXITO\n\n` +
@@ -423,8 +477,9 @@ export default function EtiquetasDespachoPage() {
           `• Peso Neto Total: ${(contenidoNeto * p.unidadesPedidas).toFixed(3)} kg\n` +
           `• Peso Bruto Total: ${(pesoBrutoTotalKg * p.unidadesPedidas).toFixed(3)} kg\n` +
           `• Destino: ${destino}\n` +
-          `• Responsable: ${responsable}\n\n` +
-          `El estado del pedido quedó actualizado en todo el sistema (Planta, Administración y Cartera de Clientes).`
+          `• Responsable: ${responsable}` +
+          envaseInfo +
+          `\n\nEl estado del pedido quedó actualizado en todo el sistema (Planta, Administración y Cartera de Clientes).`
       );
     } catch (err: any) {
       alert(`❌ No se pudo registrar el despacho: ${err.message || 'Error de conexión'}`);
@@ -797,25 +852,36 @@ export default function EtiquetasDespachoPage() {
             <div className={`p-4 rounded-xl border space-y-3 text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'}`}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-sans">
                 <div>
-                  <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Tipo de Envase del Pedido</label>
+                  <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Envase Usado (se descuenta de stock)</label>
                   <select
-                    value={pedidoActivo.tipoEnvase}
+                    value={envaseActivo?.codigo || pedidoActivo.envaseSku}
                     onChange={(e) => {
-                      const tipo = e.target.value;
+                      const codigo = e.target.value;
+                      const env = envases.find((x) => x.codigo === codigo);
+                      const nombre = env?.nombre || codigo;
                       let tara = 985;
-                      if (tipo.includes('Bidón')) tara = 650;
-                      if (tipo.includes('Cilindro')) tara = 8500;
-                      if (tipo.includes('Galonera')) tara = 120;
-                      handleUpdatePedidoField('tipoEnvase', tipo);
+                      if (codigo === 'ENV-002') tara = 120;
+                      handleUpdatePedidoField('envaseSku', codigo);
+                      handleUpdatePedidoField('tipoEnvase', `${nombre} (${codigo})`);
                       handleUpdatePedidoField('taraGramos', tara);
                     }}
                     className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
                   >
-                    <option value="Balde + Tapa (PEAD 5 Gal)">Balde 5 Galones + Tapa (985 g)</option>
-                    <option value="Bidón PEAD 5 Galones">Bidón PEAD 5 Galones (650 g)</option>
-                    <option value="Galonera 1 Galón">Galonera 1 Galón (120 g)</option>
-                    <option value="Cilindro Plástico Azul 55 Gal">Cilindro 55 Galones (8,500 g)</option>
+                    {envases.length === 0 && <option value="ENV-001">ENV-001 · BALDE DE 20 LITROS CON TAPA</option>}
+                    {envases.map((env) => (
+                      <option key={env.codigo} value={env.codigo}>
+                        {env.codigo} · {env.nombre} — {Number(env.stockReal).toLocaleString()} {env.unidadMedida}
+                      </option>
+                    ))}
                   </select>
+                  <p className={`mt-1 text-[9px] font-sans ${envaseActivo && Number(envaseActivo.stockReal) < (pedidoActivo.unidadesPedidas || 1) ? 'text-rose-500 font-bold' : 'text-slate-500'}`}>
+                    {envaseActivo
+                      ? `Stock actual: ${Number(envaseActivo.stockReal).toLocaleString()} ${envaseActivo.unidadMedida}` +
+                        (Number(envaseActivo.stockReal) >= (pedidoActivo.unidadesPedidas || 1)
+                          ? ' ✔ suficiente para el despacho'
+                          : ' ⚠ insuficiente para este despacho')
+                      : 'Sin maestro de envases conectado'}
+                  </p>
                 </div>
 
                 <div>

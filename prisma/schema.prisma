@@ -204,6 +204,7 @@ model Insumo {
   estado             EstadoGenerico @default(ACTIVO)
   tipo               TipoInsumo?    @default(OTRO)
   estadoFisico       String?        @map("estado_fisico")
+  esSoloFormula      Boolean        @default(false) @map("es_solo_formula")
 
   formulaDetalles     FormulaDetalle[]
   ajustesFinos        AjusteFino[]

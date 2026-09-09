@@ -15,6 +15,7 @@ import {
   Building2,
   Banknote,
   Percent,
+  Pencil,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
@@ -65,6 +66,25 @@ export default function CuentasCobrarPage() {
   const [numOperacion, setNumOperacion] = useState<string>('');
   const [observaciones, setObservaciones] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Modal de Edición de Cuenta
+  const [modalEditarOpen, setModalEditarOpen] = useState<boolean>(false);
+  const [cuentaEditar, setCuentaEditar] = useState<CuentaCobrarItem | null>(null);
+  const [editCodigoDoc, setEditCodigoDoc] = useState<string>('');
+  const [editClienteNombre, setEditClienteNombre] = useState<string>('');
+  const [editClienteRuc, setEditClienteRuc] = useState<string>('');
+  const [editProducto, setEditProducto] = useState<string>('');
+  const [editOrdenProd, setEditOrdenProd] = useState<string>('');
+  const [editCondicionPago, setEditCondicionPago] = useState<string>('Contado');
+  const [editDiasPlazo, setEditDiasPlazo] = useState<string>('0');
+  const [editMontoTotal, setEditMontoTotal] = useState<string>('0');
+  const [editSaldoPendiente, setEditSaldoPendiente] = useState<string>('0');
+  const [editFechaEmision, setEditFechaEmision] = useState<string>('');
+  const [editFechaVencimiento, setEditFechaVencimiento] = useState<string>('');
+  const [editEstado, setEditEstado] = useState<'PAGADO' | 'PENDIENTE'>('PAGADO');
+  const [editMedioPago, setEditMedioPago] = useState<string>('Deposito en cuenta');
+  const [editCanalBanco, setEditCanalBanco] = useState<string>('Interbank');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState<boolean>(false);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
@@ -187,6 +207,92 @@ export default function CuentasCobrarPage() {
       alert(`✅ Abono registrado localmente (S/ ${monto.toFixed(2)})`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const abrirModalEditar = (cuenta: CuentaCobrarItem) => {
+    setCuentaEditar(cuenta);
+    setEditCodigoDoc(cuenta.codigoDoc);
+    setEditClienteNombre(cuenta.clienteNombre);
+    setEditClienteRuc(cuenta.clienteRuc);
+    setEditProducto(cuenta.producto || '');
+    setEditOrdenProd(cuenta.ordenProd || '');
+    setEditCondicionPago(cuenta.condicionPago);
+    setEditDiasPlazo(String(cuenta.diasPlazo ?? 0));
+    setEditMontoTotal(String(cuenta.montoTotal));
+    setEditSaldoPendiente(String(cuenta.saldoPendiente > 0 ? cuenta.saldoPendiente : '0'));
+    setEditFechaEmision(cuenta.fechaEmision.slice(0, 10));
+    setEditFechaVencimiento(cuenta.fechaVencimiento.slice(0, 10));
+    setEditEstado(cuenta.estado === 'PAGADO' ? 'PAGADO' : 'PENDIENTE');
+    setEditMedioPago(cuenta.medioPago || 'Deposito en cuenta');
+    setEditCanalBanco(cuenta.canalBanco || 'Interbank');
+    setModalEditarOpen(true);
+  };
+
+  const handleGuardarEdicion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cuentaEditar) return;
+
+    setIsSubmittingEdit(true);
+    try {
+      await apiFetch(`/cobranzas/${cuentaEditar.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          codigoDoc: editCodigoDoc,
+          clienteNombre: editClienteNombre,
+          clienteRuc: editClienteRuc,
+          ordenProd: editOrdenProd || undefined,
+          producto: editProducto || undefined,
+          montoTotal: parseFloat(editMontoTotal),
+          saldoPendiente: parseFloat(editSaldoPendiente),
+          condicionPago: editCondicionPago,
+          diasPlazo: parseInt(editDiasPlazo, 10) || 0,
+          estado: editEstado,
+          medioPago: editEstado === 'PAGADO' ? editMedioPago || undefined : undefined,
+          canalBanco: editEstado === 'PAGADO' ? editCanalBanco || undefined : undefined,
+          fechaEmision: editFechaEmision,
+          fechaVencimiento: editFechaVencimiento,
+        }),
+      });
+
+      const monto = parseFloat(editMontoTotal);
+      const saldo = editEstado === 'PAGADO' ? 0 : parseFloat(editSaldoPendiente);
+
+      const actualizado: CuentaCobrarItem = {
+        ...cuentaEditar,
+        codigoDoc: editCodigoDoc,
+        clienteNombre: editClienteNombre,
+        clienteRuc: editClienteRuc,
+        ordenProd: editOrdenProd || undefined,
+        producto: editProducto || undefined,
+        montoTotal: monto,
+        saldoPendiente: saldo,
+        condicionPago: editCondicionPago,
+        diasPlazo: parseInt(editDiasPlazo, 10) || 0,
+        fechaEmision: editFechaEmision,
+        fechaVencimiento: editFechaVencimiento,
+        estado: editEstado,
+        medioPago: editEstado === 'PAGADO' ? editMedioPago || undefined : undefined,
+        canalBanco: editEstado === 'PAGADO' ? editCanalBanco || undefined : undefined,
+      };
+
+      const nuevasCuentas = cuentas.map((c) => (c.id === cuentaEditar.id ? actualizado : c));
+      setCuentas(nuevasCuentas);
+      setKpis({
+        totalFacturado: nuevasCuentas.reduce((acc, c) => acc + (Number(c.montoTotal) || 0), 0),
+        totalCobrado: nuevasCuentas.reduce((acc, c) => acc + ((Number(c.montoTotal) || 0) - (Number(c.saldoPendiente) || 0)), 0),
+        saldoPendiente: nuevasCuentas.reduce((acc, c) => acc + (Number(c.saldoPendiente) || 0), 0),
+        totalVencido: 0,
+        totalDocumentos: nuevasCuentas.length,
+      });
+
+      setModalEditarOpen(false);
+      alert(`Cuenta ${editCodigoDoc} actualizada correctamente`);
+    } catch (err: any) {
+      console.error('Error al actualizar cuenta:', err);
+      alert('Ocurrió un error al guardar los cambios. Revisa la consola.');
+    } finally {
+      setIsSubmittingEdit(false);
     }
   };
 
@@ -576,16 +682,23 @@ export default function CuentasCobrarPage() {
                       </span>
                     </td>
                     <td className="py-3.5 px-3 text-center">
-                      {c.estado === 'PENDIENTE' ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        {c.estado === 'PENDIENTE' && (
+                          <button
+                            onClick={() => abrirModalAbono(c)}
+                            className="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-[#00F2C3] border border-emerald-500/30 hover:border-[#00F2C3] text-[10px] font-bold font-sans transition-all active:scale-95 shadow-sm"
+                          >
+                            Abonar
+                          </button>
+                        )}
                         <button
-                          onClick={() => abrirModalAbono(c)}
-                          className="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-[#00F2C3] border border-emerald-500/30 hover:border-[#00F2C3] text-[10px] font-bold font-sans transition-all active:scale-95 shadow-sm"
+                          onClick={() => abrirModalEditar(c)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:border-blue-400 text-[10px] font-bold font-sans transition-all active:scale-95 shadow-sm"
                         >
-                          Abonar
+                          <Pencil className="w-3 h-3" />
+                          Editar
                         </button>
-                      ) : (
-                        <span className="text-[10px] text-slate-500 font-sans">Liquidado</span>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -726,6 +839,235 @@ export default function CuentasCobrarPage() {
                   className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
                 >
                   {isSubmitting ? 'Registrando...' : 'Confirmar Abono'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Cuenta por Cobrar */}
+      {modalEditarOpen && cuentaEditar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+          <div className={`w-full max-w-2xl rounded-2xl border p-6 space-y-4 shadow-2xl ${cardBg} border-blue-500/30`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <h3 className={`text-sm font-black ${textValue}`}>Editar Cuenta por Cobrar</h3>
+              </div>
+              <button
+                onClick={() => setModalEditarOpen(false)}
+                className={`p-1.5 rounded-lg border transition-colors ${
+                  isDark ? 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarEdicion} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Comprobante *
+                  </label>
+                  <input
+                    type="text"
+                    value={editCodigoDoc}
+                    onChange={(e) => setEditCodigoDoc(e.target.value)}
+                    required
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Estado</label>
+                  <select
+                    value={editEstado}
+                    onChange={(e) => setEditEstado(e.target.value as 'PAGADO' | 'PENDIENTE')}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  >
+                    <option value="PENDIENTE">PENDIENTE (Por cobrar)</option>
+                    <option value="PAGADO">PAGADO (Liquidado)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    value={editClienteNombre}
+                    onChange={(e) => setEditClienteNombre(e.target.value)}
+                    required
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>RUC / DNI</label>
+                  <input
+                    type="text"
+                    value={editClienteRuc}
+                    onChange={(e) => setEditClienteRuc(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Producto</label>
+                  <input
+                    type="text"
+                    value={editProducto}
+                    onChange={(e) => setEditProducto(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Orden Producción</label>
+                  <input
+                    type="text"
+                    value={editOrdenProd}
+                    onChange={(e) => setEditOrdenProd(e.target.value)}
+                    placeholder="OP-2026..."
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Condición de Pago</label>
+                  <select
+                    value={editCondicionPago}
+                    onChange={(e) => setEditCondicionPago(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  >
+                    <option value="Contado">Contado</option>
+                    <option value="Credito 07 dias">Crédito 07 días</option>
+                    <option value="Credito 15 dias">Crédito 15 días</option>
+                    <option value="Credito 20 dias">Crédito 20 días</option>
+                    <option value="Credito 60 dias">Crédito 60 días</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Días de Plazo</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editDiasPlazo}
+                    onChange={(e) => setEditDiasPlazo(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Total Comprobante (S/) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editMontoTotal}
+                    onChange={(e) => setEditMontoTotal(e.target.value)}
+                    required
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Saldo Pendiente (S/) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={parseFloat(editMontoTotal) || 0}
+                    value={editSaldoPendiente}
+                    onChange={(e) => setEditSaldoPendiente(e.target.value)}
+                    required
+                    disabled={editEstado === 'PAGADO'}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono font-bold ${inputBg} focus:border-blue-400 focus:outline-none disabled:opacity-50`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Fecha Emisión</label>
+                  <input
+                    type="date"
+                    value={editFechaEmision}
+                    onChange={(e) => setEditFechaEmision(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Fecha Vencimiento</label>
+                  <input
+                    type="date"
+                    value={editFechaVencimiento}
+                    onChange={(e) => setEditFechaVencimiento(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg} focus:border-blue-400 focus:outline-none`}
+                  />
+                </div>
+              </div>
+
+              {editEstado === 'PAGADO' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Medio de Pago</label>
+                    <select
+                      value={editMedioPago}
+                      onChange={(e) => setEditMedioPago(e.target.value)}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                    >
+                      <option value="Deposito en cuenta">Depósito en cuenta</option>
+                      <option value="Transferencia Interbancaria">Transferencia CCI</option>
+                      <option value="Yape / Plin">Yape / Plin</option>
+                      <option value="Efectivo en caja">Efectivo en caja</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Banco</label>
+                    <select
+                      value={editCanalBanco}
+                      onChange={(e) => setEditCanalBanco(e.target.value)}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                    >
+                      <option value="Interbank">Interbank Cta Cte</option>
+                      <option value="BCP">BCP Cta Cte</option>
+                      <option value="BBVA">BBVA</option>
+                      <option value="Caja">Caja Chica</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <div className={`flex justify-end gap-2.5 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                <button
+                  type="button"
+                  onClick={() => setModalEditarOpen(false)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
+                    isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEdit}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-400 hover:to-indigo-400 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+                >
+                  {isSubmittingEdit ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>

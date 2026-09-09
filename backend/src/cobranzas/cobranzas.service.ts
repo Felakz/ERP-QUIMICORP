@@ -148,4 +148,69 @@ export class CobranzasService {
       },
     });
   }
+
+  async actualizar(id: string, dto: any) {
+    const cuenta = await this.buscarPorId(id);
+
+    const data: any = {};
+    const camposMap: Record<string, string> = {
+      codigoDoc: 'codigoDoc',
+      clienteNombre: 'clienteNombre',
+      clienteRuc: 'clienteRuc',
+      ordenProd: 'ordenProd',
+      producto: 'producto',
+      montoTotal: 'montoTotal',
+      saldoPendiente: 'saldoPendiente',
+      condicionPago: 'condicionPago',
+      diasPlazo: 'diasPlazo',
+      estado: 'estado',
+      medioPago: 'medioPago',
+      canalBanco: 'canalBanco',
+      fechaEmision: 'fechaEmision',
+      fechaVencimiento: 'fechaVencimiento',
+      fechaPago: 'fechaPago',
+    };
+
+    for (const key of Object.keys(camposMap)) {
+      if (dto[key] !== undefined) {
+        data[camposMap[key]] = dto[key];
+      }
+    }
+
+    // Si cambia montoTotal sin saldoPendiente explícito, recalculamos el saldo
+    if (dto.montoTotal !== undefined && dto.saldoPendiente === undefined) {
+      const pagado = Number(cuenta.montoTotal) - Number(cuenta.saldoPendiente);
+      data.saldoPendiente = Number((Number(dto.montoTotal) - pagado).toFixed(2));
+    }
+
+    for (const fechaField of ['fechaEmision', 'fechaVencimiento', 'fechaPago']) {
+      if (data[fechaField] !== undefined && data[fechaField]) {
+        const parsed = new Date(data[fechaField]);
+        if (!isNaN(parsed.getTime())) data[fechaField] = parsed;
+        else delete data[fechaField];
+      }
+      if (data[fechaField] === null) delete data[fechaField];
+    }
+
+    // Normalizar estado
+    if (data.saldoPendiente !== undefined) {
+      const saldo = Number(data.saldoPendiente);
+      if (saldo <= 0 && (cuenta.estado !== 'PENDIENTE' || data.estado === undefined)) {
+        data.estado = 'PAGADO';
+      }
+      if (saldo > 0 && data.estado === undefined && cuenta.estado === 'PAGADO') {
+        data.estado = 'PENDIENTE';
+      }
+    }
+
+    return this.prisma.cuentaCobrar.update({
+      where: { id },
+      data,
+      include: {
+        pagos: {
+          orderBy: { fechaAbono: 'desc' },
+        },
+      },
+    });
+  }
 }

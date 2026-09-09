@@ -39,6 +39,14 @@ export default function AdministracionDashboardPage() {
   const [includeIgv, setIncludeIgv] = useState<boolean>(false); // false = Neto, true = Con IGV (18%)
   const [currency, setCurrency] = useState<CurrencyType>('PEN'); // 'PEN' (S/) vs 'USD' ($)
   const [dateRange, setDateRange] = useState<DateRangeType>('MES_ACTUAL');
+  const [customStartDate, setCustomStartDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [customEndDate, setCustomEndDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [exchangeRateUsd] = useState<number>(3.75); // Tipo de cambio PEN por USD
 
   // Live API Custom Hook (100% PostgreSQL sin hardcodeo)
@@ -51,8 +59,9 @@ export default function AdministracionDashboardPage() {
     paymentCategories: livePaymentCategories,
     recentDocs: liveRecentDocs,
     recentOrders: liveRecentOrders,
+    loading,
     refresh: refreshApi,
-  } = useDashboardData(dateRange);
+  } = useDashboardData(dateRange, { startDate: customStartDate, endDate: customEndDate });
 
   return (
     <div className="space-y-6 font-sans pb-12">
@@ -64,6 +73,10 @@ export default function AdministracionDashboardPage() {
         onChangeCurrency={setCurrency}
         dateRange={dateRange}
         onChangeDateRange={setDateRange}
+        customStartDate={customStartDate}
+        onChangeCustomStartDate={setCustomStartDate}
+        customEndDate={customEndDate}
+        onChangeCustomEndDate={setCustomEndDate}
         onRefresh={refreshApi}
       />
 
@@ -73,6 +86,7 @@ export default function AdministracionDashboardPage() {
         includeIgv={includeIgv}
         currency={currency}
         exchangeRateUsd={exchangeRateUsd}
+        loading={loading}
       />
 
       {/* 3. FILA DE ANALÍTICA SUPERIOR (GRÁFICOS RECHARTS) */}
@@ -107,6 +121,7 @@ export default function AdministracionDashboardPage() {
             includeIgv={includeIgv}
             currency={currency}
             exchangeRateUsd={exchangeRateUsd}
+            loading={loading}
           />
         </div>
 
@@ -117,6 +132,7 @@ export default function AdministracionDashboardPage() {
             includeIgv={includeIgv}
             currency={currency}
             exchangeRateUsd={exchangeRateUsd}
+            loading={loading}
           />
         </div>
 
@@ -140,6 +156,7 @@ export default function AdministracionDashboardPage() {
             includeIgv={includeIgv}
             currency={currency}
             exchangeRateUsd={exchangeRateUsd}
+            loading={loading}
           />
         </div>
 
@@ -150,6 +167,7 @@ export default function AdministracionDashboardPage() {
             includeIgv={includeIgv}
             currency={currency}
             exchangeRateUsd={exchangeRateUsd}
+            loading={loading}
           />
         </div>
       </div>

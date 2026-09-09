@@ -1,18 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Fingerprint,
   Clock,
   Calendar,
-  UserCheck,
-  UserX,
-  Plus,
   Search,
   CheckCircle2,
-  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
 
 interface MarcacionBiometrica {
   id: string;
@@ -30,80 +28,43 @@ export default function BiometriaPage() {
   const isDark = theme === 'dark';
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [marcaciones, setMarcaciones] = useState<MarcacionBiometrica[]>([
-    {
-      id: '1',
-      dni: '45892011',
-      nombre: 'Carlos Quispe',
-      cargo: 'Operario de Planta',
-      horaIngreso: '06:54 AM',
-      turno: 'Maana (07:00 - 15:30)',
-      estado: 'PUNTUAL',
-      huellaVerificada: true,
-    },
-    {
-      id: '2',
-      dni: '71204938',
-      nombre: 'Ana Flores',
-      cargo: 'Tcnico de Mezclas',
-      horaIngreso: '06:58 AM',
-      turno: 'Maana (07:00 - 15:30)',
-      estado: 'PUNTUAL',
-      huellaVerificada: true,
-    },
-    {
-      id: '3',
-      dni: '10928374',
-      nombre: 'Luis Mamani',
-      cargo: 'Supervisor QA',
-      horaIngreso: '07:12 AM',
-      turno: 'Maana (07:00 - 15:30)',
-      estado: 'TARDANZA',
-      huellaVerificada: true,
-    },
-    {
-      id: '4',
-      dni: '48201934',
-      nombre: 'Rosa Condori',
-      cargo: 'Operario Envasado',
-      horaIngreso: '06:45 AM',
-      turno: 'Maana (07:00 - 15:30)',
-      estado: 'PUNTUAL',
-      huellaVerificada: true,
-    },
-    {
-      id: '5',
-      dni: '75019283',
-      nombre: 'Jorge Mendoza',
-      cargo: 'Asistente Almacén',
-      horaIngreso: '',
-      turno: 'Tarde (15:30 - 23:00)',
-      estado: 'AUSENTE',
-      huellaVerificada: false,
-    },
-  ]);
+  const [hoy, setHoy] = useState(() => new Date().toISOString().split('T')[0]);
+  const [marcaciones, setMarcaciones] = useState<MarcacionBiometrica[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
   const inputBg = isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400';
 
-  const handleSimularMarcacion = () => {
-    const nombre = prompt('Ingrese Nombre del Operario para marcar huella:', 'Roberto Gmez');
-    if (!nombre) return;
-    const nueva: MarcacionBiometrica = {
-      id: String(Date.now()),
-      dni: String(Math.floor(10000000 + Math.random() * 90000000)),
-      nombre,
-      cargo: 'Operario Planta B',
-      horaIngreso: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-      turno: 'Maana (07:00 - 15:30)',
-      estado: 'PUNTUAL',
-      huellaVerificada: true,
-    };
-    setMarcaciones((prev) => [nueva, ...prev]);
-    alert(`Huella verificada correctamente para ${nombre}. Marcacin registrada.`);
+  const cargar = async () => {
+    setLoading(true);
+    try {
+      const { data, ok } = await apiFetch<any[]>(`/asistencia/hoy?fecha=${hoy}&area=planta`);
+      if (ok && Array.isArray(data)) {
+        setMarcaciones(
+          data.map((a) => ({
+            id: a.id,
+            dni: a.dni,
+            nombre: a.nombre,
+            cargo: a.cargo,
+            horaIngreso: a.horaIngreso || '--:--',
+            turno: a.turno,
+            estado: (a.estado === 'PUNTUAL' || a.estado === 'TARDANZA' ? a.estado : 'AUSENTE') as any,
+            huellaVerificada: !!a.huellaVerificada,
+          }))
+        );
+      }
+    } catch {
+      setMarcaciones([]);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    cargar();
+  }, [hoy]);
 
   const filtered = marcaciones.filter(
     (m) =>
@@ -111,41 +72,58 @@ export default function BiometriaPage() {
       m.dni.includes(searchQuery)
   );
 
+  const presentes = marcaciones.filter((m) => m.estado !== 'AUSENTE').length;
+  const puntuales = marcaciones.filter((m) => m.estado === 'PUNTUAL').length;
+  const total = marcaciones.length;
+  const porcPuntual = total > 0 ? Math.round((puntuales / total) * 1000) / 10 : 0;
+
   return (
     <div className="space-y-6 font-mono min-h-screen">
       {/* Subtitle Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className={`text-sm font-bold tracking-widest uppercase ${textTitle}`}>
-            BIOMETRA & GESTIN DE TURNOS
+            BIOMETRÍA & GESTIÓN DE TURNOS
           </h2>
           <p className="text-xs text-slate-400 font-sans mt-0.5">
-            Gestin de marcaciones por huella/DNI, clculo de horas trabajadas y ventanas QA.
+            Marcaciones por huella del personal de planta (operarios y supervisor).
           </p>
         </div>
 
-        <button
-          onClick={handleSimularMarcacion}
-          className="flex items-center gap-2 rounded-lg bg-[#00F2C3] px-4 py-2 text-xs font-bold text-[#090C10] hover:bg-[#00d8ad] transition-all shadow-md"
-        >
-          <Fingerprint className="h-4 w-4" />
-          <span>Simular Marcacin Huella</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-[#151D2A] p-1.5 rounded-xl border border-[#1A2232]">
+            <Calendar className="h-4 w-4 text-cyan-400 ml-1" />
+            <input
+              type="date"
+              value={hoy}
+              onChange={(e) => setHoy(e.target.value)}
+              className="bg-transparent text-xs font-mono font-bold text-slate-200 focus:outline-none pr-2"
+            />
+          </div>
+          <button
+            onClick={cargar}
+            disabled={loading}
+            className="flex items-center gap-2 rounded-lg bg-[#00F2C3] px-4 py-2 text-xs font-bold text-[#090C10] hover:bg-[#00d8ad] transition-all shadow-md"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Actualizar</span>
+          </button>
+        </div>
       </div>
 
-      {/* Top 3 Metric Cards (Matching Screenshot) */}
+      {/* Top 3 Metric Cards */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Card 1: OPERARIOS PRESENTES */}
         <div className={`rounded-xl p-5 border flex items-center justify-between ${cardBg}`}>
           <div className="space-y-1">
             <span className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>
-              OPERARIOS PRESENTES
+              PERSONAL PRESENTE
             </span>
             <div className="flex items-baseline gap-2">
-              <span className={`text-2xl font-black ${textValue}`}>28 / 30</span>
+              <span className={`text-2xl font-black ${textValue}`}>{presentes} / {total}</span>
             </div>
             <p className="text-xs text-emerald-500 font-bold font-sans">
-              93.3% Asistencia puntual
+              {porcPuntual}% Asistencia puntual
             </p>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
@@ -160,10 +138,10 @@ export default function BiometriaPage() {
               TURNO ACTUAL
             </span>
             <h3 className={`text-base font-black ${textValue}`}>
-              Maana (07:00 - 15:30)
+              {marcaciones[0]?.turno || 'LUNES A VIERNES (08:00 - 17:00)'}
             </h3>
             <p className="text-xs text-slate-400 font-sans">
-              Planta de Mezclas A & B
+              Sábado: 08:00 - 13:00 (automático)
             </p>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
@@ -181,7 +159,7 @@ export default function BiometriaPage() {
               13:00 - 14:00
             </h3>
             <p className="text-xs text-slate-400 font-sans">
-              Habilitada por QA Supervisor
+              Tope 13:00 • No aplica sábados
             </p>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
@@ -194,7 +172,7 @@ export default function BiometriaPage() {
       <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
         <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
           <h3 className={`text-xs font-bold tracking-widest uppercase ${textTitle}`}>
-            REGISTRO DE MARCACIONES BIOMTRICAS EN TIEMPO REAL
+            REGISTRO DE MARCACIONES BIOMÉTRICAS EN TIEMPO REAL
           </h3>
 
           <div className="relative w-64">
@@ -223,6 +201,13 @@ export default function BiometriaPage() {
               </tr>
             </thead>
             <tbody className={`divide-y ${isDark ? 'divide-[#1A2232]/60 font-mono' : 'divide-slate-200 font-mono'}`}>
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-6 px-4 text-center text-slate-400 font-sans">
+                    {loading ? 'Cargando...' : 'Sin registros para la fecha seleccionada.'}
+                  </td>
+                </tr>
+              )}
               {filtered.map((item) => (
                 <tr key={item.id} className={`transition-colors ${isDark ? 'hover:bg-[#151D2A]/50' : 'hover:bg-slate-50'}`}>
                   <td className="py-3.5 px-4 font-bold text-cyan-500">{item.dni}</td>
@@ -238,9 +223,7 @@ export default function BiometriaPage() {
                         <CheckCircle2 className="h-3.5 w-3.5" /> Verificada
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-slate-400 font-bold text-[11px]">
-                        
-                      </span>
+                      <span className="text-slate-400 font-bold text-[11px]">Manual</span>
                     )}
                   </td>
                   <td className="py-3.5 px-4">

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { CobranzasService } from './cobranzas.service';
 import { RegistrarAbonoDto } from './dto/registrar-abono.dto';
 import { CrearCuentaCobrarDto } from './dto/crear-cuenta-cobrar.dto';
@@ -50,5 +50,13 @@ export class CobranzasController {
   @Post()
   async crear(@Body() dto: CrearCuentaCobrarDto) {
     return this.service.crear(dto);
+  }
+
+  @Put(':id')
+  async actualizar(
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    return this.service.actualizar(id, dto);
   }
 }
