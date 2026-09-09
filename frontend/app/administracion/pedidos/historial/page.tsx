@@ -21,7 +21,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
-import { apiFetch } from '@/lib/apiClient';
+import { apiFetch, getSocketUrl } from '@/lib/apiClient';
 
 interface PedidoHistorialItem {
   id: string;
@@ -126,7 +126,7 @@ export default function HistorialPedidosPage() {
     fetchHistorial();
 
     // 📡 Listener WebSockets para actualizar el Historial en Vivo
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001', {
+    const socket = io(getSocketUrl(), {
       transports: ['websocket', 'polling'],
     });
 

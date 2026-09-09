@@ -23,6 +23,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
 import { KARDEX_REAL_SEED_DATA } from '@/lib/kardexRealData';
 import { TableSkeleton } from '@/components/ui/TableSkeleton';
 import { ActionableEmptyState } from '@/components/ui/ActionableEmptyState';
@@ -93,16 +94,10 @@ function BOMModal({
     if (!isOpen || !productoNombre) return;
     let isMounted = true;
     setLoading(true);
-    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-    const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
-
-    fetch(`http://localhost:3001/api/v1/kardex/bom?nombre=${encodeURIComponent(productoNombre)}`, {
-      headers: authHeader,
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+    apiFetch<FormulaBOM>(`/kardex/bom?nombre=${encodeURIComponent(productoNombre)}`)
+      .then((res) => {
         if (isMounted) {
-          setBom(data || null);
+          setBom(res.ok ? res.data : null);
           setLoading(false);
         }
       })
@@ -270,23 +265,9 @@ export default function KardexPage() {
         savedToken = null;
       }
 
-      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
-
-      const queryParams = new URLSearchParams();
-      queryParams.append('categoria', activeTab);
-      if (searchQuery) queryParams.append('search', searchQuery);
-      if (tipoOperacionFiltro !== 'TODAS') queryParams.append('tipoOperacion', tipoOperacionFiltro);
-      if (fechaDesde) queryParams.append('desde', fechaDesde);
-      if (fechaHasta) queryParams.append('hasta', fechaHasta);
-
-      const res = await fetch(`http://localhost:3001/api/v1/kardex/categorizado?${queryParams.toString()}`, {
-        headers: authHeader,
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (Array.isArray(json)) {
-          apiData = json;
-        }
+      const res = await apiFetch<any[]>(`/kardex/categorizado?${queryParams.toString()}`);
+      if (res.ok && Array.isArray(res.data)) {
+        apiData = res.data;
       }
     } catch (error) {
       console.log('Error fetching kardex endpoint:', error);

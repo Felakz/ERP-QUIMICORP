@@ -16,6 +16,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
 import {
   FORMULAS_MAESTRAS_REALES,
   CATEGORIAS_FORMULAS,
@@ -81,24 +82,16 @@ function FormulasContent() {
   const fetchFormulas = async () => {
     try {
       setLoading(true);
-      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
-      const authHeader: Record<string, string> = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
+      const res = await apiFetch<any[]>(`/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`);
 
-      const res = await fetch(`http://localhost:3001/api/v1/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`, {
-        headers: authHeader,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setFormulasApi(data);
-          if (!selectedFormulaId) {
-            setSelectedFormulaId(data[0].id);
-          }
+      if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+        setFormulasApi(res.data);
+        if (!selectedFormulaId) {
+          setSelectedFormulaId(res.data[0].id);
         }
       }
     } catch (e) {
-      console.log('Fallback a catlogo local:', e);
+      console.log('Fallback a catalogo local:', e);
     } finally {
       setLoading(false);
     }
