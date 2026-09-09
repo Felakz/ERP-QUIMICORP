@@ -325,7 +325,7 @@ export class ProduccionService {
           },
         },
         pedidoComercial: {
-          select: { montoTotal: true, codigoOrden: true, productoNombre: true },
+          select: { montoTotal: true, codigoOrden: true, productoNombre: true, unidadMedida: true },
         },
       },
     });
@@ -424,7 +424,7 @@ export class ProduccionService {
           familia: orden.pedidoComercial?.productoNombre || 'Productos Terminados',
           categoriaNombre: 'Producto Terminado Aprobado',
           proveedorCliente: clienteFinal,
-          unidadMedida: 'KG',
+          unidadMedida: orden.pedidoComercial?.unidadMedida || 'KG',
           fecha: new Date(),
           tipoDoc: 'OP',
           serie: 'LOTE',
@@ -728,20 +728,10 @@ export class ProduccionService {
       include: {
         formula: { include: { detalles: { include: { insumo: { include: { familia: true } } } } } },
         supervisor: { select: { nombres: true, apellidos: true } },
+        pedidoComercial: { select: { cantidadSolicitada: true, unidadMedida: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
-
-    // Cargar pedidos comerciales del sistema para resolver aditivos y atributos personalizados
-    const pedidosRecientes = await (this.prisma as any).pedidoComercial.findMany({
-      include: {
-        aditivos: {
-          include: { insumo: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    }).catch(() => []);
 
     let totalKgProgramados = 0;
     let terminadosCount = 0;
@@ -750,8 +740,14 @@ export class ProduccionService {
 
     const listaFormatted = ordenesDelDia.map((oItem) => {
       const o = oItem as any;
-      const cant = Number(o.cantidadPlanificada) || 0;
-      totalKgProgramados += cant;
+      const cantGramos = Number(o.cantidadPlanificada) || 0;
+      totalKgProgramados += cantGramos;
+
+      // Resolver unidad y cantidad de presentación desde el pedido comercial vinculado
+      const pedido = o.pedidoComercial;
+      const unidadPedido = pedido?.unidadMedida || 'KG';
+      const cantPedido = Number(pedido?.cantidadSolicitada);
+      const cantidadVisual = Number.isFinite(cantPedido) && cantPedido > 0 ? cantPedido : cantGramos / 1000;
 
       const esTerminado =
         o.estado === EstadoOrdenProduccion.APROBADO ||
@@ -782,34 +778,26 @@ export class ProduccionService {
         pendientesCount++;
       }
 
-      // Resolver Color y Fragancia con prioridad: OrdenProduccion > PedidoComercial > Fallback
+      // Resolver Color y Fragancia con prioridad: OrdenProduccion > PedidoComercial > Fórmula > Fallback
       let colorResuelto = o.colorEspecificado;
       let fraganciaResuelta = o.fraganciaEspecificada;
 
-      if (!colorResuelto || colorResuelto === 'TRANSPARENTE' || colorResuelto === 'SIN COLOR' || !fraganciaResuelta || fraganciaResuelta === 'SIN FRAGANCIA' || fraganciaResuelta === 'SIN AROMA') {
-        const numPart = (o.codigoLote || '').replace(/\D/g, '');
-        const matchingPedido = pedidosRecientes.find((p: any) => {
-          const pNum = (p.codigoOrden || '').replace(/\D/g, '');
-          if (numPart && pNum && (numPart.includes(pNum) || pNum.includes(numPart))) return true;
-          return p.clienteNombre === o.clienteNombre && p.formulaId === o.formulaId;
-        });
+      const insumosFormula: any[] = (o.formula?.detalles || [])
+        .map((d: any) => d.insumo)
+        .filter(Boolean);
 
-        if (matchingPedido) {
-          const fragAdit = matchingPedido.aditivos?.find(
-            (a: any) => a.tipo === 'FRAGANCIA' || a.insumo?.tipo === 'FRAGANCIA' || a.insumo?.nombre?.toLowerCase().includes('fragancia')
-          );
-          const pigmAdit = matchingPedido.aditivos?.find(
-            (a: any) => a.tipo === 'PIGMENTO' || a.insumo?.tipo === 'PIGMENTO' || a.insumo?.nombre?.toLowerCase().includes('pigmento')
-          );
-
-          if (!colorResuelto || colorResuelto === 'TRANSPARENTE' || colorResuelto === 'SIN COLOR') {
-            colorResuelto = matchingPedido.colorText || matchingPedido.color || pigmAdit?.insumo?.nombre || 'TRANSPARENTE';
-          }
-          if (!fraganciaResuelta || fraganciaResuelta === 'SIN FRAGANCIA' || fraganciaResuelta === 'SIN AROMA') {
-            fraganciaResuelta = matchingPedido.aromaText || matchingPedido.aroma || fragAdit?.insumo?.nombre || 'SIN FRAGANCIA';
-          }
-        }
+      if (!colorResuelto || colorResuelto === 'TRANSPARENTE' || colorResuelto === 'SIN COLOR') {
+        const pigmento = insumosFormula.find((i: any) => i.tipo === 'PIGMENTO');
+        colorResuelto = pigmento?.nombre || 'TRANSPARENTE';
       }
+      if (!fraganciaResuelta || fraganciaResuelta === 'SIN FRAGANCIA' || fraganciaResuelta === 'SIN AROMA') {
+        const fragancia = insumosFormula.find((i: any) => i.tipo === 'FRAGANCIA');
+        fraganciaResuelta = fragancia?.nombre || 'SIN FRAGANCIA';
+      }
+
+      const nombreSupervisor = o.supervisor
+        ? `${o.supervisor.nombres || ''} ${o.supervisor.apellidos || ''}`.trim()
+        : '';
 
       return {
         id: o.id,
@@ -818,10 +806,10 @@ export class ProduccionService {
         productoNombre: o.formula?.nombreProducto || 'Producto Químico',
         colorEspecificado: colorResuelto || 'TRANSPARENTE',
         fraganciaEspecificada: fraganciaResuelta || 'SIN FRAGANCIA',
-        cantidad: cant,
-        unidadMedida: 'KG',
+        cantidad: cantidadVisual,
+        unidadMedida: unidadPedido,
         estado: estadoCalculado,
-        operarios: o.operariosAsignados || 'Sin Asignar',
+        operarios: o.operariosAsignados || nombreSupervisor || 'Sin Asignar',
         prioridad: o.prioridad || 'NORMAL',
         fechaCreacion: o.createdAt,
         fechaCierre: o.fechaCierre,
@@ -832,7 +820,7 @@ export class ProduccionService {
       fecha: fechaISO,
       resumen: {
         totalOrdenes: listaFormatted.length,
-        totalKgProgramados: totalKgProgramados.toFixed(2),
+        totalKgProgramados: (totalKgProgramados / 1000).toFixed(2),
         totalTerminados: terminadosCount,
         totalEnProceso: enProcesoCount,
         totalPendientes: pendientesCount,
