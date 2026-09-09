@@ -3,23 +3,25 @@
  * Handles JWT authentication, dynamic host resolution, automatic token refresh/fallback, and error normalization.
  */
 
+const DEFAULT_PRODUCTION_API_URL = 'https://erp-quimicorp-production.up.railway.app/api/v1';
+
 export function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return DEFAULT_PRODUCTION_API_URL;
+    }
     return `http://${host}:3001/api/v1`;
   }
-  return 'http://localhost:3001/api/v1';
+  return DEFAULT_PRODUCTION_API_URL;
 }
 
 export function getSocketUrl(): string {
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    return `http://${host}:3001`;
-  }
-  return 'http://localhost:3001';
+  const baseUrl = getApiBaseUrl();
+  return baseUrl.replace(/\/api\/v1\/?$/, '');
 }
 
 export async function getAuthToken(): Promise<string | null> {
