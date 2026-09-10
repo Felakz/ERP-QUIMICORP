@@ -1,4 +1,12 @@
 {
+  "name": "quimicorp-erp",
+  "private": true,
+  "scripts": {
+    "validate": "npm --prefix backend run build && npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "prisma:generate": "npx prisma generate --schema=prisma/schema.prisma"
+  },
   "devDependencies": {
     "prisma": "^5.22.0"
   },

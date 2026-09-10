@@ -10,6 +10,11 @@ on:
       - main
       - feature/Desarrollo
 
+# Cancel previous in-progress runs on the same branch when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-backend:
     name: Backend Validation (NestJS + Prisma)
@@ -29,8 +34,15 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
+      - name: Validate Prisma Schema
+        working-directory: ./backend
+        run: npx prisma validate --schema=../prisma/schema.prisma
+
       - name: Generate Prisma Client
         working-directory: ./backend
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres?schema=public"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/postgres?schema=public"
         run: npx prisma generate --schema=../prisma/schema.prisma
 
       - name: Typecheck & Build Backend
@@ -61,3 +73,4 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
           NODE_OPTIONS: "--max-old-space-size=4096"
         run: npm run build
+
