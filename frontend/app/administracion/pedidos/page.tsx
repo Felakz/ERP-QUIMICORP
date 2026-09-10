@@ -76,6 +76,7 @@ export default function AdministracionPedidosComercialesPage() {
   const { socket } = useSocket();
   const isDark = theme === 'dark';
   const canApprove = isGerenteUser(user?.role) || user?.role === 'ASISTENTE_ADMINISTRATIVO';
+  const esAsistente = user?.role === 'ASISTENTE_ADMINISTRATIVO';
 
   const [pedidos, setPedidos] = useState<PedidoEmitido[]>([]);
   const [loadingPedidos, setLoadingPedidos] = useState<boolean>(true);
@@ -497,7 +498,7 @@ export default function AdministracionPedidosComercialesPage() {
 
   // ── R1: Emitir comprobante (Boleta / Factura / Nota de Venta) ──
   const handleEmitirComprobante = async () => {
-    if (!emitModalItem) return;
+    if (esAsistente || !emitModalItem) return;
     setEmitLoading(true);
     setEmitError('');
     setEmitResult('');
@@ -1003,19 +1004,20 @@ export default function AdministracionPedidosComercialesPage() {
                                 <FileText className="w-4 h-4" />
                               </button>
 
-                              {/* Botón Emitir comprobante (R1) */}
-                              <button
-                                onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
-                                  isDark
-                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
-                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                                }`}
-                                title="Emitir Boleta / Factura / Nota de Venta"
-                              >
-                                <Receipt className="w-3.5 h-3.5" />
-                                <span>Emitir Comp.</span>
-                              </button>
+                              {!esAsistente && (
+                                <button
+                                  onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
+                                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
+                                    isDark
+                                      ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
+                                      : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                  }`}
+                                  title="Emitir Boleta / Factura / Nota de Venta"
+                                >
+                                  <Receipt className="w-3.5 h-3.5" />
+                                  <span>Emitir Comp.</span>
+                                </button>
+                              )}
 
                               {/* Botón Editar Cotización / Pedido */}
                               <button
@@ -1046,19 +1048,20 @@ export default function AdministracionPedidosComercialesPage() {
                                 <span>Ver Boleta</span>
                               </button>
 
-                              {/* Botón Emitir comprobante (R1) */}
-                              <button
-                                onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
-                                  isDark
-                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
-                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                                }`}
-                                title="Emitir Boleta / Factura / Nota de Venta"
-                              >
-                                <Receipt className="w-3.5 h-3.5" />
-                                <span>Emitir Comp.</span>
-                              </button>
+                              {!esAsistente && (
+                                <button
+                                  onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
+                                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
+                                    isDark
+                                      ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
+                                      : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                  }`}
+                                  title="Emitir Boleta / Factura / Nota de Venta"
+                                >
+                                  <Receipt className="w-3.5 h-3.5" />
+                                  <span>Emitir Comp.</span>
+                                </button>
+                              )}
 
                               {/* Botón Editar Cotización / Pedido */}
                               <button
@@ -1162,7 +1165,7 @@ export default function AdministracionPedidosComercialesPage() {
       )}
 
       {/* ── MODAL EMITIR COMPROBANTE (R1) ── */}
-      {emitModalItem && (
+      {emitModalItem && !esAsistente && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 font-sans animate-in fade-in duration-200">
           <div className={`w-full max-w-md rounded-2xl p-6 border space-y-4 shadow-2xl ${cardBg}`}>
             <div className={`flex items-center gap-3 border-b pb-3 ${isDark ? 'text-rose-400' : 'text-rose-700'}`}>
