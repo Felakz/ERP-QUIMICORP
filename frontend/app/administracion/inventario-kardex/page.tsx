@@ -230,6 +230,8 @@ function BOMModal({
   );
 }
 
+const adminKardexCache = new Map<string, KardexMovimientoUI[]>();
+
 export default function AdministracionInventarioKardexPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -239,8 +241,8 @@ export default function AdministracionInventarioKardexPage() {
   const [tipoOperacionFiltro, setTipoOperacionFiltro] = useState<string>('TODAS');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
-  const [movimientos, setMovimientos] = useState<KardexMovimientoUI[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [movimientos, setMovimientos] = useState<KardexMovimientoUI[]>(() => adminKardexCache.get('PRODUCTO_TERMINADO') || []);
+  const [loading, setLoading] = useState(() => !adminKardexCache.has('PRODUCTO_TERMINADO'));
 
   // Modal BOM de Fórmulas
   const [bomModalProducto, setBomModalProducto] = useState<string | null>(null);
@@ -255,7 +257,10 @@ export default function AdministracionInventarioKardexPage() {
     : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400';
 
   const fetchKardexData = async () => {
-    setLoading(true);
+    const cacheKey = `${activeTab}_${searchQuery}_${tipoOperacionFiltro}_${fechaDesde}_${fechaHasta}`;
+    if (!adminKardexCache.has(activeTab)) {
+      setLoading(true);
+    }
     let apiData: KardexMovimientoUI[] = [];
     try {
       let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
@@ -273,12 +278,15 @@ export default function AdministracionInventarioKardexPage() {
       const res = await apiFetch<any[]>(`/kardex/categorizado?${queryParams.toString()}`);
       if (res.ok && Array.isArray(res.data)) {
         apiData = res.data;
+        adminKardexCache.set(activeTab, apiData);
       }
     } catch (error) {
       console.log('Error fetching kardex endpoint (administracion):', error);
     }
 
-    setMovimientos(apiData || []);
+    if (apiData.length > 0 || !adminKardexCache.has(activeTab)) {
+      setMovimientos(apiData || []);
+    }
     setLoading(false);
   };
 

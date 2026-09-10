@@ -82,14 +82,22 @@ export interface PedidoComercialUI {
 }
 
 
+interface ProduccionPedidosCache {
+  pedidos: PedidoComercialUI[];
+  kpis: any;
+  timestamp: number;
+}
+let produccionPedidosCache: ProduccionPedidosCache | null = null;
+
 export default function ProduccionPedidosRecepcionPage() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const { socket } = useSocket();
   const isDark = theme === 'dark';
   const router = useRouter();
 
-  const [pedidos, setPedidos] = useState<PedidoComercialUI[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [pedidos, setPedidos] = useState<PedidoComercialUI[]>(() => produccionPedidosCache?.pedidos || []);
+  const [loading, setLoading] = useState(() => !produccionPedidosCache?.pedidos?.length);
   const [filtroEstado, setFiltroEstado] = useState<string>('TODOS');
   const [filtroPrioridad, setFiltroPrioridad] = useState<string>('TODAS');
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,7 +109,7 @@ export default function ProduccionPedidosRecepcionPage() {
   const approvingRef = useRef(false);
   const [toastMsg, setToastMsg] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
   const [fechaFiltro, setFechaFiltro] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [kpis, setKpis] = useState({
+  const [kpis, setKpis] = useState(() => produccionPedidosCache?.kpis || {
     pedidosHoy: 0,
     nuevos: 0,
     aprobados: 0,
@@ -113,22 +121,33 @@ export default function ProduccionPedidosRecepcionPage() {
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
 
-  const cargarPedidos = async (fechaParam?: string) => {
+  const cargarPedidos = async (fechaParam?: string, forceLoading = false) => {
     try {
-      setLoading(true);
+      if (forceLoading || !produccionPedidosCache) {
+        setLoading(true);
+      }
       const fechaQuery = fechaParam || fechaFiltro;
       const [kpisRes, listRes] = await Promise.all([
         apiFetch<any>(`/pedidos-admin/kpis?fecha=${fechaQuery}`),
         apiFetch<any[]>(`/pedidos-admin?docType=OP&fecha=${fechaQuery}`),
       ]);
-      if (kpisRes.ok && kpisRes.data) setKpis(kpisRes.data);
+      let currentKpis = kpis;
+      if (kpisRes.ok && kpisRes.data) {
+        currentKpis = kpisRes.data;
+        setKpis(kpisRes.data);
+      }
       if (listRes.ok && Array.isArray(listRes.data)) {
         const soloOps = (listRes.data as any[]).filter(
           (p: any) => p.docType !== 'COT' && !p.codigoOrden?.startsWith('COT') && p.estado !== 'COTIZACION_EMITIDA'
         );
         setPedidos(soloOps);
+        produccionPedidosCache = {
+          pedidos: soloOps,
+          kpis: currentKpis,
+          timestamp: Date.now(),
+        };
       } else if (listRes.ok) {
-        setPedidos([]);
+        if (!produccionPedidosCache) setPedidos([]);
       }
     } catch (e) {
       console.error(e);

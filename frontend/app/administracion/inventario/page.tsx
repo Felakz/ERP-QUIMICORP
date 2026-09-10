@@ -37,6 +37,16 @@ interface MaterialItem {
   estado: 'OK' | 'LOW STOCK' | 'CRITICAL';
 }
 
+interface InventarioCacheData {
+  materialsData: MaterialItem[];
+  disponibilidadTotal: string;
+  stockCriticoCount: number;
+  stockBajoCount: number;
+  timestamp: number;
+}
+let inventarioCache: InventarioCacheData | null = null;
+const INVENTARIO_CACHE_TTL = 30_000;
+
 export default function InventarioAdministracionPage() {
   const { theme } = useTheme();
   const { socket } = useSocket();
@@ -45,44 +55,59 @@ export default function InventarioAdministracionPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedEstadoFilter, setSelectedEstadoFilter] = useState<'TODOS' | 'OK' | 'LOW_STOCK' | 'CRITICAL'>('TODOS');
-  const [materialsData, setMaterialsData] = useState<MaterialItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [disponibilidadTotal, setDisponibilidadTotal] = useState('0');
-  const [stockCriticoCount, setStockCriticoCount] = useState(0);
-  const [stockBajoCount, setStockBajoCount] = useState(0);
+  const [materialsData, setMaterialsData] = useState<MaterialItem[]>(() => inventarioCache?.materialsData || []);
+  const [loading, setLoading] = useState(() => !inventarioCache?.materialsData?.length);
+  const [disponibilidadTotal, setDisponibilidadTotal] = useState(() => inventarioCache?.disponibilidadTotal || '0');
+  const [stockCriticoCount, setStockCriticoCount] = useState(() => inventarioCache?.stockCriticoCount ?? 0);
+  const [stockBajoCount, setStockBajoCount] = useState(() => inventarioCache?.stockBajoCount ?? 0);
   const [currentPage, setCurrentPage] = useState(1);
   const [errorMsg, setErrorMsg] = useState('');
   const [tab, setTab] = useState<'stock' | 'crud'>('stock');
   const [soloFisicos, setSoloFisicos] = useState(true);
   const ITEMS_PER_PAGE = 50;
 
-  const cargarInventarioReal = async () => {
+  const cargarInventarioReal = async (forceLoading = false) => {
     try {
-      setLoading(true);
+      if (forceLoading || !inventarioCache) {
+        setLoading(true);
+      }
       setErrorMsg('');
       const { data, ok } = await apiFetch<any>('/inventario/dashboard/lista-completa');
       if (ok && data) {
-        setMaterialsData(
-          (data.insumos || []).map((m: any) => ({
-            ...m,
-            cantidadFisica: m.cantidadFisica ?? (m.unidad === 'GR' ? m.stockReal : m.stockReal / 1000),
-            stockReal: m.stockReal ?? m.stockActual ?? 0,
-            stockMinimo: m.stockMinimo ?? 10,
-          }))
-        );
-        setDisponibilidadTotal(
-          data.disponibilidadTotalKg ? Number(data.disponibilidadTotalKg).toLocaleString('es-PE') : '0'
-        );
-        setStockCriticoCount(data.stockCriticoCount ?? 0);
-        setStockBajoCount(data.stockBajoCount ?? 0);
+        const parsedItems = (data.insumos || []).map((m: any) => ({
+          ...m,
+          cantidadFisica: m.cantidadFisica ?? (m.unidad === 'GR' ? m.stockReal : m.stockReal / 1000),
+          stockReal: m.stockReal ?? m.stockActual ?? 0,
+          stockMinimo: m.stockMinimo ?? 10,
+        }));
+        const dispTotal = data.disponibilidadTotalKg ? Number(data.disponibilidadTotalKg).toLocaleString('es-PE') : '0';
+        const critCount = data.stockCriticoCount ?? 0;
+        const bajoCount = data.stockBajoCount ?? 0;
+
+        setMaterialsData(parsedItems);
+        setDisponibilidadTotal(dispTotal);
+        setStockCriticoCount(critCount);
+        setStockBajoCount(bajoCount);
+
+        inventarioCache = {
+          materialsData: parsedItems,
+          disponibilidadTotal: dispTotal,
+          stockCriticoCount: critCount,
+          stockBajoCount: bajoCount,
+          timestamp: Date.now(),
+        };
       } else {
-        setMaterialsData([]);
-        setErrorMsg('No se pudieron cargar los datos del inventario.');
+        if (!inventarioCache) {
+          setMaterialsData([]);
+          setErrorMsg('No se pudieron cargar los datos del inventario.');
+        }
       }
     } catch (e) {
       console.error('Error cargando inventario:', e);
-      setMaterialsData([]);
-      setErrorMsg('Error de conexión al cargar el inventario.');
+      if (!inventarioCache) {
+        setMaterialsData([]);
+        setErrorMsg('Error de conexión al cargar el inventario.');
+      }
     } finally {
       setLoading(false);
     }

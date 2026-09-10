@@ -78,18 +78,26 @@ interface FormulaMasterAPI {
   variants: VarianteClienteAPI[];
 }
 
+interface FormulasCacheData {
+  formulas: FormulaMasterAPI[];
+  clientes: ClienteAPI[];
+  timestamp: number;
+}
+let formulasCache: FormulasCacheData | null = null;
+const FORMULAS_CACHE_TTL = 30_000;
+
 export default function FormulasPage() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isDark = theme === 'dark';
   const router = useRouter();
 
-  const [formulasApi, setFormulasApi] = useState<FormulaMasterAPI[]>([]);
-  const [clientesApi, setClientesApi] = useState<ClienteAPI[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [formulasApi, setFormulasApi] = useState<FormulaMasterAPI[]>(() => formulasCache?.formulas || []);
+  const [clientesApi, setClientesApi] = useState<ClienteAPI[]>(() => formulasCache?.clientes || []);
+  const [loading, setLoading] = useState<boolean>(() => !formulasCache?.formulas?.length);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedFormulaId, setSelectedFormulaId] = useState<string>('');
+  const [selectedFormulaId, setSelectedFormulaId] = useState<string>(() => formulasCache?.formulas?.[0]?.id || '');
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   // Estados para Modales & Permisos Jerárquicos
@@ -125,12 +133,14 @@ export default function FormulasPage() {
   const [varianteNotas, setVarianteNotas] = useState<string>('');
   const [varianteGuardando, setVarianteGuardando] = useState<boolean>(false);
 
-  const fetchFormulas = async () => {
+  const fetchFormulas = async (forceLoading = false) => {
     try {
-      setLoading(true);
+      if (forceLoading || (!formulasCache && !searchQuery)) {
+        setLoading(true);
+      }
       const [resFormulas, resClientes] = await Promise.all([
         apiFetch<FormulaMasterAPI[]>(`/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`),
-        apiFetch<ClienteAPI[]>('/clientes'),
+        clientesApi.length > 0 ? Promise.resolve({ ok: true, data: clientesApi } as any) : apiFetch<ClienteAPI[]>('/clientes'),
       ]);
 
       if (resFormulas.ok && Array.isArray(resFormulas.data) && resFormulas.data.length > 0) {
@@ -138,9 +148,16 @@ export default function FormulasPage() {
         if (!selectedFormulaId) {
           setSelectedFormulaId(resFormulas.data[0].id);
         }
+        if (!searchQuery) {
+          formulasCache = {
+            formulas: resFormulas.data,
+            clientes: resClientes.ok && Array.isArray(resClientes.data) ? resClientes.data : (formulasCache?.clientes || []),
+            timestamp: Date.now(),
+          };
+        }
       }
 
-      if (resClientes.ok && Array.isArray(resClientes.data)) {
+      if (resClientes.ok && Array.isArray(resClientes.data) && resClientes.data.length > 0) {
         setClientesApi(resClientes.data);
       }
     } catch (e) {

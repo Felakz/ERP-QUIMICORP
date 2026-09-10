@@ -62,32 +62,39 @@ interface FormulaMasterAPI {
   variants: VarianteClienteAPI[];
 }
 
+let produccionFormulasCache: FormulaMasterAPI[] | null = null;
+
 function FormulasContent() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const searchParams = useSearchParams();
 
-  const [formulasApi, setFormulasApi] = useState<FormulaMasterAPI[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [formulasApi, setFormulasApi] = useState<FormulaMasterAPI[]>(() => produccionFormulasCache || []);
+  const [loading, setLoading] = useState<boolean>(() => !produccionFormulasCache?.length);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedFormulaId, setSelectedFormulaId] = useState<string>('');
+  const [selectedFormulaId, setSelectedFormulaId] = useState<string>(() => produccionFormulasCache?.[0]?.id || '');
 
-  // ?? Estado de Variante Activa: null = Receta Base Maestra; string = ID de la Variante de Cliente seleccionada
+  // 🧪 Estado de Variante Activa: null = Receta Base Maestra; string = ID de la Variante de Cliente seleccionada
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
-  // ?? Calculadora de Batch Dinmica para Operarios
+  // ⚖️ Calculadora de Batch Dinámica para Operarios
   const [batchObjetivoKg, setBatchObjetivoKg] = useState<number>(100);
 
   // Cargar Fórmulas Maestras y Variantes desde la API
-  const fetchFormulas = async () => {
+  const fetchFormulas = async (forceLoading = false) => {
     try {
-      setLoading(true);
+      if (forceLoading || (!produccionFormulasCache && !searchQuery)) {
+        setLoading(true);
+      }
       const res = await apiFetch<any[]>(`/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`);
 
       if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
         setFormulasApi(res.data);
         if (!selectedFormulaId) {
           setSelectedFormulaId(res.data[0].id);
+        }
+        if (!searchQuery) {
+          produccionFormulasCache = res.data;
         }
       }
     } catch (e) {

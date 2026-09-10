@@ -230,6 +230,8 @@ function BOMModal({
   );
 }
 
+const produccionKardexCache = new Map<string, KardexMovimientoUI[]>();
+
 export default function KardexPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -239,8 +241,8 @@ export default function KardexPage() {
   const [tipoOperacionFiltro, setTipoOperacionFiltro] = useState<string>('TODAS');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
-  const [movimientos, setMovimientos] = useState<KardexMovimientoUI[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [movimientos, setMovimientos] = useState<KardexMovimientoUI[]>(() => produccionKardexCache.get('PRODUCTO_TERMINADO') || []);
+  const [loading, setLoading] = useState(() => !produccionKardexCache.has('PRODUCTO_TERMINADO'));
 
   // Modal BOM de Fórmulas
   const [bomModalProducto, setBomModalProducto] = useState<string | null>(null);
@@ -255,12 +257,14 @@ export default function KardexPage() {
     : 'bg-slate-50 border-slate-300 text-slate-800 placeholder-slate-400';
 
   const fetchKardexData = async () => {
-    setLoading(true);
+    if (!produccionKardexCache.has(activeTab)) {
+      setLoading(true);
+    }
     let apiData: KardexMovimientoUI[] = [];
     try {
       let savedToken = typeof window !== 'undefined' ? localStorage.getItem('quimicorp_jwt') : null;
       if (!savedToken || savedToken.startsWith('jwt_mock')) {
-        // Sin token válido: no se autenticar automáticamente.
+        // Sin token válido: no se autenticará automáticamente.
         // El usuario debe iniciar sesión correctamente.
         savedToken = null;
       }
@@ -275,12 +279,15 @@ export default function KardexPage() {
       const res = await apiFetch<any[]>(`/kardex/categorizado?${queryParams.toString()}`);
       if (res.ok && Array.isArray(res.data)) {
         apiData = res.data;
+        produccionKardexCache.set(activeTab, apiData);
       }
     } catch (error) {
       console.log('Error fetching kardex endpoint:', error);
     }
 
-    setMovimientos(apiData || []);
+    if (apiData.length > 0 || !produccionKardexCache.has(activeTab)) {
+      setMovimientos(apiData || []);
+    }
     setLoading(false);
   };
 

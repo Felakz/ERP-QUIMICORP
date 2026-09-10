@@ -37,6 +37,17 @@ interface SubAlmacenItem {
   reutilizable: boolean;
 }
 
+interface ProduccionInventarioCache {
+  materialsData: MaterialItem[];
+  subAlmacenData: SubAlmacenItem[];
+  disponibilidadTotal: string;
+  stockCriticoCount: number;
+  stockBajoCount: number;
+  insumosCriticosDetalle: any[];
+  timestamp: number;
+}
+let produccionInventarioCache: ProduccionInventarioCache | null = null;
+
 export default function InventariosPage() {
   const { theme } = useTheme();
   const { socket } = useSocket();
@@ -45,16 +56,16 @@ export default function InventariosPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedEstadoFilter, setSelectedEstadoFilter] = useState<'TODOS' | 'OK' | 'LOW_STOCK' | 'CRITICAL'>('TODOS');
-  const [materialsData, setMaterialsData] = useState<MaterialItem[]>([]);
-  const [subAlmacenData, setSubAlmacenData] = useState<SubAlmacenItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [disponibilidadTotal, setDisponibilidadTotal] = useState('0');
-  const [stockCriticoCount, setStockCriticoCount] = useState(0);
-  const [stockBajoCount, setStockBajoCount] = useState(0);
-  const [insumosCriticosDetalle, setInsumosCriticosDetalle] = useState<any[]>([]);
+  const [materialsData, setMaterialsData] = useState<MaterialItem[]>(() => produccionInventarioCache?.materialsData || []);
+  const [subAlmacenData, setSubAlmacenData] = useState<SubAlmacenItem[]>(() => produccionInventarioCache?.subAlmacenData || []);
+  const [loading, setLoading] = useState(() => !produccionInventarioCache?.materialsData?.length);
+  const [disponibilidadTotal, setDisponibilidadTotal] = useState(() => produccionInventarioCache?.disponibilidadTotal || '0');
+  const [stockCriticoCount, setStockCriticoCount] = useState(() => produccionInventarioCache?.stockCriticoCount ?? 0);
+  const [stockBajoCount, setStockBajoCount] = useState(() => produccionInventarioCache?.stockBajoCount ?? 0);
+  const [insumosCriticosDetalle, setInsumosCriticosDetalle] = useState<any[]>(() => produccionInventarioCache?.insumosCriticosDetalle || []);
   const [soloFisicos, setSoloFisicos] = useState(true);
 
-  // Estado del Modal de Reaprovisionamiento en Masa (Mltiples productos)
+  // Estado del Modal de Reaprovisionamiento en Masa (Múltiples productos)
   const [modalReaprovisionamiento, setModalReaprovisionamiento] = useState(false);
   const [listaReaprovisionamiento, setListaReaprovisionamiento] = useState<{
     sku: string;
@@ -64,26 +75,40 @@ export default function InventariosPage() {
     cantidadSolicitada: number;
   }[]>([]);
 
-  const cargarInventarioReal = async () => {
+  const cargarInventarioReal = async (forceLoading = false) => {
     try {
-      setLoading(true);
+      if (forceLoading || !produccionInventarioCache) {
+        setLoading(true);
+      }
       const { data, ok } = await apiFetch<any>('/inventario/dashboard/lista-completa');
       if (ok && data) {
-        setMaterialsData(
-          (data.insumos || []).map((m: any) => ({
-            ...m,
-            cantidadFisica: m.cantidadFisica ?? (m.unidad === 'GR' ? m.stockReal : (m.stockReal / 1000)),
-            stockReal: m.stockReal ?? m.stockActual ?? 0,
-            stockMinimo: m.stockMinimo ?? 10,
-          }))
-        );
+        const parsedMaterials = (data.insumos || []).map((m: any) => ({
+          ...m,
+          cantidadFisica: m.cantidadFisica ?? (m.unidad === 'GR' ? m.stockReal : (m.stockReal / 1000)),
+          stockReal: m.stockReal ?? m.stockActual ?? 0,
+          stockMinimo: m.stockMinimo ?? 10,
+        }));
+        const dispTotal = data.disponibilidadTotalKg ? Number(data.disponibilidadTotalKg).toLocaleString('es-PE') : '0';
+        const critCount = data.stockCriticoCount ?? 0;
+        const bajoCount = data.stockBajoCount ?? 0;
+        const criticosDet = data.insumosCriticosDetalle || [];
+
+        setMaterialsData(parsedMaterials);
         setSubAlmacenData(data.subAlmacen || []);
-        setDisponibilidadTotal(
-          data.disponibilidadTotalKg ? Number(data.disponibilidadTotalKg).toLocaleString('es-PE') : '0'
-        );
-        setStockCriticoCount(data.stockCriticoCount ?? 0);
-        setStockBajoCount(data.stockBajoCount ?? 0);
-        setInsumosCriticosDetalle(data.insumosCriticosDetalle || []);
+        setDisponibilidadTotal(dispTotal);
+        setStockCriticoCount(critCount);
+        setStockBajoCount(bajoCount);
+        setInsumosCriticosDetalle(criticosDet);
+
+        produccionInventarioCache = {
+          materialsData: parsedMaterials,
+          subAlmacenData: data.subAlmacen || [],
+          disponibilidadTotal: dispTotal,
+          stockCriticoCount: critCount,
+          stockBajoCount: bajoCount,
+          insumosCriticosDetalle: criticosDet,
+          timestamp: Date.now(),
+        };
       }
     } catch (e) {
       console.log('Error cargando inventario:', e);
