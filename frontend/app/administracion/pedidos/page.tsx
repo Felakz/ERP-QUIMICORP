@@ -44,6 +44,7 @@ interface PedidoEmitido {
   codigoOrden: string;
   codigoRefAdmin?: string | null;
   docType?: string;
+  tipoComprobante?: string | null;
   cliente: string;
   ruc: string;
   producto: string;
@@ -63,6 +64,8 @@ interface PedidoEmitido {
   notasAdmin?: string | null;
   observacionesClean?: string | null;
   itemsList?: any[];
+  desgloseStock?: any;
+  [key: string]: any;
 }
 
 const pedidosAdminCache = new Map<string, { data: PedidoEmitido[]; timestamp: number }>();
