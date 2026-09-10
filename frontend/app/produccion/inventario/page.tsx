@@ -75,9 +75,10 @@ export default function InventariosPage() {
     cantidadSolicitada: number;
   }[]>([]);
 
-  const cargarInventarioReal = async (forceLoading = false) => {
+  const cargarInventarioReal = async (forceLoading: any = false) => {
+    const isForce = forceLoading === true;
     try {
-      if (forceLoading || !produccionInventarioCache) {
+      if (isForce || !produccionInventarioCache) {
         setLoading(true);
       }
       const { data, ok } = await apiFetch<any>('/inventario/dashboard/lista-completa');
@@ -630,7 +631,7 @@ export default function InventariosPage() {
                         setSelectedEstadoFilter('TODOS');
                       }}
                       secondaryActionLabel="Actualizar Catálogo"
-                      onSecondaryAction={cargarInventarioReal}
+                      onSecondaryAction={() => cargarInventarioReal(true)}
                     />
                   </td>
                 </tr>

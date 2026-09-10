@@ -121,9 +121,10 @@ export default function ProduccionPedidosRecepcionPage() {
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-500';
   const textValue = isDark ? 'text-white' : 'text-slate-900';
 
-  const cargarPedidos = async (fechaParam?: string, forceLoading = false) => {
+  const cargarPedidos = async (fechaParam?: string, forceLoading: any = false) => {
+    const isForce = forceLoading === true;
     try {
-      if (forceLoading || !produccionPedidosCache) {
+      if (isForce || !produccionPedidosCache) {
         setLoading(true);
       }
       const fechaQuery = fechaParam || fechaFiltro;

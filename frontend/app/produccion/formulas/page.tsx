@@ -81,9 +81,10 @@ function FormulasContent() {
   const [batchObjetivoKg, setBatchObjetivoKg] = useState<number>(100);
 
   // Cargar Fórmulas Maestras y Variantes desde la API
-  const fetchFormulas = async (forceLoading = false) => {
+  const fetchFormulas = async (forceLoading: any = false) => {
+    const isForce = forceLoading === true;
     try {
-      if (forceLoading || (!produccionFormulasCache && !searchQuery)) {
+      if (isForce || (!produccionFormulasCache && !searchQuery)) {
         setLoading(true);
       }
       const res = await apiFetch<any[]>(`/formulas${searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : ''}`);

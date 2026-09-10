@@ -133,9 +133,10 @@ export default function FormulasPage() {
   const [varianteNotas, setVarianteNotas] = useState<string>('');
   const [varianteGuardando, setVarianteGuardando] = useState<boolean>(false);
 
-  const fetchFormulas = async (forceLoading = false) => {
+  const fetchFormulas = async (forceLoading: any = false) => {
+    const isForce = forceLoading === true;
     try {
-      if (forceLoading || (!formulasCache && !searchQuery)) {
+      if (isForce || (!formulasCache && !searchQuery)) {
         setLoading(true);
       }
       const [resFormulas, resClientes] = await Promise.all([

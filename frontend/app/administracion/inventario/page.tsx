@@ -66,9 +66,10 @@ export default function InventarioAdministracionPage() {
   const [soloFisicos, setSoloFisicos] = useState(true);
   const ITEMS_PER_PAGE = 50;
 
-  const cargarInventarioReal = async (forceLoading = false) => {
+  const cargarInventarioReal = async (forceLoading: any = false) => {
+    const isForce = forceLoading === true;
     try {
-      if (forceLoading || !inventarioCache) {
+      if (isForce || !inventarioCache) {
         setLoading(true);
       }
       setErrorMsg('');
@@ -269,7 +270,7 @@ export default function InventarioAdministracionPage() {
 
         <div className="flex items-center gap-2 relative z-10">
           <button
-            onClick={cargarInventarioReal}
+            onClick={() => cargarInventarioReal(true)}
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all card-hover-lift"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -491,7 +492,7 @@ export default function InventarioAdministracionPage() {
                       </div>
                       <p className="text-sm font-bold text-rose-400">{errorMsg}</p>
                       <button
-                        onClick={cargarInventarioReal}
+                        onClick={() => cargarInventarioReal(true)}
                         className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all"
                       >
                         Reintentar Conexión
@@ -517,7 +518,7 @@ export default function InventarioAdministracionPage() {
                         setSelectedEstadoFilter('TODOS');
                       }}
                       secondaryActionLabel="Actualizar"
-                      onSecondaryAction={cargarInventarioReal}
+                      onSecondaryAction={() => cargarInventarioReal(true)}
                     />
                   </td>
                 </tr>
