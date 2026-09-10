@@ -112,6 +112,7 @@ function playNotificationChime() {
 export default function ProduccionLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   const { logout } = useAuth();
   const { socket } = useSocket();
   const [pedidoCount, setPedidoCount] = useState<number>(0);
