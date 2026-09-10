@@ -81,6 +81,7 @@ export class DashboardService {
       pedidosPendientesCount,
       pedidosCompletadosCount,
       cuentasPendientesCount,
+      cuentasPendientesMonto,
       insumosCriticos,
     ] = await Promise.all([
       this.prisma.pedidoComercial.findMany({
@@ -132,6 +133,10 @@ export class DashboardService {
       }),
       this.prisma.cuentaCobrar.count({
         where: { estado: 'PENDIENTE' },
+      }),
+      this.prisma.cuentaCobrar.aggregate({
+        where: { estado: 'PENDIENTE' },
+        _sum: { montoTotal: true },
       }),
       this.prisma.insumo.findMany({
         where: {
