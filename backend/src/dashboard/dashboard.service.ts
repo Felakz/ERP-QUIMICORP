@@ -71,38 +71,82 @@ export class DashboardService {
   async getKpis(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
     const { startDate, endDate, prevStartDate, prevEndDate, whereDate } = this.resolveDateRange(dateRange, startDateStr, endDateStr);
 
-    // 1. Ventas & Facturación acumulada real (Actual vs. Anterior)
-    // Fuente primaria: pedidos_comerciales (flujo operativo).
-    // Fallback: cuentas_cobrar (ventas reales importadas) cuando no hay pedidos.
-    const [pedidosActual, pedidosPrevio, cuentasActual, cuentasPrevio] =
-      await Promise.all([
-        this.prisma.pedidoComercial.findMany({
-          where: {
-            createdAt: whereDate,
-            estado: { not: 'RECHAZADO' },
+    // 1. Ejecutar consultas en paralelo para máxima velocidad (cero roundtrips secuenciales)
+    const [
+      pedidosActual,
+      pedidosPrevio,
+      cuentasActual,
+      cuentasPrevio,
+      pedidosConFormula,
+      pedidosPendientesCount,
+      pedidosCompletadosCount,
+      cuentasPendientesCount,
+      insumosCriticos,
+    ] = await Promise.all([
+      this.prisma.pedidoComercial.findMany({
+        where: {
+          createdAt: whereDate,
+          estado: { not: 'RECHAZADO' },
+        },
+        select: { montoTotal: true },
+      }),
+      this.prisma.pedidoComercial.findMany({
+        where: {
+          createdAt: { gte: prevStartDate, lt: prevEndDate },
+          estado: { not: 'RECHAZADO' },
+        },
+        select: { montoTotal: true },
+      }),
+      this.prisma.cuentaCobrar.findMany({
+        where: { fechaEmision: whereDate },
+        select: { montoTotal: true },
+      }),
+      this.prisma.cuentaCobrar.findMany({
+        where: { fechaEmision: { gte: prevStartDate, lt: prevEndDate } },
+        select: { montoTotal: true },
+      }),
+      this.prisma.pedidoComercial.findMany({
+        where: {
+          createdAt: whereDate,
+          estado: { not: 'RECHAZADO' },
+        },
+        include: {
+          formula: {
+            include: {
+              detalles: {
+                include: { insumo: true },
+              },
+            },
           },
-          select: { montoTotal: true },
-        }),
-        this.prisma.pedidoComercial.findMany({
-          where: {
-            createdAt: { gte: prevStartDate, lt: prevEndDate },
-            estado: { not: 'RECHAZADO' },
-          },
-          select: { montoTotal: true },
-        }),
-        this.prisma.cuentaCobrar.findMany({
-          where: { fechaEmision: whereDate },
-          select: { montoTotal: true },
-        }),
-        this.prisma.cuentaCobrar.findMany({
-          where: { fechaEmision: { gte: prevStartDate, lt: prevEndDate } },
-          select: { montoTotal: true },
-        }),
-      ]);
+        },
+      }),
+      this.prisma.pedidoComercial.count({
+        where: {
+          estado: { in: ['NUEVO', 'PENDIENTE_REVISION', 'VALIDANDO'] },
+        },
+      }),
+      this.prisma.pedidoComercial.count({
+        where: {
+          estado: { in: ['APROBADO', 'EN_PRODUCCION'] },
+        },
+      }),
+      this.prisma.cuentaCobrar.count({
+        where: { estado: 'PENDIENTE' },
+      }),
+      this.prisma.insumo.findMany({
+        where: {
+          estado: 'ACTIVO',
+        },
+        select: {
+          stockReal: true,
+          stockMinimo: true,
+          costoUnitario: true,
+        },
+      }),
+    ]);
 
     // Ventas & Facturación del período = cuentas_cobrar (ventas reales / Excel)
     // SUMADAS con pedidos_comerciales (cotizaciones/órdenes nuevas del mes).
-    // Ambas alimentan el total: no se prioriza una sobre la otra.
     const totalVentasNetasPen =
       cuentasActual.reduce((acc, c) => acc + Number(c.montoTotal || 0), 0) +
       pedidosActual.reduce((acc, p) => acc + Number(p.montoTotal || 0), 0);
@@ -115,22 +159,6 @@ export class DashboardService {
       : 0;
 
     // 2. Utilidad Neta Real basada en costo real de insumos / fórmulas en las OPs
-    const pedidosConFormula = await this.prisma.pedidoComercial.findMany({
-      where: {
-        createdAt: whereDate,
-        estado: { not: 'RECHAZADO' },
-      },
-      include: {
-        formula: {
-          include: {
-            detalles: {
-              include: { insumo: true },
-            },
-          },
-        },
-      },
-    });
-
     let totalCostoInsumos = 0;
     let totalCobradoPen = 0;
     if (pedidosConFormula.length > 0) {
@@ -147,8 +175,6 @@ export class DashboardService {
         }
       }
     } else {
-      // Fallback desde cuentas por cobrar: la utilidad real detectable es el
-      // efectivo ya cobrado (no se fuerza un margen inventado).
       const cobrado = await this.prisma.cuentaCobrar.aggregate({
         where: { fechaEmision: whereDate },
         _sum: { montoTotal: true, saldoPendiente: true },
@@ -162,53 +188,16 @@ export class DashboardService {
     const utilidadNetaRealPen =
       pedidosConFormula.length > 0
         ? Math.max(0, totalVentasNetasPen - totalCostoInsumos)
-        : totalCobradoPen; // utilidad medida como flujo de caja cobrado
+        : totalCobradoPen;
     const margenPorcentaje = totalVentasNetasPen > 0
       ? ((utilidadNetaRealPen / totalVentasNetasPen) * 100).toFixed(1)
       : '0.0';
 
-    // 3. Pedidos Pendientes a Planta / Cuentas por Cobrar Pendientes
-    // Dos conceptos claramente separados:
-    //  - pedidosPendientesCount: pedidos operativos a fabricar (NUEVO / en revisión).
-    //  - cuentasPendientesCount: ventas reales (Excel) aún no cobradas.
-    // Se muestran de forma diferenciada para no mezclar fabricación con cobranza.
-    const [pedidosPendientesCount, pedidosCompletadosCount] = await Promise.all([
-      this.prisma.pedidoComercial.count({
-        where: {
-          estado: { in: ['NUEVO', 'PENDIENTE_REVISION', 'VALIDANDO'] },
-        },
-      }),
-      this.prisma.pedidoComercial.count({
-        where: {
-          estado: { in: ['APROBADO', 'EN_PRODUCCION'] },
-        },
-      }),
-    ]);
-
-    const cuentasPendientesCount = await this.prisma.cuentaCobrar.count({
-      where: { estado: 'PENDIENTE' },
-    });
-    const cuentasPendientesMonto = await this.prisma.cuentaCobrar.aggregate({
-      where: { estado: 'PENDIENTE' },
-      _sum: { montoTotal: true },
-    });
-
-    // Normalmente no hay pedidos operativos: el módulo usa cuentas por cobrar.
+    // 3. Pedidos Pendientes a Planta
     const hayPedidosPlanta = pedidosPendientesCount > 0;
     const pedidosPendientesFinal = pedidosPendientesCount;
 
     // 4. Stock Crítico Valorizado
-    const insumosCriticos = await this.prisma.insumo.findMany({
-      where: {
-        estado: 'ACTIVO',
-      },
-      select: {
-        stockReal: true,
-        stockMinimo: true,
-        costoUnitario: true,
-      },
-    });
-
     const stockCriticoValorizadoPen = insumosCriticos
       .filter((i) => Number(i.stockReal) <= Number(i.stockMinimo))
       .reduce(
@@ -729,25 +718,39 @@ export class DashboardService {
    * Resumen general y métricas de soporte con datos 100% reales de la BD
    */
   async getDashboardStats(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
-    const kpis = await this.getKpis(dateRange, startDateStr, endDateStr);
-    const topCustomers = await this.getTopCustomers(dateRange, startDateStr, endDateStr);
-    const salesAnalytics = await this.getSalesAnalytics();
-    const invoiceTerms = await this.getInvoiceTerms();
-    const paymentCategories = await this.getPaymentCategories();
-    const recentDocs = await this.getRecentDocs();
-    const recentOrders = await this.getRecentOrders();
-    const cobranza = await this.getCobranzaMetrics();
-
-    // Conteos reales dinámicos de PostgreSQL / Prisma
     const db = this.prisma;
-    const realClientesCount = await db.cliente.count();
-    const realCuentasCobrarCount = await db.cuentaCobrar.count();
-    const realInvoicesCount = await db.pedidoComercial.count({
-      where: { docType: 'OP' },
-    });
-    const realEstimatesCount = await db.pedidoComercial.count({
-      where: { docType: 'COT' },
-    });
+    const [
+      kpis,
+      topCustomers,
+      salesAnalytics,
+      invoiceTerms,
+      cobranza,
+      recentDocs,
+      recentOrders,
+      realClientesCount,
+      realCuentasCobrarCount,
+      realInvoicesCount,
+      realEstimatesCount,
+    ] = await Promise.all([
+      this.getKpis(dateRange, startDateStr, endDateStr),
+      this.getTopCustomers(dateRange, startDateStr, endDateStr),
+      this.getSalesAnalytics(),
+      this.getInvoiceTerms(),
+      this.getCobranzaMetrics(),
+      this.getRecentDocs(),
+      this.getRecentOrders(),
+      db.cliente.count(),
+      db.cuentaCobrar.count(),
+      db.pedidoComercial.count({ where: { docType: 'OP' } }),
+      db.pedidoComercial.count({ where: { docType: 'COT' } }),
+    ]);
+
+    const paymentCategories = cobranza.paymentCategories?.length > 0
+      ? cobranza.paymentCategories
+      : [
+          { name: 'INTERBANK CTA CTE', percentage: 70, amountPenNeto: 0, color: '#3B82F6' },
+          { name: 'BCP CUENTA CORRIENTE', percentage: 30, amountPenNeto: 0, color: '#10B981' },
+        ];
 
     const compactMetrics = [
       {

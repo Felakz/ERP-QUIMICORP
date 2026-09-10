@@ -63,8 +63,9 @@ interface PedidoEmitido {
   notasAdmin?: string | null;
   observacionesClean?: string | null;
   itemsList?: any[];
-  tipoComprobante?: string | null;
 }
+
+const pedidosAdminCache = new Map<string, { data: PedidoEmitido[]; timestamp: number }>();
 
 export default function AdministracionPedidosComercialesPage() {
   const { theme } = useTheme();
@@ -159,10 +160,24 @@ export default function AdministracionPedidosComercialesPage() {
     return `${d}/${m}/${y}`;
   };
 
+  // Cache en memoria para navegación instantánea entre vistas
+  // (se revalida en segundo plano y se limpia en mutaciones)
   // Cargar pedidos desde la API real de PostgreSQL con apiFetch
-  const cargarPedidos = async () => {
+  const cargarPedidos = async (force = false) => {
+    const url = `/pedidos-admin${selectedDate ? `?fecha=${selectedDate}` : ''}`;
+    const cached = pedidosAdminCache.get(url);
+
+    if (cached && !force) {
+      setPedidos(cached.data);
+      setLoadingPedidos(false);
+      if (Date.now() - cached.timestamp < 30_000) {
+        return;
+      }
+    } else if (!cached) {
+      setLoadingPedidos(true);
+    }
+
     try {
-      const url = `/pedidos-admin${selectedDate ? `?fecha=${selectedDate}` : ''}`;
       const { data, ok } = await apiFetch<any[]>(url);
       if (ok && Array.isArray(data)) {
         const mapped: PedidoEmitido[] = data.map((p: any) => ({
@@ -191,6 +206,7 @@ export default function AdministracionPedidosComercialesPage() {
           observacionesClean: p.observacionesClean,
           tipoComprobante: p.tipoComprobante || null,
         }));
+        pedidosAdminCache.set(url, { data: mapped, timestamp: Date.now() });
         setPedidos(mapped);
       }
     } catch (e) {

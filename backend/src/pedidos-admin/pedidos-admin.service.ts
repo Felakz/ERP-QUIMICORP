@@ -804,17 +804,8 @@ export class PedidosAdminService {
       const porcentaje = Number(det.porcentaje || 0);
       const requerido = (cantidadBatch * porcentaje) / 100;
 
-      // Obtener el stock real del insumo (protección contra insumoId nulo/vacío que rompe el listado)
-      let insumoDb = null;
-      if (det.insumoId) {
-        try {
-          insumoDb = await this.prisma.insumo.findUnique({
-            where: { id: det.insumoId },
-          });
-        } catch {
-          insumoDb = null;
-        }
-      }
+      // Obtener el stock real del insumo directamente de la relación cargada (cero consultas N+1 a la BD)
+      const insumoDb = det.insumo || null;
 
       const disponible = insumoDb ? Number(insumoDb.stockReal) : 100.0;
       const suficiente = disponible >= requerido;

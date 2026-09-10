@@ -16,6 +16,9 @@ interface DashboardApiResponse {
   timestamp: string;
 }
 
+const dashboardCache = new Map<string, { data: DashboardApiResponse; timestamp: number }>();
+const DASHBOARD_CACHE_TTL = 30_000;
+
 export function useDashboardData(
   dateRange: DateRangeType,
   customDates?: { startDate: string; endDate: string }
@@ -31,17 +34,37 @@ export function useDashboardData(
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDashboardData = useCallback(async () => {
-    setLoading(true);
+  const fetchDashboardData = useCallback(async (forceRefresh = false) => {
+    let url = `/administracion/dashboard/stats?dateRange=${dateRange}`;
+    if (dateRange === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
+      url += `&startDate=${encodeURIComponent(customDates.startDate)}&endDate=${encodeURIComponent(customDates.endDate)}`;
+    }
+
+    const cached = dashboardCache.get(url);
+    if (cached && !forceRefresh) {
+      setKpis(cached.data.kpis || []);
+      setTopCustomers(cached.data.topCustomers || []);
+      setCompactMetrics(cached.data.compactMetrics || []);
+      setSalesAnalytics(cached.data.salesAnalytics || []);
+      setInvoiceTerms(cached.data.invoiceTerms || []);
+      setPaymentCategories(cached.data.paymentCategories || []);
+      setRecentDocs(cached.data.recentDocs || []);
+      setRecentOrders(cached.data.recentOrders || []);
+      setLoading(false);
+
+      if (Date.now() - cached.timestamp < DASHBOARD_CACHE_TTL) {
+        return;
+      }
+    } else if (!cached) {
+      setLoading(true);
+    }
+
     setError(null);
     try {
-      let url = `/administracion/dashboard/stats?dateRange=${dateRange}`;
-      if (dateRange === 'CUSTOM' && customDates?.startDate && customDates?.endDate) {
-        url += `&startDate=${encodeURIComponent(customDates.startDate)}&endDate=${encodeURIComponent(customDates.endDate)}`;
-      }
       const { data, ok } = await apiFetch<DashboardApiResponse>(url);
 
       if (ok && data) {
+        dashboardCache.set(url, { data, timestamp: Date.now() });
         setKpis(data.kpis || []);
         setTopCustomers(data.topCustomers || []);
         setCompactMetrics(data.compactMetrics || []);

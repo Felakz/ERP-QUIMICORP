@@ -10,12 +10,16 @@ import { ClientTableView } from '@/components/clientes/ClientTableView';
 import { ClientDetailView } from '@/components/clientes/ClientDetailView';
 import { NuevoClienteModal } from '@/components/modals/NuevoClienteModal';
 
+let clientesCache: ClientExtended[] | null = null;
+let clientesCacheTime = 0;
+const CLIENTES_CACHE_TTL = 30_000;
+
 export default function CarteraClientesPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [clientes, setClientes] = useState<ClientExtended[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [clientes, setClientes] = useState<ClientExtended[]>(clientesCache || []);
+  const [loading, setLoading] = useState(!clientesCache);
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState('TODOS');
   const [filterCredito, setFilterCredito] = useState('TODOS');
@@ -36,11 +40,22 @@ export default function CarteraClientesPage() {
     localStorage.setItem('quimicorp_clientes_view_mode', mode);
   };
 
-  const fetchClientes = async () => {
-    setLoading(true);
+  const fetchClientes = async (force = false) => {
+    if (clientesCache && !force) {
+      setClientes(clientesCache);
+      setLoading(false);
+      if (Date.now() - clientesCacheTime < CLIENTES_CACHE_TTL) {
+        return;
+      }
+    } else if (!clientesCache) {
+      setLoading(true);
+    }
+
     try {
       const { data, ok } = await apiFetch<ClientExtended[]>('/clientes');
       if (ok && Array.isArray(data)) {
+        clientesCache = data;
+        clientesCacheTime = Date.now();
         setClientes(data);
       }
     } catch (e) {
@@ -55,8 +70,9 @@ export default function CarteraClientesPage() {
   }, []);
 
   const handleCreatedClient = (newClient: any) => {
+    clientesCache = null;
     setClientes((prev) => [newClient, ...prev.filter((c) => c.id !== newClient.id)]);
-    fetchClientes();
+    fetchClientes(true);
   };
 
   // Filtrado reactivo de clientes
