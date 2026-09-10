@@ -7,9 +7,23 @@ export class DashboardInventarioService {
   constructor(private readonly prisma: PrismaService) {}
 
   async obtenerResumen() {
-    const insumos = await this.prisma.insumo.findMany({
-      where: { estado: EstadoGenerico.ACTIVO },
-    });
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
+
+    const [insumos, sobrantesCount, movimientosMesCount] = await Promise.all([
+      this.prisma.insumo.findMany({
+        where: { estado: EstadoGenerico.ACTIVO },
+      }),
+      this.prisma.subAlmacenSobrante.count({
+        where: { estado: EstadoSubAlmacen.DISPONIBLE },
+      }),
+      this.prisma.kardexInmutable.count({
+        where: {
+          createdAt: { gte: inicioMes },
+        },
+      }),
+    ]);
 
     const totalInsumos = insumos.length;
     let valorizacionTotal = 0;
@@ -25,20 +39,6 @@ export class DashboardInventarioService {
         insumosCriticosCount++;
       }
     }
-
-    const sobrantesCount = await this.prisma.subAlmacenSobrante.count({
-      where: { estado: EstadoSubAlmacen.DISPONIBLE },
-    });
-
-    const inicioMes = new Date();
-    inicioMes.setDate(1);
-    inicioMes.setHours(0, 0, 0, 0);
-
-    const movimientosMesCount = await this.prisma.kardexInmutable.count({
-      where: {
-        createdAt: { gte: inicioMes },
-      },
-    });
 
     return {
       totalInsumos,
@@ -152,19 +152,20 @@ export class DashboardInventarioService {
   }
 
   async obtenerListaCompleta() {
-    const insumos = await this.prisma.insumo.findMany({
-      where: { estado: EstadoGenerico.ACTIVO },
-      include: { familia: true },
-      orderBy: { nombre: 'asc' },
-    });
-
-    const subAlmacenSobrantes = await this.prisma.subAlmacenSobrante.findMany({
-      where: { estado: EstadoSubAlmacen.DISPONIBLE },
-      include: {
-        insumoSubproducto: true,
-        loteOrigen: true,
-      },
-    });
+    const [insumos, subAlmacenSobrantes] = await Promise.all([
+      this.prisma.insumo.findMany({
+        where: { estado: EstadoGenerico.ACTIVO },
+        include: { familia: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      this.prisma.subAlmacenSobrante.findMany({
+        where: { estado: EstadoSubAlmacen.DISPONIBLE },
+        include: {
+          insumoSubproducto: true,
+          loteOrigen: true,
+        },
+      }),
+    ]);
 
     let stockCriticoCount = 0;
     let stockBajoCount = 0;
