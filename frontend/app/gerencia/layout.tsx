@@ -35,6 +35,7 @@ const GERENCIA_SECTIONS = [
 export default function GerenciaLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   const isDark = theme === 'dark';
 
   return (
