@@ -322,22 +322,27 @@ export class PedidosAdminService {
             fechaCierre: true,
           },
         },
-        cuentasCobrar: {
-          orderBy: { fechaEmision: 'desc' },
-          take: 1,
-          select: {
-            codigoDoc: true,
-            estado: true,
-            montoTotal: true,
-            saldoPendiente: true,
-            fechaEmision: true,
-            fechaVencimiento: true,
-            fechaPago: true,
-          },
-        },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Cuentas por cobrar vinculadas (pedidoId o fallback por codigoOrden)
+    const pedidoIds = pedidos.map((p: any) => p.id);
+    const codigosOrden = pedidos.map((p: any) => p.codigoOrden).filter(Boolean);
+    const ccs = pedidoIds.length
+      ? (await (db.cuentaCobrar.findMany({
+          where: {
+            OR: [{ pedidoId: { in: pedidoIds } }, { ordenProd: { in: codigosOrden } }],
+          },
+          orderBy: { fechaEmision: 'desc' },
+        })).catch(() => []))
+      : [];
+    const ccPorPedido = new Map<string, any>();
+    const ccPorOrden = new Map<string, any>();
+    for (const cc of ccs as any[]) {
+      if (cc.pedidoId && !ccPorPedido.has(cc.pedidoId)) ccPorPedido.set(cc.pedidoId, cc);
+      if (cc.ordenProd && !ccPorOrden.has(cc.ordenProd)) ccPorOrden.set(cc.ordenProd, cc);
+    }
 
     // Calcular el estado de stock en Kardex y desglosar items guardados
     const pedidosConStock = await Promise.all(
@@ -369,7 +374,7 @@ export class PedidosAdminService {
         }
 
         // Estado de pago real desde la cuenta por cobrar vinculada (con VENCIDO derivado)
-        const cc = ped.cuentasCobrar?.[0];
+        const cc = ccPorPedido.get(ped.id) || ccPorOrden.get(ped.codigoOrden) || null;
         const estadoPago = cc
           ? Number(cc.saldoPendiente) > 0 &&
             cc.estado !== 'PAGADO' &&
