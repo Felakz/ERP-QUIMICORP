@@ -104,7 +104,7 @@ export default function AdministracionPedidosComercialesPage() {
     return `${year}-${month}-${day}`;
   };
 
-  const [selectedDate, setSelectedDate] = useState<string>(getTodayISO());
+  const [selectedDate, setSelectedDate] = useState<string>('TODOS');
   const [selectedTab, setSelectedTab] = useState<string>('TODOS');
   // R4 — Filtro por etiqueta (tipo de comprobante emitido)
   const [filtroTipo, setFiltroTipo] = useState<string>('TODOS');
@@ -648,6 +648,21 @@ export default function AdministracionPedidosComercialesPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Atajo Hoy */}
+            <button
+              type="button"
+              onClick={() => setSelectedDate(getTodayISO())}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                selectedDate === getTodayISO()
+                  ? 'bg-amber-500 text-white border-amber-400 shadow-md shadow-amber-500/20'
+                  : isDark
+                  ? 'bg-[#0F141C] border-[#1A2232] text-slate-400 hover:text-white'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Hoy
+            </button>
+
             {/* Botón Día Anterior */}
             <button
               type="button"
