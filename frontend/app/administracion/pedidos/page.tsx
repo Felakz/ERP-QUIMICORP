@@ -30,6 +30,7 @@ import {
   Check,
   Layers,
   Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -475,6 +476,34 @@ export default function AdministracionPedidosComercialesPage() {
     } catch (err) {
       console.error('Error al actualizar pedido:', err);
       setEditError('Error de conexión al actualizar el pedido.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleEliminarPedido = async () => {
+    if (!editModalItem) return;
+    const confirmacion = window.confirm(
+      `¿Estás seguro de eliminar el pedido ${editModalItem.codigoOrden} (${editModalItem.cliente})?\nEsta acción no se puede deshacer.`
+    );
+    if (!confirmacion) return;
+
+    setEditLoading(true);
+    setEditError('');
+    try {
+      const { ok, error } = await apiFetch(`/pedidos-admin/${editModalItem.id}`, {
+        method: 'DELETE',
+      });
+      if (!ok) {
+        setEditError(error || 'No se pudo eliminar el pedido.');
+        return;
+      }
+      setToastMsg(`✓ Pedido ${editModalItem.codigoOrden} eliminado.`);
+      setEditModalItem(null);
+      cargarPedidos();
+    } catch (err: any) {
+      console.error('Error al eliminar pedido:', err);
+      setEditError(err.message || 'Error de conexión al eliminar el pedido.');
     } finally {
       setEditLoading(false);
     }
@@ -1442,26 +1471,37 @@ export default function AdministracionPedidosComercialesPage() {
                 </div>
               )}
 
-              <div className={`flex items-center justify-end gap-3 pt-3 border-t ${
+              <div className={`flex items-center justify-between gap-3 pt-3 border-t ${
                 isDark ? 'border-slate-800' : 'border-slate-200'
               }`}>
                 <button
                   type="button"
-                  onClick={() => setEditModalItem(null)}
-                  className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors ${
-                    isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
+                  onClick={handleEliminarPedido}
                   disabled={editLoading}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center gap-1.5"
                 >
-                  <Check className="w-4 h-4" />
-                  <span>{editLoading ? 'Guardando...' : 'Guardar Cambios'}</span>
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar Pedido</span>
                 </button>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setEditModalItem(null)}
+                    className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors ${
+                      isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{editLoading ? 'Guardando...' : 'Guardar Cambios'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

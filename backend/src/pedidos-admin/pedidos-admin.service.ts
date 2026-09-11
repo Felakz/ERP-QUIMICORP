@@ -380,6 +380,221 @@ export class PedidosAdminService {
     return this.calcularStockPedido(pedido);
   }
 
+  // 3.1 Actualizar Pedido / Cotización (Edición de datos comerciales)
+  async actualizarPedido(id: string, dto: any) {
+    const db = this.prisma as any;
+    const pedidoExistente = await db.pedidoComercial.findUnique({
+      where: { id },
+      include: { formula: true, clienteRef: true },
+    });
+
+    if (!pedidoExistente) {
+      throw new NotFoundException(`Pedido comercial con ID ${id} no encontrado.`);
+    }
+
+    const dataToUpdate: any = {};
+
+    // 1. Cliente & RUC
+    const nuevoClienteNombre = dto.clienteNombre !== undefined ? dto.clienteNombre : dto.cliente;
+    if (nuevoClienteNombre !== undefined && nuevoClienteNombre !== null) {
+      dataToUpdate.clienteNombre = String(nuevoClienteNombre).trim();
+    }
+
+    const nuevoRuc = dto.clienteRuc !== undefined ? dto.clienteRuc : dto.ruc;
+    if (nuevoRuc !== undefined && nuevoRuc !== null) {
+      const rucLimpio = String(nuevoRuc).trim();
+      dataToUpdate.clienteRuc = rucLimpio;
+
+      if (rucLimpio) {
+        let clienteEnDb = await db.cliente.findUnique({ where: { ruc: rucLimpio } }).catch(() => null);
+        if (!clienteEnDb && nuevoClienteNombre) {
+          clienteEnDb = await db.cliente.create({
+            data: {
+              ruc: rucLimpio,
+              razonSocial: String(nuevoClienteNombre).trim(),
+              condicionPago: dto.condicionPago || pedidoExistente.condicionPago || 'Contado',
+            },
+          }).catch(() => null);
+        }
+        if (clienteEnDb) {
+          dataToUpdate.clienteId = clienteEnDb.id;
+        }
+      }
+    }
+
+    // 2. Producto
+    const nuevoProducto = dto.productoNombre !== undefined ? dto.productoNombre : dto.producto;
+    if (nuevoProducto !== undefined && nuevoProducto !== null) {
+      dataToUpdate.productoNombre = String(nuevoProducto).trim();
+    }
+
+    // 3. Cantidad y Unidad
+    const nuevaCantidad = dto.cantidadSolicitada !== undefined ? dto.cantidadSolicitada : dto.cantidad;
+    if (nuevaCantidad !== undefined && nuevaCantidad !== null && nuevaCantidad !== '') {
+      const cantNum = parseFloat(nuevaCantidad);
+      if (!isNaN(cantNum) && cantNum >= 0) {
+        dataToUpdate.cantidadSolicitada = cantNum;
+      }
+    }
+
+    const nuevaUnidad = dto.unidadMedida !== undefined ? dto.unidadMedida : dto.unidad;
+    if (nuevaUnidad !== undefined && nuevaUnidad !== null) {
+      dataToUpdate.unidadMedida = String(nuevaUnidad).trim().toUpperCase();
+    }
+
+    // 4. Monto Total
+    const nuevoMonto = dto.montoTotal !== undefined ? dto.montoTotal : dto.precioTotal;
+    if (nuevoMonto !== undefined && nuevoMonto !== null && nuevoMonto !== '') {
+      const montoNum = parseFloat(nuevoMonto);
+      if (!isNaN(montoNum) && montoNum >= 0) {
+        dataToUpdate.montoTotal = montoNum;
+      }
+    }
+
+    // 5. Condición de Pago
+    if (dto.condicionPago !== undefined && dto.condicionPago !== null) {
+      dataToUpdate.condicionPago = String(dto.condicionPago).trim();
+    }
+
+    // 6. Prioridad
+    if (dto.prioridad !== undefined && dto.prioridad !== null) {
+      const p = String(dto.prioridad).toUpperCase().trim();
+      if (['URGENTE', 'NORMAL', 'PROGRAMADO'].includes(p)) {
+        dataToUpdate.prioridad = p;
+      }
+    }
+
+    // 7. Estado
+    const estadoAnterior = pedidoExistente.estado;
+    if (dto.estado !== undefined && dto.estado !== null) {
+      const est = String(dto.estado).toUpperCase().trim();
+      const estadosValidos = [
+        'NUEVO',
+        'PENDIENTE_REVISION',
+        'VALIDANDO',
+        'APROBADO',
+        'EN_PRODUCCION',
+        'DEVUELTO',
+        'RECHAZADO',
+        'ENTREGADO',
+      ];
+      if (estadosValidos.includes(est)) {
+        dataToUpdate.estado = est;
+      }
+    }
+
+    // 8. Fecha Prometida
+    if (dto.fechaPrometida !== undefined && dto.fechaPrometida !== null && dto.fechaPrometida !== '') {
+      const parsedDate = new Date(dto.fechaPrometida);
+      if (!isNaN(parsedDate.getTime())) {
+        dataToUpdate.fechaPrometida = parsedDate;
+      }
+    }
+
+    // 9. Tipo Comprobante
+    if (dto.tipoComprobante !== undefined) {
+      dataToUpdate.tipoComprobante = dto.tipoComprobante ? String(dto.tipoComprobante).trim() : null;
+    }
+
+    // 10. Fórmula (FM-xxx o UUID)
+    if (dto.formulaId !== undefined && dto.formulaId !== null) {
+      const formulaInput = String(dto.formulaId).trim();
+      if (formulaInput) {
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formulaInput)) {
+          const fFound = await this.prisma.formulaMaster.findUnique({ where: { id: formulaInput } }).catch(() => null);
+          if (fFound) dataToUpdate.formulaId = fFound.id;
+        } else {
+          const matchCode = formulaInput.match(/FM-\d+[\w-]*/i)?.[0] || formulaInput;
+          let found = await this.prisma.formulaMaster.findFirst({
+            where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
+          }).catch(() => null);
+
+          if (!found) {
+            found = await this.prisma.formulaMaster.create({
+              data: {
+                codigoFormula: matchCode.toUpperCase(),
+                nombreProducto: dataToUpdate.productoNombre || pedidoExistente.productoNombre || `Fórmula ${matchCode}`,
+                estado: 'ACTIVA',
+                densidadTeorica: 1.0,
+              },
+            }).catch(() => null);
+          }
+          if (found) dataToUpdate.formulaId = found.id;
+        }
+      }
+    }
+
+    // 11. Notas u Observaciones
+    if (dto.observaciones !== undefined || dto.notasAdmin !== undefined) {
+      const nota = dto.observaciones !== undefined ? dto.observaciones : dto.notasAdmin;
+      if (typeof nota === 'string') {
+        dataToUpdate.notasAdmin = nota;
+      }
+    }
+
+    const pedidoActualizado = await db.pedidoComercial.update({
+      where: { id },
+      data: dataToUpdate,
+      include: {
+        formula: true,
+        aditivos: { include: { insumo: true } },
+      },
+    });
+
+    // Si cambió a APROBADO desde otro estado, notificar a planta
+    if (dataToUpdate.estado === 'APROBADO' && estadoAnterior !== 'APROBADO') {
+      if (this.produccionGateway && this.produccionGateway.server) {
+        this.produccionGateway.server.emit('pedido:aprobado', pedidoActualizado);
+      }
+    }
+
+    if (this.produccionGateway && this.produccionGateway.server) {
+      this.produccionGateway.server.emit('pedido:actualizado', pedidoActualizado);
+      this.produccionGateway.server.emit('lote:estado_actualizado', pedidoActualizado);
+    }
+
+    return pedidoActualizado;
+  }
+
+  // 3.2 Eliminar Pedido / Cotización
+  async eliminarPedido(id: string) {
+    const db = this.prisma as any;
+    const pedido = await db.pedidoComercial.findUnique({
+      where: { id },
+      include: { ordenesProduccion: true },
+    });
+
+    if (!pedido) {
+      throw new NotFoundException('El pedido a eliminar no existe.');
+    }
+
+    // Verificar si tiene órdenes de producción activas en planta avanzadas
+    if (pedido.ordenesProduccion && pedido.ordenesProduccion.length > 0) {
+      const enProceso = pedido.ordenesProduccion.some((op: any) => op.estado === 'EN_PROCESO' || op.estado === 'TERMINADO');
+      if (enProceso) {
+        throw new BadRequestException('No se puede eliminar un pedido con órdenes de producción en proceso o terminadas en planta.');
+      }
+      await db.ordenProduccion.deleteMany({
+        where: { pedidoComercialId: id },
+      }).catch(() => null);
+    }
+
+    // Eliminar aditivos vinculados
+    await db.pedidoAditivo.deleteMany({
+      where: { pedidoId: id },
+    }).catch(() => null);
+
+    await db.pedidoComercial.delete({
+      where: { id },
+    });
+
+    if (this.produccionGateway && this.produccionGateway.server) {
+      this.produccionGateway.server.emit('pedido:eliminado', { id, codigoOrden: pedido.codigoOrden });
+    }
+
+    return { ok: true, mensaje: `Pedido ${pedido.codigoOrden} eliminado correctamente.` };
+  }
+
   // 4. Aprobar Pedido y Transferir a Control de Producción & QA
   async aprobarPedido(id: string) {
     const db = this.prisma as any;
@@ -614,86 +829,6 @@ export class PedidosAdminService {
         motivoDevolucion,
       },
     });
-  }
-
-  // 5.2 Editar pedido/cotización (CRUD de administración)
-  async actualizarPedido(id: string, dto: any) {
-    const db = this.prisma as any;
-    const pedido = await db.pedidoComercial.findUnique({ where: { id } });
-    if (!pedido) {
-      throw new NotFoundException('Pedido no encontrado.');
-    }
-
-    const data: any = {};
-    const camposPermitidos: Record<string, string> = {
-      clienteNombre: 'clienteNombre',
-      clienteRuc: 'clienteRuc',
-      productoNombre: 'productoNombre',
-      cantidadSolicitada: 'cantidadSolicitada',
-      unidadMedida: 'unidadMedida',
-      montoTotal: 'montoTotal',
-      condicionPago: 'condicionPago',
-      fechaPrometida: 'fechaPrometida',
-      prioridad: 'prioridad',
-      estado: 'estado',
-      codigoOrden: 'codigoOrden',
-      tipoComprobante: 'tipoComprobante',
-      codigoRefAdmin: 'codigoRefAdmin',
-      aroma: 'aroma',
-      color: 'color',
-      aromaText: 'aromaText',
-      colorText: 'colorText',
-      notasAdmin: 'notasAdmin',
-      motivoDevolucion: 'motivoDevolucion',
-      direccionDespacho: 'direccionDespacho',
-      contactoNombre: 'contactoNombre',
-      contactoTelefono: 'contactoTelefono',
-      repComercial: 'repComercial',
-    };
-
-    for (const key of Object.keys(camposPermitidos)) {
-      if (dto[key] !== undefined) {
-        data[camposPermitidos[key]] = dto[key];
-      }
-    }
-
-    // Resolver formulaId seguro si viene por código FM-xxx o por id
-    if (dto.formulaId !== undefined) {
-      if (dto.formulaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.formulaId)) {
-        const exists = await this.prisma.formulaMaster.findUnique({ where: { id: dto.formulaId } }).catch(() => null);
-        if (exists) data.formulaId = exists.id;
-      } else if (typeof dto.formulaId === 'string') {
-        const matchCode = (dto.formulaId).match(/FM-\d+[\w-]*/i)?.[0];
-        if (matchCode) {
-          const found = await this.prisma.formulaMaster.findFirst({
-            where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
-          }).catch(() => null);
-          if (found && !data.formulaId) data.formulaId = found.id;
-        }
-      }
-    }
-
-    // Resolver clienteId seguro si viene RUC
-    if (dto.clienteId !== undefined || (dto.clienteRuc !== undefined && dto.clienteRuc)) {
-      if (dto.clienteId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.clienteId)) {
-        const c = await db.cliente.findUnique({ where: { id: dto.clienteId } }).catch(() => null);
-        if (c) data.clienteId = c.id;
-      } else if (dto.clienteRuc !== undefined) {
-        const existing = await db.cliente.findUnique({ where: { ruc: dto.clienteRuc } }).catch(() => null);
-        if (existing) data.clienteId = existing.id;
-      }
-    }
-
-    if (dto.fechaPrometida !== undefined && dto.fechaPrometida) {
-      const parsed = new Date(dto.fechaPrometida);
-      if (!isNaN(parsed.getTime())) data.fechaPrometida = parsed;
-    }
-
-    const actualizado = await db.pedidoComercial.update({
-      where: { id },
-      data,
-    });
-    return actualizado;
   }
 
   // 5.5 Convertir Cotización Comercial en Pedido de Producción (Aceptado por Cliente)

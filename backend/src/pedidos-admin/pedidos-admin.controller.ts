@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { PedidosAdminService } from './pedidos-admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -45,6 +45,13 @@ export class PedidosAdminController {
     @Body() dto: any,
   ) {
     return this.pedidosAdminService.actualizarPedido(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION)
+  eliminarPedido(@Param('id') id: string) {
+    return this.pedidosAdminService.eliminarPedido(id);
   }
 
   @Get(':id/desglose-stock')
