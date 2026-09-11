@@ -479,7 +479,12 @@ export class ProduccionService {
   async despacharEtiqueta(
     colaId: string,
     numeroGuia?: string,
-    opciones?: { envaseSku?: string; envaseCantidad?: number },
+    opciones?: {
+      envaseSku?: string;
+      envaseCantidad?: number;
+      envaseSku2?: string;
+      envaseCantidad2?: number;
+    },
   ) {
     if (!colaId) {
       throw new BadRequestException('Se requiere colaId para registrar el despacho.');
@@ -559,20 +564,22 @@ export class ProduccionService {
     }
 
     // Descuento de envases consumidos en el despacho (1 etiqueta = 1 envase).
-    // Se registra salida en kardex (KardexMovimiento + KardexInmutable) y se actualiza stock.
-    let envaseDescontado: { sku: string; nombre: string; cantidad: number; saldo: number } | null = null;
+    // Soporta hasta dos envases diferentes por despacho; cada uno genera su
+    // SALIDA_VENTA en kardex (KardexMovimiento + KardexInmutable) y actualiza su stock.
+    const opcionesEnvases: { sku: string; cantidad: number }[] = [];
     if (opciones?.envaseSku) {
-      const cantidad = Number(opciones.envaseCantidad || 0);
-      if (!(cantidad > 0)) {
-        throw new BadRequestException('Indica la cantidad de envases consumidos en el despacho.');
-      }
+      opcionesEnvases.push({ sku: opciones.envaseSku, cantidad: Number(opciones.envaseCantidad || 0) });
+    }
+    if (opciones?.envaseSku2) {
+      opcionesEnvases.push({ sku: opciones.envaseSku2, cantidad: Number(opciones.envaseCantidad2 || 0) });
+    }
 
-      const envase = await this.prisma.insumo.findFirst({
-        where: { codigo: opciones.envaseSku },
-        include: { familia: true },
-      });
-      if (!envase) {
-        throw new NotFoundException(`Envase ${opciones.envaseSku} no encontrado en el maestro de insumos.`);
+    let envaseDescontado: { sku: string; nombre: string; cantidad: number; saldo: number }[] = [];
+    if (opcionesEnvases.length > 0) {
+      for (const opt of opcionesEnvases) {
+        if (!(opt.cantidad > 0)) {
+          throw new BadRequestException('Indica la cantidad de envases consumidos en el despacho.');
+        }
       }
 
       // usuarioId es obligatorio en kardex_inmutable: se usa el supervisor del lote
@@ -588,61 +595,76 @@ export class ProduccionService {
 
       const documentoRef = numeroGuia?.trim() || `LOTE-${cola.loteCodigo}`;
 
+      const envasesResueltos = await Promise.all(
+        opcionesEnvases.map(async (opt) => {
+          const envase = await this.prisma.insumo.findFirst({
+            where: { codigo: opt.sku },
+            include: { familia: true },
+          });
+          if (!envase) {
+            throw new NotFoundException(`Envase ${opt.sku} no encontrado en el maestro de insumos.`);
+          }
+          return { sku: opt.sku, cantidad: opt.cantidad, envase };
+        }),
+      );
+
       // Descuento atómico: stock + KardexMovimiento + KardexInmutable en una sola transacción
       await this.prisma.$transaction(async (tx) => {
-        const envaseTx = await tx.insumo.findFirstOrThrow({
-          where: { id: envase.id },
-        });
-        const stockActual = Number(envaseTx.stockReal);
-        if (stockActual < cantidad) {
-          throw new BadRequestException(
-            `Stock insuficiente de ${envase.codigo} (${envase.nombre}): hay ${stockActual} ${envase.unidadMedida} y el despacho consume ${cantidad}.`,
-          );
+        for (const { cantidad, envase } of envasesResueltos) {
+          const envaseTx = await tx.insumo.findFirstOrThrow({
+            where: { id: envase.id },
+          });
+          const stockActual = Number(envaseTx.stockReal);
+          if (stockActual < cantidad) {
+            throw new BadRequestException(
+              `Stock insuficiente de ${envase.codigo} (${envase.nombre}): hay ${stockActual} ${envase.unidadMedida} y el despacho consume ${cantidad}.`,
+            );
+          }
+          const nuevoSaldo = stockActual - cantidad;
+
+          await tx.insumo.update({
+            where: { id: envase.id },
+            data: { stockReal: nuevoSaldo },
+          });
+
+          await tx.kardexMovimiento.create({
+            data: {
+              categoriaKardex: CategoriaKardex.ENVASE,
+              productoNombre: envase.nombre,
+              familia: envase.familia?.nombre || 'ENVASES Y EMBALAJES',
+              categoriaNombre: envase.familia?.nombre || 'Envases y Embalajes',
+              proveedorCliente: `Despacho ${cola.loteCodigo} (${cola.clienteNombre || 'Cliente Quimicorp'})`,
+              unidadMedida: envase.unidadMedida,
+              fecha: new Date(),
+              tipoDoc: 'GUIA',
+              serie: 'REG',
+              numero: documentoRef,
+              otp: `OTP-${cola.loteCodigo}`,
+              tipoOperacion: TipoMovimiento.SALIDA_VENTA,
+              cantidadEntrada: 0,
+              cantidadSalida: cantidad,
+              saldoFinal: nuevoSaldo,
+              costoUnitario: Number(envase.costoUnitario || 0),
+              montoSalidaPen: cantidad * Number(envase.costoUnitario || 0),
+              montoSaldoPen: nuevoSaldo * Number(envase.costoUnitario || 0),
+              insumoId: envase.id,
+            },
+          });
+
+          await tx.kardexInmutable.create({
+            data: {
+              insumoId: envase.id,
+              tipoMovimiento: TipoMovimientoKardex.SALIDA,
+              cantidad,
+              stockAnterior: stockActual,
+              stockNuevo: nuevoSaldo,
+              documentoReferencia: documentoRef,
+              usuarioId: usuarioRegistro,
+            },
+          });
+
+          envaseDescontado.push({ sku: envase.codigo, nombre: envase.nombre, cantidad, saldo: nuevoSaldo });
         }
-        const nuevoSaldo = stockActual - cantidad;
-
-        await tx.insumo.update({
-          where: { id: envase.id },
-          data: { stockReal: nuevoSaldo },
-        });
-
-        await tx.kardexMovimiento.create({
-          data: {
-            categoriaKardex: CategoriaKardex.ENVASE,
-            productoNombre: envase.nombre,
-            familia: envase.familia?.nombre || 'ENVASES Y EMBALAJES',
-            categoriaNombre: envase.familia?.nombre || 'Envases y Embalajes',
-            proveedorCliente: `Despacho ${cola.loteCodigo} (${cola.clienteNombre || 'Cliente Quimicorp'})`,
-            unidadMedida: envase.unidadMedida,
-            fecha: new Date(),
-            tipoDoc: 'GUIA',
-            serie: 'REG',
-            numero: documentoRef,
-            otp: `OTP-${cola.loteCodigo}`,
-            tipoOperacion: TipoMovimiento.SALIDA_VENTA,
-            cantidadEntrada: 0,
-            cantidadSalida: cantidad,
-            saldoFinal: nuevoSaldo,
-            costoUnitario: Number(envase.costoUnitario || 0),
-            montoSalidaPen: cantidad * Number(envase.costoUnitario || 0),
-            montoSaldoPen: nuevoSaldo * Number(envase.costoUnitario || 0),
-            insumoId: envase.id,
-          },
-        });
-
-        await tx.kardexInmutable.create({
-          data: {
-            insumoId: envase.id,
-            tipoMovimiento: TipoMovimientoKardex.SALIDA,
-            cantidad,
-            stockAnterior: stockActual,
-            stockNuevo: nuevoSaldo,
-            documentoReferencia: documentoRef,
-            usuarioId: usuarioRegistro,
-          },
-        });
-
-        envaseDescontado = { sku: envase.codigo, nombre: envase.nombre, cantidad, saldo: nuevoSaldo };
       });
     }
 

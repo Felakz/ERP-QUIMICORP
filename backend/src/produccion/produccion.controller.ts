@@ -104,10 +104,22 @@ export class ProduccionController {
 
   @Post('etiquetas/despachar')
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
-  despacharEtiqueta(@Body() body: { colaId: string; numeroGuia?: string; envaseSku?: string; envaseCantidad?: number }) {
+  despacharEtiqueta(
+    @Body()
+    body: {
+      colaId: string;
+      numeroGuia?: string;
+      envaseSku?: string;
+      envaseCantidad?: number;
+      envaseSku2?: string;
+      envaseCantidad2?: number;
+    },
+  ) {
     return this.produccionService.despacharEtiqueta(body?.colaId, body?.numeroGuia, {
       envaseSku: body?.envaseSku,
       envaseCantidad: body?.envaseCantidad,
+      envaseSku2: body?.envaseSku2,
+      envaseCantidad2: body?.envaseCantidad2,
     });
   }
 
