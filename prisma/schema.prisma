@@ -748,6 +748,7 @@ model PedidoComercial {
   lotesRequeridos    Int                      @default(1) @map("lotes_requeridos")
   montoTotal         Decimal                  @map("monto_total") @db.Decimal(14, 2)
   fechaPrometida     DateTime                 @map("fecha_prometida")
+  fechaEntrega       DateTime?                @map("fecha_entrega")
   prioridad          PrioridadPedidoComercial @default(NORMAL)
   estado             EstadoPedidoComercial    @default(NUEVO)
   formulaId          String?                  @map("formula_id")
@@ -811,6 +812,8 @@ model Cliente {
   contacto      String?
   metodoEnvio   String?
   condicionPago String?  @default("Contado")
+  limiteCredito Decimal? @map("limite_credito") @db.Decimal(12, 2)
+  diasCreditoMax Int?    @map("dias_credito_max")
 
   contactos    ContactoRepresentante[]
   pedidos      PedidoComercial[]
@@ -951,6 +954,7 @@ model CuentaCobrar {
   estado           String      @default("PENDIENTE") // PAGADO, PENDIENTE, VENCIDO
   medioPago        String?     @map("medio_pago")
   canalBanco       String?     @map("canal_banco")
+  emitidoPor       String?     @map("emitido_por")
 
   pagos            PagoAbono[]
 

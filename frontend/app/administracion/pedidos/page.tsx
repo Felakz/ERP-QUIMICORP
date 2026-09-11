@@ -66,6 +66,8 @@ interface PedidoEmitido {
   observacionesClean?: string | null;
   itemsList?: any[];
   desgloseStock?: any;
+  estadoPago?: string | null;
+  ordenesEstados?: Array<{ codigoLote?: string; estado?: string; pasoProceso?: string }>;
   [key: string]: any;
 }
 
@@ -91,6 +93,9 @@ export default function AdministracionPedidosComercialesPage() {
   const [emitLoading, setEmitLoading] = useState<boolean>(false);
   const [emitError, setEmitError] = useState<string>('');
   const [emitResult, setEmitResult] = useState<string>('');
+  const [emitPagoRecibido, setEmitPagoRecibido] = useState<boolean>(true);
+  const [emitMedioPago, setEmitMedioPago] = useState<string>('Transferencia bancaria');
+  const [emitNumOperacion, setEmitNumOperacion] = useState<string>('');
   const getTodayISO = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -534,7 +539,12 @@ export default function AdministracionPedidosComercialesPage() {
     try {
       const res = await apiFetch(`/pedidos-admin/${emitModalItem.id}/emitir-comprobante`, {
         method: 'POST',
-        body: JSON.stringify({ tipo: emitTipo }),
+        body: JSON.stringify({
+          tipo: emitTipo,
+          pagoRecibido: emitPagoRecibido,
+          medioPago: emitMedioPago,
+          numOperacion: emitNumOperacion || undefined,
+        }),
       });
       if (res.ok) {
         setEmitResult(`Comprobante emitido: ${res.data?.tipoComprobante} • ${res.data?.cuentaCobrar}`);
@@ -549,6 +559,25 @@ export default function AdministracionPedidosComercialesPage() {
       setEmitLoading(false);
     }
   };
+
+  // Emisibilidad del modal (crédito: producción lista / entregado / venta sin lote)
+  const emitEsContado = !/cr[eé]dito|plazo|\d+\s*d[ií]as/i.test(
+    (emitModalItem?.condicionPago || '').toLowerCase(),
+  );
+  const emitProduccionLista = (emitModalItem?.ordenesEstados || []).some(
+    (o: any) =>
+      ['EN_ETIQUETADO', 'LIBERADO_QA', 'ETIQUETADO', 'LISTO_PARA_IMPRIMIR', 'DESPACHADO'].includes(
+        o.pasoProceso,
+      ) || o.estado === 'DESPACHADO',
+  );
+  const emitPedidoEntregado = ['ENTREGADO', 'DESPACHADO'].includes(emitModalItem?.estado || '');
+  const emitSinLotes = !emitModalItem?.ordenesEstados || emitModalItem.ordenesEstados.length === 0;
+  const emitEsFacturable =
+    emitEsContado ||
+    emitProduccionLista ||
+    emitPedidoEntregado ||
+    emitSinLotes ||
+    !emitModalItem;
 
   // ── VISTA PRINCIPAL: TABLA DE PEDIDOS & COTIZACIONES A PANTALLA COMPLETA ──
   return (
@@ -865,6 +894,17 @@ export default function AdministracionPedidosComercialesPage() {
                             {p.tipoComprobante === 'FACTURA' ? 'FACTURA' : p.tipoComprobante === 'BOLETA' ? 'BOLETA' : 'NOTA VENTA'}
                           </span>
                         )}
+                        {p.estadoPago && (
+                          <span className={`mt-1 inline-block ml-1 px-2 py-0.5 rounded text-[9px] font-black border ${
+                            p.estadoPago === 'PAGADO'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : p.estadoPago === 'VENCIDO'
+                              ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          }`}>
+                            {p.estadoPago === 'PAGADO' ? '● PAGADO' : p.estadoPago === 'VENCIDO' ? '● VENCIDO' : '● PENDIENTE'}
+                          </span>
+                        )}
                       </td>
 
                       {/* Cliente */}
@@ -1035,7 +1075,18 @@ export default function AdministracionPedidosComercialesPage() {
 
                               {!esAsistente && (
                                 <button
-                                  onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
+                                  onClick={() => {
+                        setEmitTipo('FACTURA');
+                        setEmitResult('');
+                        setEmitError('');
+                        const esContadoClick = !/cr[eé]dito|plazo|\d+\s*d[ií]as/i.test(
+                          (p.condicionPago || '').toLowerCase(),
+                        );
+                        setEmitPagoRecibido(esContadoClick);
+                        setEmitMedioPago('Transferencia bancaria');
+                        setEmitNumOperacion('');
+                        setEmitModalItem(p);
+                      }}
                                   className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
                                     isDark
                                       ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
@@ -1079,7 +1130,18 @@ export default function AdministracionPedidosComercialesPage() {
 
                               {!esAsistente && (
                                 <button
-                                  onClick={() => { setEmitTipo('FACTURA'); setEmitResult(''); setEmitError(''); setEmitModalItem(p); }}
+                                  onClick={() => {
+                        setEmitTipo('FACTURA');
+                        setEmitResult('');
+                        setEmitError('');
+                        const esContadoClick = !/cr[eé]dito|plazo|\d+\s*d[ií]as/i.test(
+                          (p.condicionPago || '').toLowerCase(),
+                        );
+                        setEmitPagoRecibido(esContadoClick);
+                        setEmitMedioPago('Transferencia bancaria');
+                        setEmitNumOperacion('');
+                        setEmitModalItem(p);
+                      }}
                                   className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
                                     isDark
                                       ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
@@ -1220,6 +1282,10 @@ export default function AdministracionPedidosComercialesPage() {
                 <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Monto Total:</span>
                 <strong className={`font-black ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>S/ {emitModalItem.montoTotal.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
               </div>
+              <div className="flex justify-between">
+                <span className={isDark ? 'text-slate-400' : 'text-slate-600'}>Condición:</span>
+                <strong className={isDark ? 'text-slate-200' : 'text-slate-900'}>{emitModalItem.condicionPago || 'Contado'}</strong>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -1242,6 +1308,72 @@ export default function AdministracionPedidosComercialesPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-2 border-t pt-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={emitPagoRecibido}
+                  onChange={(e) => setEmitPagoRecibido(e.target.checked)}
+                  className="w-4 h-4 accent-emerald-500"
+                />
+                <span className={`text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Pago total recibido al instante (abona el 100% y deja la cuenta PAGADA)
+                </span>
+              </label>
+              {emitPagoRecibido && (
+                <div className="grid grid-cols-2 gap-2 pl-1">
+                  <div>
+                    <p className={`text-[10px] font-bold uppercase mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      Medio de pago
+                    </p>
+                    <select
+                      value={emitMedioPago}
+                      onChange={(e) => setEmitMedioPago(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded-lg border text-xs font-semibold outline-none ${
+                        isDark
+                          ? 'bg-slate-900 border-slate-700 text-slate-200'
+                          : 'bg-white border-slate-300 text-slate-800'
+                      }`}
+                    >
+                      <option>Transferencia bancaria</option>
+                      <option>Yape / Plin</option>
+                      <option>Depósito en cuenta</option>
+                      <option>Efectivo</option>
+                      <option>Tarjeta</option>
+                    </select>
+                  </div>
+                  <div>
+                    <p className={`text-[10px] font-bold uppercase mb-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                      N° Operación <span className="normal-case font-medium">(opcional)</span>
+                    </p>
+                    <input
+                      value={emitNumOperacion}
+                      onChange={(e) => setEmitNumOperacion(e.target.value)}
+                      placeholder="Ej. 0001-2384"
+                      className={`w-full px-2 py-1.5 rounded-lg border text-xs font-semibold outline-none ${
+                        isDark
+                          ? 'bg-slate-900 border-slate-700 text-slate-200 placeholder-slate-600'
+                          : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+              {!emitEsFacturable && (
+                <div className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-[11px] font-semibold ${
+                  isDark
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    : 'bg-amber-50 border-amber-200 text-amber-700'
+                }`}>
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    Pedido a crédito: su producción aún no está lista para despacho.
+                    Espera a que el lote pase a EN_ETIQUETADO / LIBERADO_QA para emitir el comprobante.
+                  </span>
+                </div>
+              )}
             </div>
 
             {emitError && (
@@ -1275,9 +1407,10 @@ export default function AdministracionPedidosComercialesPage() {
               </button>
               <button
                 type="button"
-                disabled={emitLoading}
+                disabled={emitLoading || !emitEsFacturable}
                 onClick={handleEmitirComprobante}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                title={!emitEsFacturable ? 'Producción aún no lista para emitir comprobante de crédito' : 'Emitir comprobante'}
               >
                 <Receipt className="w-4 h-4" />
                 <span>{emitLoading ? 'Emitiendo...' : 'Emitir Comprobante'}</span>

@@ -548,7 +548,7 @@ export class ProduccionService {
       if (pedidoVinculado) {
         await (this.prisma as any).pedidoComercial.update({
           where: { id: pedidoVinculado.id },
-          data: { estado: 'ENTREGADO' },
+          data: { estado: 'ENTREGADO', fechaEntrega: new Date() },
         });
       }
 

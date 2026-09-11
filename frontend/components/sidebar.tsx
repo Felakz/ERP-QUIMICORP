@@ -52,6 +52,12 @@ export const adminSidebarItems: SidebarSection[] = [
         href: '/administracion/cobranzas',
         restrictedForAsistente: true,
       },
+      {
+        label: 'Facturación y Vencimientos',
+        icon: Receipt,
+        href: '/administracion/facturacion',
+        restrictedForAsistente: true,
+      },
     ],
   },
   {

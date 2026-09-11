@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { PedidosAdminService } from './pedidos-admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -93,10 +93,11 @@ export class PedidosAdminController {
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL)
   @RolesExcluded(Role.ASISTENTE_ADMINISTRATIVO)
   emitirComprobante(
+    @Req() req: any,
     @Param('id') id: string,
     @Body() dto: any,
   ) {
-    return this.pedidosAdminService.emitirComprobante(id, dto);
+    return this.pedidosAdminService.emitirComprobante(id, dto, req?.user?.id || undefined);
   }
 
   @Get('comparativa-ciclo')

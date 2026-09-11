@@ -313,6 +313,28 @@ export class PedidosAdminService {
             insumo: true,
           },
         },
+        ordenesProduccion: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            codigoLote: true,
+            estado: true,
+            pasoProceso: true,
+            fechaCierre: true,
+          },
+        },
+        cuentasCobrar: {
+          orderBy: { fechaEmision: 'desc' },
+          take: 1,
+          select: {
+            codigoDoc: true,
+            estado: true,
+            montoTotal: true,
+            saldoPendiente: true,
+            fechaEmision: true,
+            fechaVencimiento: true,
+            fechaPago: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -320,6 +342,8 @@ export class PedidosAdminService {
     // Calcular el estado de stock en Kardex y desglosar items guardados
     const pedidosConStock = await Promise.all(
       pedidos.map(async (ped: any) => {
+        // No exponer las relaciones crudas; se resumen en estadoPago / ordenesEstados
+        const { cuentasCobrar: _ccRaw, ordenesProduccion: _ordsRaw, ...pedResto } = ped;
         let stockValidacion: any;
         try {
           stockValidacion = await this.calcularStockPedido(ped);
@@ -330,7 +354,7 @@ export class PedidosAdminService {
             detalles: [],
           };
         }
-        
+
         let itemsList: any[] = [];
         let cleanObservaciones = ped.notasAdmin;
 
@@ -344,8 +368,28 @@ export class PedidosAdminService {
           } catch {}
         }
 
+        // Estado de pago real desde la cuenta por cobrar vinculada (con VENCIDO derivado)
+        const cc = ped.cuentasCobrar?.[0];
+        const estadoPago = cc
+          ? Number(cc.saldoPendiente) > 0 &&
+            cc.estado !== 'PAGADO' &&
+            cc.fechaVencimiento &&
+            new Date(cc.fechaVencimiento) < new Date()
+            ? 'VENCIDO'
+            : cc.estado
+          : null;
+
+        // Estados de las órdenes de producción vinculadas (para emisibilidad de crédito)
+        const ordenesEstados = (ped.ordenesProduccion || []).map((o: any) => ({
+          codigoLote: o.codigoLote,
+          estado: o.estado,
+          pasoProceso: o.pasoProceso,
+        }));
+
         return {
-          ...ped,
+          ...pedResto,
+          estadoPago,
+          ordenesEstados,
           desgloseStock: stockValidacion,
           itemsList,
           observacionesClean: cleanObservaciones,
@@ -969,14 +1013,35 @@ export class PedidosAdminService {
   /**
    * R1 — Emitir comprobante (Boleta / Factura / Nota de Venta) desde una cotización/pedido.
    * Cambia el tipoComprobante, mantiene el ciclo docType (COT/OP) y registra la cuenta por cobrar.
+   *
+   * Reglas de negocio:
+   *  - CONTADO: se factura desde que el pedido está confirmado (APROBADO) y, si el pago ya fue
+   *    recibido (pagoRecibido, casilla marcada por defecto), la cuenta nace PAGADO con abono total.
+   *  - CREDITO: solo facturable cuando la producción está lista para despacho
+   *    (EN_ETIQUETADO / LIBERADO_QA / ETIQUETADO / DESPACHADO), o si el pedido ya fue entregado,
+   *    o si es venta directa sin lote en reactor.
    */
-  async emitirComprobante(pedidoId: string, dto: { tipo: 'BOLETA' | 'FACTURA' | 'NOTA_VENTA' } | any) {
+  async emitirComprobante(
+    pedidoId: string,
+    dto: {
+      tipo?: string;
+      pagoRecibido?: boolean;
+      medioPago?: string;
+      numOperacion?: string;
+      canalBanco?: string;
+    },
+    emitidoPor?: string,
+  ) {
+    const db = this.prisma as any;
     const tipo = (dto?.tipo || '').toUpperCase();
     if (!['BOLETA', 'FACTURA', 'NOTA_VENTA'].includes(tipo)) {
       throw new Error('Tipo de comprobante inválido. Use BOLETA, FACTURA o NOTA_VENTA.');
     }
 
-    const pedido = await this.prisma.pedidoComercial.findUnique({ where: { id: pedidoId } });
+    const pedido = await db.pedidoComercial.findUnique({
+      where: { id: pedidoId },
+      include: { ordenesProduccion: true },
+    });
     if (!pedido) throw new NotFoundException('Pedido no encontrado.');
 
     if (pedido.tipoComprobante) {
@@ -985,58 +1050,159 @@ export class PedidosAdminService {
       );
     }
 
+    // ── Clasificador de condición de pago: CONTADO vs CRÉDITO ──
+    const condicion = (pedido.condicionPago || '').toLowerCase();
+    const esContado = !/\b(cr[eé]dito|plazo)\b|\b\d+\s*d[ií]as\b/i.test(condicion);
+
+    // ── Validaciones de emisibilidad según regla de negocio ──
+    this.validarEmisibilidad(pedido, esContado);
+
     const monto = Number(pedido.montoTotal) || 0;
     const nombre = pedido.clienteNombre || 'Cliente';
     const ruc = pedido.clienteRuc || '00000000000';
 
+    // Regla de negocio: línea de crédito por cliente (null = sin límite)
+    if (!esContado && pedido.clienteId) {
+      const cliente = await db.cliente.findUnique({ where: { id: pedido.clienteId } });
+      if (cliente) {
+        const limite = cliente.limiteCredito != null ? Number(cliente.limiteCredito) : null;
+        if (limite != null && limite > 0) {
+          const deudaActual = await db.cuentaCobrar.aggregate({
+            where: { clienteId: cliente.id, estado: { in: ['PENDIENTE', 'VENCIDO'] } },
+            _sum: { saldoPendiente: true },
+          });
+          const deuda = Number(deudaActual?._sum?.saldoPendiente) || 0;
+          if (deuda + monto > limite) {
+            throw new BadRequestException(
+              `Se superaría la línea de crédito del cliente: deuda actual S/ ${deuda.toLocaleString('es-PE', { minimumFractionDigits: 2 })} + comprobante S/ ${monto.toLocaleString('es-PE', { minimumFractionDigits: 2 })} > límite S/ ${limite.toLocaleString('es-PE', { minimumFractionDigits: 2 })}.`,
+            );
+          }
+        }
+        if (cliente.diasCreditoMax != null && cliente.diasCreditoMax > 0) {
+          const dias = Number(pedido.condicionPago?.match(/\d+/)?.[0]) || 0;
+          if (dias > cliente.diasCreditoMax) {
+            throw new BadRequestException(
+              `El plazo de crédito (${dias} días) supera el máximo del cliente (${cliente.diasCreditoMax} días).`,
+            );
+          }
+        }
+      }
+    }
+
     // Días de crédito derivados de la condición de pago para el vencimiento.
-    const diasCredito = (() => {
-      const m = (pedido.condicionPago || '').toLowerCase();
-      const num = m.match(/\d+/)?.[0];
-      if (/credito|crédito|dias|días/.test(m) && num) return parseInt(num, 10);
-      return 0;
-    })();
+    const diasCredito = esContado
+      ? 0
+      : (() => {
+          const m = condicion;
+          const num = m.match(/\d+/)?.[0];
+          if (num) return parseInt(num, 10);
+          return 0;
+        })();
     const fechaEmision = new Date();
     const fechaVencimiento = new Date(fechaEmision);
     fechaVencimiento.setDate(fechaVencimiento.getDate() + diasCredito);
 
+    // Pago recibido al instante (casilla marcada por defecto en contado)
+    const pagoRecibido = dto?.pagoRecibido !== undefined ? !!dto.pagoRecibido : esContado;
+    const medioPago = dto?.medioPago?.trim() || null;
+
     // Registrar en cuenta por cobrar (tabla de cobranzas)
     const prefijo = tipo === 'FACTURA' ? 'FAC' : tipo === 'BOLETA' ? 'BOL' : 'NV';
-    const nroc = await this.prisma.cuentaCobrar.count();
+    const nroc = await db.cuentaCobrar.count();
     const codigoDoc = `${prefijo}-${new Date().getFullYear()}-${String(nroc + 1).padStart(5, '0')}`;
 
-    await this.prisma.cuentaCobrar.create({
-      data: {
-        codigoDoc,
-        clienteId: pedido.clienteId,
-        clienteNombre: nombre,
-        clienteRuc: ruc,
-        ordenProd: pedido.codigoOrden,
-        producto: pedido.productoNombre,
-        montoTotal: monto,
-        saldoPendiente: monto,
-        condicionPago: pedido.condicionPago || 'Contado',
-        diasPlazo: diasCredito,
-        fechaEmision,
-        fechaVencimiento,
-        estado: 'PENDIENTE',
-        medioPago: tipo,
-      },
-    });
+    // Transacción atómica: CuentaCobrar + abono (si pagó) + marca del pedido
+    const resultado = await db.$transaction(async (tx: any) => {
+      const cuenta = await tx.cuentaCobrar.create({
+        data: {
+          codigoDoc,
+          clienteId: pedido.clienteId,
+          clienteNombre: nombre,
+          clienteRuc: ruc,
+          pedidoId: pedido.id,
+          ordenProd: pedido.codigoOrden,
+          producto: pedido.productoNombre,
+          montoTotal: monto,
+          saldoPendiente: pagoRecibido ? 0 : monto,
+          condicionPago: pedido.condicionPago || 'Contado',
+          diasPlazo: diasCredito,
+          fechaEmision,
+          fechaVencimiento,
+          estado: pagoRecibido ? 'PAGADO' : 'PENDIENTE',
+          fechaPago: pagoRecibido ? fechaEmision : null,
+          medioPago: pagoRecibido ? medioPago || 'Pago contado' : tipo,
+          emitidoPor: emitidoPor || null,
+        },
+      });
 
-    // Marcar el pedido con su tipo de comprobante emitido
-    const actualizado = await this.prisma.pedidoComercial.update({
-      where: { id: pedidoId },
-      data: { tipoComprobante: tipo },
+      if (pagoRecibido) {
+        await tx.pagoAbono.create({
+          data: {
+            cuentaCobrarId: cuenta.id,
+            montoAbonado: monto,
+            medio: medioPago || 'Pago contado',
+            banco: dto?.canalBanco?.trim() || null,
+            numOperacion: dto?.numOperacion?.trim() || null,
+            observaciones: `Pago contado al instante — ${pedido.codigoOrden}`,
+          },
+        });
+      }
+
+      const actualizado = await tx.pedidoComercial.update({
+        where: { id: pedidoId },
+        data: { tipoComprobante: tipo },
+      });
+
+      return { cuenta, actualizado };
     });
 
     return {
-      id: actualizado.id,
-      codigoOrden: actualizado.codigoOrden,
-      tipoComprobante: actualizado.tipoComprobante,
+      id: resultado.actualizado.id,
+      codigoOrden: resultado.actualizado.codigoOrden,
+      tipoComprobante: resultado.actualizado.tipoComprobante,
       cuentaCobrar: codigoDoc,
       montoTotal: monto,
+      estadoPago: resultado.cuenta.estado,
+      estadoEntrega: pedido.estado,
     };
+  }
+
+  /**
+   * Valida que el pedido pueda facturarse según condición de pago y estado de producción.
+   * - Contado: exige pedido confirmado (≠ NUEVO/REVISIÓN).
+   * - Crédito: exige producción lista para despacho, pedido entregado o venta directa sin lote.
+   */
+  private validarEmisibilidad(pedido: any, esContado: boolean) {
+    const estado = pedido.estado || '';
+    if (['RECHAZADO', 'DEVUELTO'].includes(estado)) {
+      throw new BadRequestException(
+        `El pedido ${pedido.codigoOrden} está en estado ${estado} y no se puede facturar.`,
+      );
+    }
+
+    if (esContado) {
+      if (['NUEVO', 'PENDIENTE_REVISION', 'VALIDANDO'].includes(estado)) {
+        throw new BadRequestException(
+          `El pedido ${pedido.codigoOrden} es de contado pero aún no está confirmado. Aprueba el pedido antes de facturar.`,
+        );
+      }
+      return;
+    }
+
+    // Crédito: producción lista para despacho
+    const estadosListos = ['EN_ETIQUETADO', 'LIBERADO_QA', 'ETIQUETADO', 'LISTO_PARA_IMPRIMIR', 'DESPACHADO'];
+    const produccionLista = (pedido.ordenesProduccion || []).some(
+      (o: any) => estadosListos.includes(o.pasoProceso) || estadosListos.includes(o.estado),
+    );
+    const yaEntregado = ['ENTREGADO', 'DESPACHADO'].includes(estado);
+    const sinLote = !pedido.ordenesProduccion || pedido.ordenesProduccion.length === 0;
+
+    if (produccionLista || yaEntregado || sinLote) return;
+
+    throw new BadRequestException(
+      `El pedido ${pedido.codigoOrden} es a crédito y su producción aún no está lista para despacho. ` +
+        `Espera a que el lote pase a EN_ETIQUETADO / LIBERADO_QA (o sea despachado) para emitir el comprobante.`,
+    );
   }
 
   /**

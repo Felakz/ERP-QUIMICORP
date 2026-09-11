@@ -7,9 +7,21 @@ import { CrearCuentaCobrarDto } from './dto/crear-cuenta-cobrar.dto';
 export class CobranzasService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Estado de pago derivado: si hay saldo pendiente y venció la fecha de vencimiento → VENCIDO.
+   * Se calcula al leer (sin job nocturno) para que nunca quede desactualizado.
+   */
+  private derivarEstado(cc: any): string {
+    const saldo = Number(cc.saldoPendiente) || 0;
+    if (saldo > 0 && cc.fechaVencimiento && new Date(cc.fechaVencimiento) < new Date()) {
+      return 'VENCIDO';
+    }
+    return cc.estado || 'PENDIENTE';
+  }
+
   async listar(estado?: string, condicion?: string, ruc?: string, search?: string) {
     const where: any = {};
-    if (estado && estado !== 'TODOS') where.estado = estado;
+    if (estado && estado !== 'TODOS' && estado !== 'VENCIDO') where.estado = estado;
     if (condicion && condicion !== 'TODOS') where.condicionPago = { contains: condicion, mode: 'insensitive' };
     if (ruc) where.clienteRuc = ruc;
     if (search) {
@@ -22,7 +34,7 @@ export class CobranzasService {
       ];
     }
 
-    return this.prisma.cuentaCobrar.findMany({
+    const cuentas = await this.prisma.cuentaCobrar.findMany({
       where,
       include: {
         pagos: {
@@ -30,6 +42,11 @@ export class CobranzasService {
         },
       },
       orderBy: { fechaEmision: 'desc' },
+    });
+
+    return cuentas.map((cc) => ({ ...cc, estado: this.derivarEstado(cc) })).filter((cc) => {
+      if (estado === 'VENCIDO') return cc.estado === 'VENCIDO';
+      return true;
     });
   }
 
@@ -73,7 +90,7 @@ export class CobranzasService {
       },
     });
     if (!cuenta) throw new NotFoundException(`Cuenta por cobrar con ID ${id} no encontrada`);
-    return cuenta;
+    return { ...cuenta, estado: this.derivarEstado(cuenta) };
   }
 
   async registrarAbono(id: string, dto: RegistrarAbonoDto) {

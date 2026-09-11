@@ -231,12 +231,22 @@ export class ClientesService {
     const pagoRealPorOrden = new Map<string, string>();
     (cliente.cuentasCobrar || []).forEach((cc: any) => {
       const key = cc.ordenProd || cc.codigoDoc;
-      if (key) pagoRealPorOrden.set(key, cc.estado);
+      if (!key) return;
+      const saldo = Number(cc.saldoPendiente) || 0;
+      const estadoDerivado =
+        saldo > 0 && cc.fechaVencimiento && new Date(cc.fechaVencimiento) < new Date() ? 'VENCIDO' : cc.estado;
+      pagoRealPorOrden.set(key, estadoDerivado);
     });
 
     // Mapa del PedidoComercial por id (fuente REAL de estado de entrega, propagado por despacho)
     const pedidoById = new Map<string, any>();
     (cliente.pedidos || []).forEach((p: any) => pedidoById.set(p.id, p));
+
+    // Fallback de vínculo por código de orden (comprobantes legacy sin pedidoId)
+    const pedidoByOrden = new Map<string, any>();
+    (cliente.pedidos || []).forEach((p: any) => {
+      if (p.codigoOrden) pedidoByOrden.set(p.codigoOrden, p);
+    });
 
     // 1. Historial de Pedidos & OPs
     const pedidosHistory = tieneCuentas
@@ -246,10 +256,16 @@ export class ClientesService {
           const pagado = total - saldo;
           const { volumen, unidadMedida } = parseBatchVolumeAndUnit(cc.producto || '', total);
 
-          // Estado de ENTREGA real proviene del PedidoComercial vinculado (flujo de planta), NO del pago
-          const pedidoVinculado = cc.pedidoId ? pedidoById.get(cc.pedidoId) : undefined;
+          // Estado de ENTREGA real proviene del PedidoComercial vinculado (flujo de planta), NO del pago.
+          // Vínculo por FK pedidoId (comprobantes nuevos) o por ordenProd (comprobantes legacy).
+          let pedidoVinculado = cc.pedidoId ? pedidoById.get(cc.pedidoId) : undefined;
+          if (!pedidoVinculado && cc.ordenProd) pedidoVinculado = pedidoByOrden.get(cc.ordenProd);
           const estadoEntregaReal: string = pedidoVinculado?.estado || 'PENDIENTE';
-          const esPagado = cc.estado === 'PAGADO' || saldo === 0;
+          const estadoPagoDerivado =
+            saldo > 0 && cc.fechaVencimiento && new Date(cc.fechaVencimiento) < new Date()
+              ? 'VENCIDO'
+              : cc.estado;
+          const esPagado = estadoPagoDerivado === 'PAGADO' || saldo === 0;
           const entregado =
             estadoEntregaReal === 'ENTREGADO' ||
             estadoEntregaReal === 'DESPACHADO' ||
@@ -259,6 +275,9 @@ export class ClientesService {
           return {
             code: cc.ordenProd || `OP-${cc.codigoDoc.replace(/[^0-9]/g, '') || cc.id.substring(0, 6)}`,
             fecha: new Date(cc.fechaEmision).toISOString().split('T')[0],
+            fechaEntrega: pedidoVinculado?.fechaEntrega
+              ? new Date(pedidoVinculado.fechaEntrega).toISOString().split('T')[0]
+              : null,
             volumen,
             unidadMedida,
             variant: cc.producto || 'Fórmula Industrial Base',
@@ -267,7 +286,7 @@ export class ClientesService {
             monto: total,
             saldo: saldo,
             pagado: pagado,
-            estadoPago: cc.estado as 'PAGADO' | 'PENDIENTE' | 'VENCIDO',
+            estadoPago: estadoPagoDerivado as 'PAGADO' | 'PENDIENTE' | 'VENCIDO',
             estadoEntrega: (entregado ? 'ENTREGADO' : 'PENDIENTE') as 'ENTREGADO' | 'PENDIENTE' | 'EN_RUTA',
             estado: entregado ? 'ENTREGADO' : 'EN_PROCESO',
             medioPago: cc.medioPago || 'DEPOSITO EN CUENTA',
@@ -289,6 +308,7 @@ export class ClientesService {
           return {
             code: p.codigoOrden || `OP-${p.id.substring(0, 6)}`,
             fecha: new Date(p.createdAt).toISOString().split('T')[0],
+            fechaEntrega: p.fechaEntrega ? new Date(p.fechaEntrega).toISOString().split('T')[0] : null,
             volumen,
             unidadMedida,
             variant: p.productoNombre || 'Fórmula Industrial',

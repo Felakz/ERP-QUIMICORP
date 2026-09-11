@@ -558,6 +558,7 @@ export default function CuentasCobrarPage() {
             {[
               { id: 'TODOS', label: 'Todos', activeColor: 'bg-slate-700 text-white' },
               { id: 'PAGADO', label: 'Pagados (Liquidados)', activeColor: 'bg-blue-500 text-white shadow-md shadow-blue-500/30' },
+              { id: 'VENCIDO', label: 'Vencidos', activeColor: 'bg-rose-500 text-white shadow-md shadow-rose-500/30' },
               { id: 'PENDIENTE', label: 'Pendientes (Por Cobrar)', activeColor: 'bg-[#00F2C3] text-slate-950 shadow-md shadow-[#00F2C3]/30 font-black' },
             ].map((est) => {
               const isSel = filtroEstado === est.id;
@@ -675,15 +676,23 @@ export default function CuentasCobrarPage() {
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase border ${
                         c.estado === 'PAGADO'
                           ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                          : c.estado === 'VENCIDO'
+                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
                           : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${c.estado === 'PAGADO' ? 'bg-blue-400' : 'bg-amber-400 led-pulse'}`} />
-                        {c.estado === 'PAGADO' ? 'Pagado' : 'Pendiente'}
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          c.estado === 'PAGADO'
+                            ? 'bg-blue-400'
+                            : c.estado === 'VENCIDO'
+                            ? 'bg-rose-400 led-pulse'
+                            : 'bg-amber-400 led-pulse'
+                        }`} />
+                        {c.estado === 'PAGADO' ? 'Pagado' : c.estado === 'VENCIDO' ? 'Vencido' : 'Pendiente'}
                       </span>
                     </td>
                     <td className="py-3.5 px-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        {c.estado === 'PENDIENTE' && (
+                        {['PENDIENTE', 'VENCIDO'].includes(c.estado) && (
                           <button
                             onClick={() => abrirModalAbono(c)}
                             className="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-[#00F2C3] border border-emerald-500/30 hover:border-[#00F2C3] text-[10px] font-bold font-sans transition-all active:scale-95 shadow-sm"
