@@ -49,7 +49,7 @@ export class PedidosAdminController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   eliminarPedido(@Param('id') id: string) {
     return this.pedidosAdminService.eliminarPedido(id);
   }
@@ -90,8 +90,7 @@ export class PedidosAdminController {
 
   @Post(':id/emitir-comprobante')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL)
-  @RolesExcluded(Role.ASISTENTE_ADMINISTRATIVO)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.FINANZAS, Role.VENTAS_ATENCION_DIGITAL)
   emitirComprobante(
     @Req() req: any,
     @Param('id') id: string,

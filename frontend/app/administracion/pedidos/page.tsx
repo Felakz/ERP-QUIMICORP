@@ -79,7 +79,6 @@ export default function AdministracionPedidosComercialesPage() {
   const { socket } = useSocket();
   const isDark = theme === 'dark';
   const canApprove = isGerenteUser(user?.role) || user?.role === 'ASISTENTE_ADMINISTRATIVO';
-  const esAsistente = user?.role === 'ASISTENTE_ADMINISTRATIVO';
 
   const [pedidos, setPedidos] = useState<PedidoEmitido[]>([]);
   const [loadingPedidos, setLoadingPedidos] = useState<boolean>(true);
@@ -122,6 +121,9 @@ export default function AdministracionPedidosComercialesPage() {
   const [editModalItem, setEditModalItem] = useState<PedidoEmitido | null>(null);
   const [editCliente, setEditCliente] = useState<string>('');
   const [editRuc, setEditRuc] = useState<string>('');
+  const [editClienteId, setEditClienteId] = useState<string | null>(null);
+  const [carteraClientes, setCarteraClientes] = useState<{ id: string; razonSocial: string; ruc: string; condicionPago?: string }[]>([]);
+  const [showEditClientDropdown, setShowEditClientDropdown] = useState<boolean>(false);
   const [editProducto, setEditProducto] = useState<string>('');
   const [editCantidad, setEditCantidad] = useState<string>('0');
   const [editUnidad, setEditUnidad] = useState<string>('KG');
@@ -168,6 +170,18 @@ export default function AdministracionPedidosComercialesPage() {
     if (fechaISO === 'TODOS') return 'Histórico Completo';
     const [y, m, d] = fechaISO.split('-');
     return `${d}/${m}/${y}`;
+  };
+
+  // Cargar lista oficial de clientes de la cartera
+  const cargarCarteraClientes = async () => {
+    try {
+      const { data, ok } = await apiFetch<any[]>('/clientes');
+      if (ok && Array.isArray(data)) {
+        setCarteraClientes(data);
+      }
+    } catch (err) {
+      console.error('Error cargando cartera de clientes:', err);
+    }
   };
 
   // Cache en memoria para navegación instantánea entre vistas
@@ -228,6 +242,7 @@ export default function AdministracionPedidosComercialesPage() {
 
   useEffect(() => {
     cargarPedidos();
+    cargarCarteraClientes();
   }, [selectedDate]);
 
   useEffect(() => {
@@ -407,9 +422,12 @@ export default function AdministracionPedidosComercialesPage() {
   };
 
   const abrirModalEditar = (p: PedidoEmitido) => {
+    cargarCarteraClientes();
     setEditModalItem(p);
     setEditCliente(p.cliente);
     setEditRuc(p.ruc);
+    setEditClienteId((p as any).clienteId || null);
+    setShowEditClientDropdown(false);
     setEditProducto(p.producto);
     setEditCantidad(String(p.cantidad));
     setEditUnidad(p.unidad);
@@ -428,12 +446,26 @@ export default function AdministracionPedidosComercialesPage() {
   const handleGuardarEdicionPedido = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editModalItem) return;
+
+    // Validación estricta contra la Cartera de Clientes
+    const matchCliente = carteraClientes.find(
+      (c) =>
+        c.razonSocial.trim().toLowerCase() === editCliente.trim().toLowerCase() ||
+        (editRuc.trim() && c.ruc.trim() === editRuc.trim())
+    );
+
+    if (carteraClientes.length > 0 && !matchCliente) {
+      setEditError('⚠️ El cliente debe pertenecer a la Cartera de Clientes. Selecciónelo de la lista.');
+      return;
+    }
+
     setEditLoading(true);
     setEditError('');
 
     const payload: any = {
-      clienteNombre: editCliente,
-      clienteRuc: editRuc,
+      clienteNombre: matchCliente ? matchCliente.razonSocial : editCliente,
+      clienteRuc: matchCliente ? matchCliente.ruc : editRuc,
+      clienteId: matchCliente?.id || editClienteId || undefined,
       productoNombre: editProducto,
       cantidadSolicitada: Number(editCantidad),
       unidadMedida: editUnidad,
@@ -461,8 +493,8 @@ export default function AdministracionPedidosComercialesPage() {
           p.id === editModalItem.id
             ? {
                 ...p,
-                cliente: editCliente,
-                ruc: editRuc,
+                cliente: payload.clienteNombre,
+                ruc: payload.clienteRuc,
                 producto: editProducto,
                 cantidad: Number(editCantidad) || 0,
                 unidad: editUnidad,
@@ -486,24 +518,27 @@ export default function AdministracionPedidosComercialesPage() {
     }
   };
 
-  const handleEliminarPedido = async () => {
-    if (!editModalItem) return;
+  const handleEliminarPedido = async (targetPedido?: PedidoEmitido) => {
+    const p = targetPedido || editModalItem;
+    if (!p) return;
     const confirmacion = window.confirm(
-      `¿Estás seguro de eliminar el pedido ${editModalItem.codigoOrden} (${editModalItem.cliente})?\nEsta acción no se puede deshacer.`
+      `¿Estás seguro de eliminar el pedido ${p.codigoOrden} (${p.cliente})?\nEsta acción no se puede deshacer.`
     );
     if (!confirmacion) return;
 
     setEditLoading(true);
     setEditError('');
     try {
-      const { ok, error } = await apiFetch(`/pedidos-admin/${editModalItem.id}`, {
+      const { ok, error } = await apiFetch(`/pedidos-admin/${p.id}`, {
         method: 'DELETE',
       });
       if (!ok) {
-        setEditError(error || 'No se pudo eliminar el pedido.');
+        const errMsg = error || 'No se pudo eliminar el pedido.';
+        setEditError(errMsg);
+        setToastMsg(`⚠️ ${errMsg}`);
         return;
       }
-      setToastMsg(`✓ Pedido ${editModalItem.codigoOrden} eliminado.`);
+      setToastMsg(`✓ Pedido ${p.codigoOrden} eliminado.`);
       setEditModalItem(null);
       cargarPedidos();
     } catch (err: any) {
@@ -532,7 +567,7 @@ export default function AdministracionPedidosComercialesPage() {
 
   // ── R1: Emitir comprobante (Boleta / Factura / Nota de Venta) ──
   const handleEmitirComprobante = async () => {
-    if (esAsistente || !emitModalItem) return;
+    if (!emitModalItem) return;
     setEmitLoading(true);
     setEmitError('');
     setEmitResult('');
@@ -1088,31 +1123,29 @@ export default function AdministracionPedidosComercialesPage() {
                                 <FileText className="w-4 h-4" />
                               </button>
 
-                              {!esAsistente && (
-                                <button
-                                  onClick={() => {
-                        setEmitTipo('FACTURA');
-                        setEmitResult('');
-                        setEmitError('');
-                        const esContadoClick = !/cr[eé]dito|plazo|\d+\s*d[ií]as/i.test(
-                          (p.condicionPago || '').toLowerCase(),
-                        );
-                        setEmitPagoRecibido(esContadoClick);
-                        setEmitMedioPago('Transferencia bancaria');
-                        setEmitNumOperacion('');
-                        setEmitModalItem(p);
-                      }}
-                                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
-                                    isDark
-                                      ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
-                                      : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                                  }`}
-                                  title="Emitir Boleta / Factura / Nota de Venta"
-                                >
-                                  <Receipt className="w-3.5 h-3.5" />
-                                  <span>Emitir Comp.</span>
-                                </button>
-                              )}
+                              <button
+                                onClick={() => {
+                                  setEmitTipo('FACTURA');
+                                  setEmitResult('');
+                                  setEmitError('');
+                                  const esContadoClick = !/cr[eé]dito|plazo|\d+\s*d[ií]as/i.test(
+                                    (p.condicionPago || '').toLowerCase(),
+                                  );
+                                  setEmitPagoRecibido(esContadoClick);
+                                  setEmitMedioPago('Transferencia bancaria');
+                                  setEmitNumOperacion('');
+                                  setEmitModalItem(p);
+                                }}
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
+                                  isDark
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
+                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                }`}
+                                title="Emitir Boleta / Factura / Nota de Venta"
+                              >
+                                <Receipt className="w-3.5 h-3.5" />
+                                <span>Emitir Comp.</span>
+                              </button>
 
                               {/* Botón Editar Cotización / Pedido */}
                               <button
@@ -1125,6 +1158,19 @@ export default function AdministracionPedidosComercialesPage() {
                                 title="Editar datos del pedido o cotización"
                               >
                                 <Pencil className="w-4 h-4" />
+                              </button>
+
+                              {/* Botón Eliminar Cotización / Pedido */}
+                              <button
+                                onClick={() => handleEliminarPedido(p)}
+                                className={`p-1.5 rounded-lg border transition-all active:scale-90 ${
+                                  isDark
+                                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 shadow-sm'
+                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                }`}
+                                title="Eliminar pedido o cotización"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </>
                           ) : (
@@ -1143,31 +1189,29 @@ export default function AdministracionPedidosComercialesPage() {
                                 <span>Ver Boleta</span>
                               </button>
 
-                              {!esAsistente && (
-                                <button
-                                  onClick={() => {
-                        setEmitTipo('FACTURA');
-                        setEmitResult('');
-                        setEmitError('');
-                        const esContadoClick = !/cr[eé]dito|plazo|\d+\s*d[ií]as/i.test(
-                          (p.condicionPago || '').toLowerCase(),
-                        );
-                        setEmitPagoRecibido(esContadoClick);
-                        setEmitMedioPago('Transferencia bancaria');
-                        setEmitNumOperacion('');
-                        setEmitModalItem(p);
-                      }}
-                                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
-                                    isDark
-                                      ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
-                                      : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
-                                  }`}
-                                  title="Emitir Boleta / Factura / Nota de Venta"
-                                >
-                                  <Receipt className="w-3.5 h-3.5" />
-                                  <span>Emitir Comp.</span>
-                                </button>
-                              )}
+                              <button
+                                onClick={() => {
+                                  setEmitTipo('FACTURA');
+                                  setEmitResult('');
+                                  setEmitError('');
+                                  const esContadoClick = !/cr[eé]dito|plazo|\d+\s*d[ií]as/i.test(
+                                    (p.condicionPago || '').toLowerCase(),
+                                  );
+                                  setEmitPagoRecibido(esContadoClick);
+                                  setEmitMedioPago('Transferencia bancaria');
+                                  setEmitNumOperacion('');
+                                  setEmitModalItem(p);
+                                }}
+                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
+                                  isDark
+                                    ? 'bg-[#151D2A] border-[#1A2232] text-rose-400 hover:text-white hover:border-rose-400'
+                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                }`}
+                                title="Emitir Boleta / Factura / Nota de Venta"
+                              >
+                                <Receipt className="w-3.5 h-3.5" />
+                                <span>Emitir Comp.</span>
+                              </button>
 
                               {/* Botón Editar Cotización / Pedido */}
                               <button
@@ -1180,6 +1224,19 @@ export default function AdministracionPedidosComercialesPage() {
                                 title="Editar datos del pedido o cotización"
                               >
                                 <Pencil className="w-4 h-4" />
+                              </button>
+
+                              {/* Botón Eliminar Cotización / Pedido */}
+                              <button
+                                onClick={() => handleEliminarPedido(p)}
+                                className={`p-1.5 rounded-lg border transition-all active:scale-90 ${
+                                  isDark
+                                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 shadow-sm'
+                                    : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                }`}
+                                title="Eliminar pedido o cotización"
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             </>
                           )}
@@ -1271,7 +1328,7 @@ export default function AdministracionPedidosComercialesPage() {
       )}
 
       {/* ── MODAL EMITIR COMPROBANTE (R1) ── */}
-      {emitModalItem && !esAsistente && (
+      {emitModalItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 font-sans animate-in fade-in duration-200">
           <div className={`w-full max-w-md rounded-2xl p-6 border space-y-4 shadow-2xl ${cardBg}`}>
             <div className={`flex items-center gap-3 border-b pb-3 ${isDark ? 'text-rose-400' : 'text-rose-700'}`}>
@@ -1450,24 +1507,117 @@ export default function AdministracionPedidosComercialesPage() {
             </div>
 
             <form onSubmit={handleGuardarEdicionPedido} className="space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Cliente *</label>
+              <div className="grid grid-cols-2 gap-3 relative">
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={`block text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      Cliente *
+                    </label>
+                    {carteraClientes.some(
+                      (c) =>
+                        c.razonSocial.trim().toLowerCase() === editCliente.trim().toLowerCase() ||
+                        (editRuc.trim() && c.ruc.trim() === editRuc.trim())
+                    ) ? (
+                      <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                        ✓ En Cartera 360
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-amber-400 font-semibold">
+                        Seleccionar de cartera
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={editCliente}
-                    onChange={(e) => setEditCliente(e.target.value)}
+                    onFocus={() => setShowEditClientDropdown(true)}
+                    onChange={(e) => {
+                      setEditCliente(e.target.value);
+                      setShowEditClientDropdown(true);
+                    }}
+                    placeholder="Buscar en la cartera de clientes..."
                     required
-                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-semibold ${inputBg} ${
+                      carteraClientes.some(
+                        (c) =>
+                          c.razonSocial.trim().toLowerCase() === editCliente.trim().toLowerCase() ||
+                          (editRuc.trim() && c.ruc.trim() === editRuc.trim())
+                      )
+                        ? isDark
+                          ? 'border-emerald-500/40 bg-emerald-500/5'
+                          : 'border-emerald-400 bg-emerald-50/40'
+                        : ''
+                    }`}
                   />
+
+                  {/* Dropdown de Clientes de Cartera */}
+                  {showEditClientDropdown && (
+                    <div
+                      className={`absolute left-0 right-0 top-full mt-1 z-50 max-h-52 overflow-y-auto rounded-xl border shadow-2xl ${
+                        isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      {carteraClientes.filter(
+                        (c) =>
+                          !editCliente.trim() ||
+                          c.razonSocial.toLowerCase().includes(editCliente.toLowerCase()) ||
+                          c.ruc.includes(editCliente)
+                      ).length === 0 ? (
+                        <div className={`p-3 text-[11px] font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                          No se encontró en la cartera. Solo se permiten clientes existentes.
+                        </div>
+                      ) : (
+                        carteraClientes
+                          .filter(
+                            (c) =>
+                              !editCliente.trim() ||
+                              c.razonSocial.toLowerCase().includes(editCliente.toLowerCase()) ||
+                              c.ruc.includes(editCliente)
+                          )
+                          .map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setEditCliente(c.razonSocial);
+                                setEditRuc(c.ruc);
+                                setEditClienteId(c.id);
+                                if (c.condicionPago) setEditCondicion(c.condicionPago);
+                                setShowEditClientDropdown(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 border-b last:border-0 text-xs transition-colors flex items-center justify-between ${
+                                isDark
+                                  ? 'border-slate-800 hover:bg-[#1E293B] text-slate-200'
+                                  : 'border-slate-100 hover:bg-slate-50 text-slate-800'
+                              }`}
+                            >
+                              <div>
+                                <p className="font-bold">{c.razonSocial}</p>
+                                <p className="text-[10px] font-mono text-slate-400">RUC: {c.ruc}</p>
+                              </div>
+                              <span className="text-[10px] font-semibold text-emerald-400">
+                                {c.condicionPago || 'Contado'}
+                              </span>
+                            </button>
+                          ))
+                      )}
+                    </div>
+                  )}
                 </div>
+
                 <div>
-                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>RUC / DNI</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={`block text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                      RUC / DNI
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">Fijado por cartera</span>
+                  </div>
                   <input
                     type="text"
                     value={editRuc}
-                    onChange={(e) => setEditRuc(e.target.value)}
-                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono ${inputBg}`}
+                    readOnly
+                    title="Campo fijado por el cliente seleccionado de la Cartera 360"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-mono cursor-not-allowed opacity-85 ${inputBg}`}
                   />
                 </div>
               </div>
@@ -1624,7 +1774,7 @@ export default function AdministracionPedidosComercialesPage() {
               }`}>
                 <button
                   type="button"
-                  onClick={handleEliminarPedido}
+                  onClick={() => handleEliminarPedido()}
                   disabled={editLoading}
                   className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors flex items-center gap-1.5"
                 >

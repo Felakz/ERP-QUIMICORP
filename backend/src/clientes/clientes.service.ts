@@ -502,19 +502,58 @@ export class ClientesService {
     });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: {
+    razonSocial?: string;
+    ruc?: string;
+    telefono?: string;
+    direccion?: string;
+    contacto?: string;
+    metodoEnvio?: string;
+    condicionPago?: string;
+    estado?: string;
+    contactos?: { nombre: string; cargo?: string; telefono?: string; esPrincipal?: boolean }[];
+  }) {
     const db = this.prisma;
-    return db.cliente.update({
+
+    await db.cliente.update({
       where: { id },
       data: {
         razonSocial: dto.razonSocial,
-        telefono: dto.telefono,
-        direccion: dto.direccion,
+        ruc: dto.ruc,
+        telefono: dto.telefono ?? undefined,
+        direccion: dto.direccion ?? undefined,
+        contacto: dto.contacto,
         metodoEnvio: dto.metodoEnvio,
         condicionPago: dto.condicionPago,
       },
+    });
+
+    if (dto.contactos || dto.contacto !== undefined) {
+      const contactosData =
+        dto.contactos && dto.contactos.length > 0
+          ? dto.contactos
+          : dto.contacto
+            ? [{ nombre: dto.contacto, cargo: 'Contacto Principal', telefono: dto.telefono, esPrincipal: true }]
+            : [];
+
+      await db.contactoRepresentante.deleteMany({ where: { clienteId: id } });
+      if (contactosData.length > 0) {
+        await db.contactoRepresentante.createMany({
+          data: contactosData.map((c) => ({
+            clienteId: id,
+            nombre: c.nombre,
+            cargo: c.cargo || null,
+            telefono: c.telefono || null,
+            esPrincipal: c.esPrincipal ?? false,
+          })),
+        });
+      }
+    }
+
+    return db.cliente.findUnique({
+      where: { id },
       include: {
-        contactos: true,
+        contactos: { orderBy: { esPrincipal: 'desc' } },
       },
     });
   }

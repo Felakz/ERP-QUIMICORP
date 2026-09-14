@@ -13,10 +13,12 @@ import {
   DollarSign,
   MapPin,
   RefreshCw,
+  Pencil,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 import { ClientExtended, ClientDetailTab } from '@/types/clientes';
+import { EditarClienteModal } from '../modals/EditarClienteModal';
 
 // Tab Subcomponents
 import { ClientGeneralTab } from './tabs/ClientGeneralTab';
@@ -40,6 +42,7 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const [currentClient, setCurrentClient] = useState<ClientExtended>(cliente);
   const [activeTab, setActiveTab] = useState<ClientDetailTab>('general');
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
 
   const fetchClientDetail = async () => {
     setLoadingDetail(true);
@@ -96,6 +99,14 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
           >
             {cliente.estado || 'ACTIVO'}
           </span>
+
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold transition-all border border-amber-500/30"
+          >
+            <Pencil className="w-4 h-4" />
+            <span>Editar Cliente</span>
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-6">
@@ -216,6 +227,14 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
         {activeTab === 'pagos' && <ClientPaymentsTab cliente={activeCliente} isDark={isDark} />}
         {activeTab === 'despachos' && <ClientDispatchesTab cliente={activeCliente} isDark={isDark} />}
       </div>
+
+      {/* Modal Editar Cliente */}
+      <EditarClienteModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSaved={() => fetchClientDetail()}
+        cliente={activeCliente}
+      />
     </div>
   );
 };

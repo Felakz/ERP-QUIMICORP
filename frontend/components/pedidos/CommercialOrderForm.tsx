@@ -275,28 +275,49 @@ export function CommercialOrderForm({
 
   // Submit Order / Quotation
   const handleSubmit = async (bypassStockCheck = false) => {
-    if (!clientSearchQuery.trim()) {
-      setToastMessage('⚠️ Ingrese o seleccione la Razón Social o Nombre del cliente.');
+    const trimmedName = clientSearchQuery.trim();
+
+    if (!trimmedName) {
+      setToastMessage('⚠️ Seleccione un cliente de la Cartera de Clientes.');
       return;
     }
+
+    const effectiveClient =
+      selectedClient &&
+      (selectedClient.razonSocial.toLowerCase() === trimmedName.toLowerCase() ||
+        selectedClient.ruc === clientRuc.trim())
+        ? selectedClient
+        : clientList.find(
+            (c) =>
+              c.razonSocial.toLowerCase() === trimmedName.toLowerCase() ||
+              c.ruc === clientRuc.trim()
+          );
+
+    if (!effectiveClient) {
+      setToastMessage('⚠️ El cliente debe pertenecer a la Cartera de Clientes. Selecciónalo de la lista o regístralo con "Nuevo Cliente".');
+      return;
+    }
+
+    setSelectedClient(effectiveClient);
+
     setIsSaving(true);
     try {
       const mainItem = items[0];
       const payload: any = {
         mode,
-        clienteId: selectedClient?.id || null,
+        clienteId: effectiveClient.id || null,
         clienteInline: {
-          razonSocial: clientSearchQuery.trim(),
-          ruc: clientRuc.trim() || '00000000',
-          telefono: telefono.trim() || undefined,
-          direccion: direccion.trim() || undefined,
+          razonSocial: effectiveClient.razonSocial,
+          ruc: effectiveClient.ruc || '00000000',
+          telefono: effectiveClient.telefono?.trim() || undefined,
+          direccion: effectiveClient.direccion?.trim() || undefined,
           condicionPago,
         },
-        cliente: clientSearchQuery.trim(),
-        ruc: clientRuc.trim() || '00000000',
+        cliente: effectiveClient.razonSocial,
+        ruc: effectiveClient.ruc || '00000000',
         contacto: contacto.trim() || undefined,
-        telefono: telefono.trim() || undefined,
-        direccion: direccion.trim() || undefined,
+        telefono: effectiveClient.telefono?.trim() || undefined,
+        direccion: effectiveClient.direccion?.trim() || undefined,
         condicionPago,
         formulaId: mainItem.formulaId,
         producto: `${mainItem.codigoFM} - ${mainItem.productoNombre}`,
@@ -502,15 +523,25 @@ export function CommercialOrderForm({
                   setClientSearchQuery(e.target.value);
                   setShowClientDropdown(true);
                 }}
-                placeholder="Buscar o escribir razón social..."
-                className={`w-full rounded-xl border p-2.5 font-medium ${inputBg}`}
+                placeholder="Buscar en la cartera de clientes..."
+                className={`w-full rounded-xl border p-2.5 font-medium ${inputBg} ${
+                  selectedClient ? (isDark ? 'bg-[#101826] border-emerald-500/30' : 'bg-emerald-50/50 border-emerald-300') : ''
+                }`}
               />
 
-              {showClientDropdown && clientList.length > 0 && (
+              {showClientDropdown && (
                 <div className={`absolute left-0 right-0 top-full mt-1 z-30 max-h-48 overflow-y-auto rounded-xl border shadow-xl ${
                   isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-white border-slate-200'
                 }`}>
-                  {clientList
+                  {clientList.filter((c) =>
+                    !clientSearchQuery.trim() ||
+                    c.razonSocial.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+                    c.ruc.includes(clientSearchQuery)
+                  ).length === 0 ? (
+                    <div className={`px-3 py-3 text-[11px] font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                      No está en la cartera. Regístralo con "Nuevo Cliente" para poder usarlo.
+                    </div>
+                  ) : (clientList
                     .filter((c) =>
                       !clientSearchQuery.trim() ||
                       c.razonSocial.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
@@ -539,7 +570,7 @@ export function CommercialOrderForm({
                           {c.condicionPago || 'Contado'}
                         </span>
                       </button>
-                    ))}
+                    )))}
                 </div>
 
               )}
@@ -555,7 +586,11 @@ export function CommercialOrderForm({
                   type="text"
                   value={clientRuc}
                   onChange={(e) => setClientRuc(e.target.value)}
-                  className={`w-full rounded-xl border p-2.5 font-mono ${inputBg}`}
+                  readOnly={!!selectedClient}
+                  title={selectedClient ? 'Campo bloqueado — viene de la cartera' : ''}
+                  className={`w-full rounded-xl border p-2.5 font-mono ${inputBg} ${
+                    selectedClient ? (isDark ? 'bg-[#101826] border-emerald-500/30 cursor-not-allowed opacity-80' : 'bg-emerald-50/50 border-emerald-300 cursor-not-allowed') : ''
+                  }`}
                 />
               </div>
 
@@ -567,7 +602,11 @@ export function CommercialOrderForm({
                   type="text"
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
-                  className={`w-full rounded-xl border p-2.5 font-mono ${inputBg}`}
+                  readOnly={!!selectedClient}
+                  title={selectedClient ? 'Campo bloqueado — viene de la cartera' : ''}
+                  className={`w-full rounded-xl border p-2.5 font-mono ${inputBg} ${
+                    selectedClient ? (isDark ? 'bg-[#101826] border-emerald-500/30 cursor-not-allowed opacity-80' : 'bg-emerald-50/50 border-emerald-300 cursor-not-allowed') : ''
+                  }`}
                 />
               </div>
             </div>
@@ -581,7 +620,11 @@ export function CommercialOrderForm({
                 type="text"
                 value={direccion}
                 onChange={(e) => setDireccion(e.target.value)}
-                className={`w-full rounded-xl border p-2.5 ${inputBg}`}
+                readOnly={!!selectedClient}
+                title={selectedClient ? 'Campo bloqueado — viene de la cartera' : ''}
+                className={`w-full rounded-xl border p-2.5 ${inputBg} ${
+                  selectedClient ? (isDark ? 'bg-[#101826] border-emerald-500/30 cursor-not-allowed opacity-80' : 'bg-emerald-50/50 border-emerald-300 cursor-not-allowed') : ''
+                }`}
               />
             </div>
 
