@@ -36,6 +36,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useSocket } from '@/lib/socketContext';
 import { CommercialOrderForm } from '@/components/pedidos/CommercialOrderForm';
+import { FORMULAS_MAESTRAS_REALES, FormulaProducto } from '@/lib/formulasData';
 import { CotizacionPDF, CotizacionData } from '@/components/pdf/CotizacionPDF';
 import { apiFetch } from '@/lib/apiClient';
 import { isGerenteUser } from '@/config/permissions';
@@ -124,6 +125,8 @@ export default function AdministracionPedidosComercialesPage() {
   const [editClienteId, setEditClienteId] = useState<string | null>(null);
   const [carteraClientes, setCarteraClientes] = useState<{ id: string; razonSocial: string; ruc: string; condicionPago?: string }[]>([]);
   const [showEditClientDropdown, setShowEditClientDropdown] = useState<boolean>(false);
+  const [catalogoFormulas, setCatalogoFormulas] = useState<FormulaProducto[]>(FORMULAS_MAESTRAS_REALES);
+  const [showEditProductDropdown, setShowEditProductDropdown] = useState<boolean>(false);
   const [editProducto, setEditProducto] = useState<string>('');
   const [editCantidad, setEditCantidad] = useState<string>('0');
   const [editUnidad, setEditUnidad] = useState<string>('KG');
@@ -181,6 +184,31 @@ export default function AdministracionPedidosComercialesPage() {
       }
     } catch (err) {
       console.error('Error cargando cartera de clientes:', err);
+    }
+  };
+
+  // Cargar lista oficial de fórmulas maestras
+  const cargarCatalogoFormulas = async () => {
+    try {
+      const { data, ok } = await apiFetch<any[]>('/formulas');
+      if (ok && Array.isArray(data) && data.length > 0) {
+        const mapped: FormulaProducto[] = data.map((f: any) => ({
+          id: f.id,
+          codigoFM: f.codigoFormula || f.codigoFM || 'FM-0001',
+          nombreProducto: f.nombreProducto || f.nombre || 'Producto Industrial',
+          categoria: f.categoria || 'GENERAL',
+          pesoObjetivo: Number(f.pesoObjetivo) || 1000,
+          loteActual: f.loteActual || 'LOTE-BASE',
+          estadoProceso: f.estadoProceso || 'APROBADO',
+          ingredientes: f.ingredientes || [],
+        }));
+        setCatalogoFormulas(mapped);
+      } else {
+        setCatalogoFormulas(FORMULAS_MAESTRAS_REALES);
+      }
+    } catch (err) {
+      console.error('Error cargando fórmulas:', err);
+      setCatalogoFormulas(FORMULAS_MAESTRAS_REALES);
     }
   };
 
@@ -243,6 +271,7 @@ export default function AdministracionPedidosComercialesPage() {
   useEffect(() => {
     cargarPedidos();
     cargarCarteraClientes();
+    cargarCatalogoFormulas();
   }, [selectedDate]);
 
   useEffect(() => {
@@ -423,11 +452,13 @@ export default function AdministracionPedidosComercialesPage() {
 
   const abrirModalEditar = (p: PedidoEmitido) => {
     cargarCarteraClientes();
+    cargarCatalogoFormulas();
     setEditModalItem(p);
     setEditCliente(p.cliente);
     setEditRuc(p.ruc);
     setEditClienteId((p as any).clienteId || null);
     setShowEditClientDropdown(false);
+    setShowEditProductDropdown(false);
     setEditProducto(p.producto);
     setEditCantidad(String(p.cantidad));
     setEditUnidad(p.unidad);
@@ -459,6 +490,18 @@ export default function AdministracionPedidosComercialesPage() {
       return;
     }
 
+    // Validación contra Fórmulas Maestras
+    const matchFormula = catalogoFormulas.find(
+      (f) =>
+        f.nombreProducto.trim().toLowerCase() === editProducto.trim().toLowerCase() ||
+        (editFormulaId && (f.id === editFormulaId || f.codigoFM === editFormulaId))
+    );
+
+    if (catalogoFormulas.length > 0 && !matchFormula) {
+      setEditError('⚠️ El producto debe pertenecer a las Fórmulas Maestras. Selecciónelo de la lista.');
+      return;
+    }
+
     setEditLoading(true);
     setEditError('');
 
@@ -466,7 +509,7 @@ export default function AdministracionPedidosComercialesPage() {
       clienteNombre: matchCliente ? matchCliente.razonSocial : editCliente,
       clienteRuc: matchCliente ? matchCliente.ruc : editRuc,
       clienteId: matchCliente?.id || editClienteId || undefined,
-      productoNombre: editProducto,
+      productoNombre: matchFormula ? matchFormula.nombreProducto : editProducto,
       cantidadSolicitada: Number(editCantidad),
       unidadMedida: editUnidad,
       montoTotal: Number(editMonto),
@@ -476,7 +519,9 @@ export default function AdministracionPedidosComercialesPage() {
       fechaPrometida: editFechaPrometida,
       tipoComprobante: editTipoComprobante || undefined,
     };
-    if (editFormulaId.trim()) payload.formulaId = editFormulaId.trim();
+    if (matchFormula?.id || matchFormula?.codigoFM || editFormulaId.trim()) {
+      payload.formulaId = matchFormula?.id || matchFormula?.codigoFM || editFormulaId.trim();
+    }
 
     try {
       const { ok, error } = await apiFetch(`/pedidos-admin/${editModalItem.id}`, {
@@ -1622,15 +1667,112 @@ export default function AdministracionPedidosComercialesPage() {
                 </div>
               </div>
 
-              <div>
-                <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Producto *</label>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-1">
+                  <label className={`block text-[11px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Producto (Fórmula Maestra) *
+                  </label>
+                  {catalogoFormulas.some(
+                    (f) =>
+                      f.nombreProducto.trim().toLowerCase() === editProducto.trim().toLowerCase() ||
+                      (editFormulaId && (f.id === editFormulaId || f.codigoFM === editFormulaId))
+                  ) ? (
+                    <span className="text-[10px] text-cyan-400 font-bold flex items-center gap-1">
+                      ✓ En Fórmulas ({
+                        catalogoFormulas.find(
+                          (f) =>
+                            f.nombreProducto.trim().toLowerCase() === editProducto.trim().toLowerCase() ||
+                            (editFormulaId && (f.id === editFormulaId || f.codigoFM === editFormulaId))
+                        )?.codigoFM
+                      })
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-400 font-semibold">
+                      Seleccionar de Fórmulas
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={editProducto}
-                  onChange={(e) => setEditProducto(e.target.value)}
+                  onFocus={() => setShowEditProductDropdown(true)}
+                  onChange={(e) => {
+                    setEditProducto(e.target.value);
+                    setShowEditProductDropdown(true);
+                  }}
+                  placeholder="Buscar fórmula por nombre, código FM o categoría..."
                   required
-                  className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                  className={`w-full px-3 py-2 rounded-xl border text-xs font-semibold ${inputBg} ${
+                    catalogoFormulas.some(
+                      (f) =>
+                        f.nombreProducto.trim().toLowerCase() === editProducto.trim().toLowerCase() ||
+                        (editFormulaId && (f.id === editFormulaId || f.codigoFM === editFormulaId))
+                    )
+                      ? isDark
+                        ? 'border-cyan-500/40 bg-cyan-500/5'
+                        : 'border-cyan-400 bg-cyan-50/40'
+                      : ''
+                  }`}
                 />
+
+                {/* Dropdown de Fórmulas Maestras */}
+                {showEditProductDropdown && (
+                  <div
+                    className={`absolute left-0 right-0 top-full mt-1 z-50 max-h-56 overflow-y-auto rounded-xl border shadow-2xl ${
+                      isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-white border-slate-200'
+                    }`}
+                  >
+                    {catalogoFormulas.filter(
+                      (f) =>
+                        !editProducto.trim() ||
+                        f.nombreProducto.toLowerCase().includes(editProducto.toLowerCase()) ||
+                        f.codigoFM.toLowerCase().includes(editProducto.toLowerCase()) ||
+                        (f.categoria && f.categoria.toLowerCase().includes(editProducto.toLowerCase()))
+                    ).length === 0 ? (
+                      <div className={`p-3 text-[11px] font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                        No se encontró ninguna fórmula con ese nombre. Solo se permiten productos de las recetas maestras.
+                      </div>
+                    ) : (
+                      catalogoFormulas
+                        .filter(
+                          (f) =>
+                            !editProducto.trim() ||
+                            f.nombreProducto.toLowerCase().includes(editProducto.toLowerCase()) ||
+                            f.codigoFM.toLowerCase().includes(editProducto.toLowerCase()) ||
+                            (f.categoria && f.categoria.toLowerCase().includes(editProducto.toLowerCase()))
+                        )
+                        .slice(0, 40)
+                        .map((f) => (
+                          <button
+                            key={f.id || f.codigoFM}
+                            type="button"
+                            onClick={() => {
+                              setEditProducto(f.nombreProducto);
+                              setEditFormulaId(f.id || f.codigoFM);
+                              setShowEditProductDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 border-b last:border-0 text-xs transition-colors flex items-center justify-between ${
+                              isDark
+                                ? 'border-slate-800 hover:bg-[#1E293B] text-slate-200'
+                                : 'border-slate-100 hover:bg-slate-50 text-slate-800'
+                            }`}
+                          >
+                            <div>
+                              <p className="font-bold">{f.nombreProducto}</p>
+                              <p className="text-[10px] font-mono text-cyan-400 font-semibold">
+                                {f.codigoFM} {f.categoria ? `• ${f.categoria}` : ''}
+                              </p>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-md font-mono ${
+                              isDark ? 'bg-cyan-500/10 text-cyan-300' : 'bg-cyan-50 text-cyan-700'
+                            }`}>
+                              Seleccionar
+                            </span>
+                          </button>
+                        ))
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-3">
