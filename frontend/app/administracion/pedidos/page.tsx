@@ -555,13 +555,16 @@ export default function AdministracionPedidosComercialesPage() {
                 prioridad: editPrioridad,
                 estado: editEstado,
                 tipoComprobante: editTipoComprobante || null,
+                createdAt: payload.createdAt || p.createdAt,
+                fechaPrometida: payload.fechaPrometida || p.fechaPrometida,
               }
             : p
         )
       );
       setToastMsg(`✓ Pedido ${editModalItem.codigoOrden} actualizado correctamente.`);
       setEditModalItem(null);
-      cargarPedidos();
+      pedidosAdminCache.clear();
+      cargarPedidos(true);
     } catch (err) {
       console.error('Error al actualizar pedido:', err);
       setEditError('Error de conexión al actualizar el pedido.');
@@ -592,7 +595,8 @@ export default function AdministracionPedidosComercialesPage() {
       }
       setToastMsg(`✓ Pedido ${p.codigoOrden} eliminado.`);
       setEditModalItem(null);
-      cargarPedidos();
+      pedidosAdminCache.clear();
+      cargarPedidos(true);
     } catch (err: any) {
       console.error('Error al eliminar pedido:', err);
       setEditError(err.message || 'Error de conexión al eliminar el pedido.');

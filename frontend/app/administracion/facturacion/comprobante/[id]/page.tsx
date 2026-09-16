@@ -97,12 +97,19 @@ export default function ComprobantePage() {
       <div className={`max-w-3xl mx-auto rounded-2xl border shadow-sm ${isDark ? 'bg-[#0D1421] border-[#1A2232]' : 'bg-white border-slate-200'}`} id="print-area">
         <div className="p-8">
           <div className="flex items-start justify-between border-b-2 border-slate-700 pb-4">
-            <div>
-              <h1 className="text-2xl font-black tracking-tight text-orange-500">QUIMICORP PERÚ S.A.C.</h1>
-              <p className="text-[11px] text-slate-400 mt-1">
-                RUC 20548215762 · Plantas y Oficinas Lima - Perú
-              </p>
-              <p className="text-[11px] text-slate-400">Buenas Prácticas de Manufactura (BPM)</p>
+            <div className="flex items-center gap-4">
+              <img
+                src={isDark ? '/logo-quimicorp-blanco.png' : '/logo-quimicorp-azul.png'}
+                alt="QUIMICORP"
+                className="h-14 w-auto object-contain"
+              />
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-orange-500">QUIMICORP PERÚ S.A.C.</h1>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  RUC 20548215762 · Plantas y Oficinas Lima - Perú
+                </p>
+                <p className="text-[11px] text-slate-400">Buenas Prácticas de Manufactura (BPM)</p>
+              </div>
             </div>
             <div className="text-right">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Comprobante Interno</p>

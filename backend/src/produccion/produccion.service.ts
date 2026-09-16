@@ -484,6 +484,9 @@ export class ProduccionService {
       envaseCantidad?: number;
       envaseSku2?: string;
       envaseCantidad2?: number;
+      envaseCliente?: boolean;
+      tipoEnvaseCliente?: string;
+      envaseClienteCantidad?: number;
     },
   ) {
     if (!colaId) {
@@ -495,11 +498,19 @@ export class ProduccionService {
       throw new NotFoundException('No se encontró el registro de despacho de la cola.');
     }
 
+    // Envase provisto por el cliente: no descuenta stock interno. Se registra la
+    // referencia en ColaDespacho.tipoEnvase para trazabilidad del contenedor.
+    const usaEnvaseDelCliente = opciones?.envaseCliente === true;
+    const tipoEnvaseTotal = usaEnvaseDelCliente
+      ? `${opciones?.tipoEnvaseCliente?.trim() || 'ENVASE PROVISTO POR CLIENTE'}${Number(opciones?.envaseClienteCantidad) > 0 ? ` x${Number(opciones.envaseClienteCantidad)}` : ''} (PROVISTO POR CLIENTE)`
+      : cola.tipoEnvase || null;
+
     const colaActualizada = await (this.prisma as any).colaDespacho.update({
       where: { id: colaId },
       data: {
         estado: 'DESPACHADO',
         numeroGuia: numeroGuia?.trim() ? numeroGuia.trim() : null,
+        ...(tipoEnvaseTotal ? { tipoEnvase: tipoEnvaseTotal } : {}),
       },
     });
 
@@ -566,11 +577,12 @@ export class ProduccionService {
     // Descuento de envases consumidos en el despacho (1 etiqueta = 1 envase).
     // Soporta hasta dos envases diferentes por despacho; cada uno genera su
     // SALIDA_VENTA en kardex (KardexMovimiento + KardexInmutable) y actualiza su stock.
+    // Si el envase es PROVISTO POR EL CLIENTE se omite por completo el descuento.
     const opcionesEnvases: { sku: string; cantidad: number }[] = [];
-    if (opciones?.envaseSku) {
+    if (!usaEnvaseDelCliente && opciones?.envaseSku) {
       opcionesEnvases.push({ sku: opciones.envaseSku, cantidad: Number(opciones.envaseCantidad || 0) });
     }
-    if (opciones?.envaseSku2) {
+    if (!usaEnvaseDelCliente && opciones?.envaseSku2) {
       opcionesEnvases.push({ sku: opciones.envaseSku2, cantidad: Number(opciones.envaseCantidad2 || 0) });
     }
 
@@ -668,7 +680,18 @@ export class ProduccionService {
       });
     }
 
-    return { ...colaActualizada, envaseDescontado };
+    return {
+      ...colaActualizada,
+      envaseDescontado,
+      ...(usaEnvaseDelCliente
+        ? {
+            envaseCliente: {
+              tipo: opciones?.tipoEnvaseCliente?.trim() || 'ENVASE PROVISTO POR CLIENTE',
+              cantidad: Number(opciones?.envaseClienteCantidad) || 0,
+            },
+          }
+        : {}),
+    };
   }
 
   async rechazarLote(dto: DecidirQADto) {

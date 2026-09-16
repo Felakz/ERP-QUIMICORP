@@ -116,6 +116,10 @@ export default function EtiquetasDespachoPage() {
   const [showEnvase2, setShowEnvase2] = useState<boolean>(false);
   const [envaseSku2, setEnvaseSku2] = useState<string>('');
   const [envaseCantidad2, setEnvaseCantidad2] = useState<number>(1);
+  // Envase provisto por el cliente (no se descuenta del stock interno)
+  const [envaseCliente, setEnvaseCliente] = useState<boolean>(false);
+  const [tipoEnvaseCliente, setTipoEnvaseCliente] = useState<string>('STICK');
+  const [otroEnvaseCliente, setOtroEnvaseCliente] = useState<string>('');
 
   // Cargar la cola de despacho REAL desde el backend y fusionarla con la vista
   useEffect(() => {
@@ -455,12 +459,23 @@ export default function EtiquetasDespachoPage() {
       const payload: Record<string, any> = {
         colaId: p.colaId,
         numeroGuia: numeroGuia?.trim() || p.numeroGuia || null,
-        envaseSku: envaseActivo?.codigo || p.envaseSku || 'ENV-001',
-        envaseCantidad: Number(p.unidadesPedidas) || 1,
       };
-      if (showEnvase2 && envaseSku2) {
-        payload.envaseSku2 = envaseSku2;
-        payload.envaseCantidad2 = Number(envaseCantidad2) || 1;
+
+      if (envaseCliente) {
+        // Envase provisto por el cliente: NO se descuenta del stock interno.
+        payload.envaseCliente = true;
+        payload.tipoEnvaseCliente =
+          (tipoEnvaseCliente === 'OTRO' && otroEnvaseCliente.trim())
+            ? otroEnvaseCliente.trim()
+            : (tipoEnvaseCliente === 'OTRO' ? 'ENVASE PROVISTO POR CLIENTE' : tipoEnvaseCliente.trim());
+        payload.envaseClienteCantidad = Number(p.unidadesPedidas) || 1;
+      } else {
+        payload.envaseSku = envaseActivo?.codigo || p.envaseSku || 'ENV-001';
+        payload.envaseCantidad = Number(p.unidadesPedidas) || 1;
+        if (showEnvase2 && envaseSku2) {
+          payload.envaseSku2 = envaseSku2;
+          payload.envaseCantidad2 = Number(envaseCantidad2) || 1;
+        }
       }
 
       const { ok, error, data } = await apiFetch<any>('/produccion/etiquetas/despachar', {
@@ -472,11 +487,16 @@ export default function EtiquetasDespachoPage() {
         throw new Error(error || 'Error al registrar el despacho.');
       }
 
-      const envaseLista: Array<{ sku: string; nombre: string; cantidad: number; saldo: number }> =
-        Array.isArray(data?.envaseDescontado) ? data.envaseDescontado : data?.envaseDescontado ? [data.envaseDescontado] : [];
-      const envaseInfo = envaseLista.length
-        ? '\n\nEnvases descontados:\n' + envaseLista.map((e) => `• ${e.sku} — ${e.nombre}: -${e.cantidad} (stock: ${e.saldo})`).join('\n')
-        : '';
+      let envaseInfo = '';
+      if (data?.envaseCliente) {
+        envaseInfo = `\n\nEnvase provisto por el cliente:\n• ${data.envaseCliente.tipo} x${data.envaseCliente.cantidad} — sin descuento de stock interno`;
+      } else {
+        const envaseLista: Array<{ sku: string; nombre: string; cantidad: number; saldo: number }> =
+          Array.isArray(data?.envaseDescontado) ? data.envaseDescontado : data?.envaseDescontado ? [data.envaseDescontado] : [];
+        envaseInfo = envaseLista.length
+          ? '\n\nEnvases descontados:\n' + envaseLista.map((e) => `• ${e.sku} — ${e.nombre}: -${e.cantidad} (stock: ${e.saldo})`).join('\n')
+          : '';
+      }
 
       // Sacar de la cola de Etiquetas (solo quedan LISTO_PARA_IMPRIMIR) — queda en historial del cliente como ENTREGADO
       setPedidosCola((prev) => prev.filter((it) => it.id !== p.id));
@@ -490,6 +510,8 @@ export default function EtiquetasDespachoPage() {
       cargarEnvases();
       setShowEnvase2(false);
       setEnvaseSku2('');
+      setEnvaseCliente(false);
+      setTipoEnvaseCliente('STICK');
 
       alert(
         `DESPACHO REGISTRADO\n\n` +
@@ -876,74 +898,166 @@ export default function EtiquetasDespachoPage() {
             {/* Controles de Configuración de Envase & Acciones de Despacho */}
             <div className={`p-4 rounded-xl border space-y-3 text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'}`}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-sans">
-                <div>
-                  <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Envase Usado (se descuenta de stock)</label>
-                  <select
-                    value={envaseActivo?.codigo || pedidoActivo.envaseSku}
-                    onChange={(e) => {
-                      const codigo = e.target.value;
-                      const env = envases.find((x) => x.codigo === codigo);
-                      const nombre = env?.nombre || codigo;
-                      let tara = 985;
-                      if (codigo === 'ENV-002') tara = 120;
-                      handleUpdatePedidoField('envaseSku', codigo);
-                      handleUpdatePedidoField('tipoEnvase', `${nombre} (${codigo})`);
-                      handleUpdatePedidoField('taraGramos', tara);
-                    }}
-                    className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
-                  >
-                    {envases.length === 0 && <option value="ENV-001">ENV-001 · BALDE DE 20 LITROS CON TAPA</option>}
-                    {envases.map((env) => (
-                      <option key={env.codigo} value={env.codigo}>
-                        {env.codigo} · {env.nombre} — {Number(env.stockReal).toLocaleString()} {env.unidadMedida}
-                      </option>
-                    ))}
-                  </select>
-                  <p className={`mt-1 text-[9px] font-sans ${envaseActivo && Number(envaseActivo.stockReal) < (pedidoActivo.unidadesPedidas || 1) ? 'text-rose-500 font-bold' : 'text-slate-500'}`}>
-                    {envaseActivo
-                      ? `Stock actual: ${Number(envaseActivo.stockReal).toLocaleString()} ${envaseActivo.unidadMedida}` +
-                        (Number(envaseActivo.stockReal) >= (pedidoActivo.unidadesPedidas || 1)
-                          ? ' ✔ suficiente para el despacho'
-                          : ' ⚠ insuficiente para este despacho')
-                      : 'Sin maestro de envases conectado'}
-                  </p>
+                {/* Toggle Envase del Cliente vs Inventario */}
+                <div className="sm:col-span-3">
+                  <div className={`p-3 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
+                    isDark ? 'bg-[#0B0F17] border-[#1A2232]' : 'bg-slate-100 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] uppercase font-bold ${textTitle}`}>Origen del Envase:</span>
+                      <div className="flex items-center gap-1 p-1 rounded-xl border bg-black/20">
+                        <button
+                          type="button"
+                          onClick={() => setEnvaseCliente(false)}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                            !envaseCliente
+                              ? 'bg-[#00F2C3] text-slate-950 shadow'
+                              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          📦 Inventario
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEnvaseCliente(true)}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                            envaseCliente
+                              ? 'bg-purple-600 text-white shadow'
+                              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          🧰 Envase del Cliente
+                        </button>
+                      </div>
+                    </div>
+                    {envaseCliente && (
+                      <span className="text-[10px] font-bold text-purple-400">
+                        No se descuenta del stock interno — solo se registra como referencia
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div>
-                  <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Bultos a Despachar</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={pedidoActivo.unidadesPedidas}
-                    onChange={(e) => handleUpdatePedidoField('unidadesPedidas', Number(e.target.value) || 1)}
-                    className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
-                  />
-                </div>
+                {envaseCliente ? (
+                  <>
+                    <div>
+                      <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>
+                        Tipo de Envase (provee el cliente)
+                      </label>
+                      <select
+                        value={tipoEnvaseCliente}
+                        onChange={(e) => setTipoEnvaseCliente(e.target.value)}
+                        className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
+                      >
+                        <option value="STICK">STICK</option>
+                        <option value="ENVASE 100 ML">ENVASE 100 ML</option>
+                        <option value="ENVASE 50 GRS">ENVASE 50 GRS</option>
+                        <option value="OTRO">OTRO (especificar)</option>
+                      </select>
+                      {tipoEnvaseCliente === 'OTRO' && (
+                        <input
+                          type="text"
+                          value={otroEnvaseCliente}
+                          onChange={(e) => setOtroEnvaseCliente(e.target.value)}
+                          placeholder="Especificar tipo de envase..."
+                          className={`w-full rounded-lg border p-2 text-xs font-semibold mt-1.5 ${inputBg}`}
+                        />
+                      )}
+                    </div>
 
-                <div>
-                  <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Responsable Planta</label>
-                  <input
-                    type="text"
-                    value={responsable}
-                    onChange={(e) => setResponsable(e.target.value)}
-                    className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
-                  />
-                </div>
+                    <div>
+                      <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Bultos a Despachar</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={pedidoActivo.unidadesPedidas}
+                        onChange={(e) => handleUpdatePedidoField('unidadesPedidas', Number(e.target.value) || 1)}
+                        className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Responsable Planta</label>
+                      <input
+                        type="text"
+                        value={responsable}
+                        onChange={(e) => setResponsable(e.target.value)}
+                        className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Envase Usado (se descuenta de stock)</label>
+                      <select
+                        value={envaseActivo?.codigo || pedidoActivo.envaseSku}
+                        onChange={(e) => {
+                          const codigo = e.target.value;
+                          const env = envases.find((x) => x.codigo === codigo);
+                          const nombre = env?.nombre || codigo;
+                          let tara = 985;
+                          if (codigo === 'ENV-002') tara = 120;
+                          handleUpdatePedidoField('envaseSku', codigo);
+                          handleUpdatePedidoField('tipoEnvase', `${nombre} (${codigo})`);
+                          handleUpdatePedidoField('taraGramos', tara);
+                        }}
+                        className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
+                      >
+                        {envases.length === 0 && <option value="ENV-001">ENV-001 · BALDE DE 20 LITROS CON TAPA</option>}
+                        {envases.map((env) => (
+                          <option key={env.codigo} value={env.codigo}>
+                            {env.codigo} · {env.nombre} — {Number(env.stockReal).toLocaleString()} {env.unidadMedida}
+                          </option>
+                        ))}
+                      </select>
+                      <p className={`mt-1 text-[9px] font-sans ${envaseActivo && Number(envaseActivo.stockReal) < (pedidoActivo.unidadesPedidas || 1) ? 'text-rose-500 font-bold' : 'text-slate-500'}`}>
+                        {envaseActivo
+                          ? `Stock actual: ${Number(envaseActivo.stockReal).toLocaleString()} ${envaseActivo.unidadMedida}` +
+                            (Number(envaseActivo.stockReal) >= (pedidoActivo.unidadesPedidas || 1)
+                              ? ' ✔ suficiente para el despacho'
+                              : ' ⚠ insuficiente para este despacho')
+                          : 'Sin maestro de envases conectado'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Bultos a Despachar</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={pedidoActivo.unidadesPedidas}
+                        onChange={(e) => handleUpdatePedidoField('unidadesPedidas', Number(e.target.value) || 1)}
+                        className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Responsable Planta</label>
+                      <input
+                        type="text"
+                        value={responsable}
+                        onChange={(e) => setResponsable(e.target.value)}
+                        className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>N° Guía de Remisión</label>
-                  <input
-                    type="text"
+                  <textarea
                     value={numeroGuia}
                     onChange={(e) => guardarGuiaLocal(e.target.value)}
                     placeholder="Ej. G001-000456"
                     className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
+                    rows={1}
                   />
                 </div>
               </div>
 
-              {/* --- 2do Envase (opcional) --- */}
-              {!showEnvase2 ? (
+              {/* --- 2do Envase (opcional, solo inventario) --- */}
+              {envaseCliente ? null : !showEnvase2 ? (
                 <button
                   onClick={() => setShowEnvase2(true)}
                   className={`w-full flex items-center justify-center gap-1.5 rounded-lg border border-dashed py-1.5 text-[11px] font-bold transition-colors ${

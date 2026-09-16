@@ -213,19 +213,23 @@ export default function ProduccionLayout({ children }: { children: React.ReactNo
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Logo Header */}
           <div
-            className={`flex h-16 shrink-0 items-center gap-3 px-5 border-b ${
+            className={`flex h-16 shrink-0 items-center gap-3 px-4 border-b ${
               isDark ? 'border-[#1A2232]' : 'border-slate-100'
             }`}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#00F2C3] to-teal-500 text-slate-950 font-black shadow-md shadow-[#00F2C3]/20">
-              Q
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900/60 border border-slate-700/50 p-1.5 shadow-sm">
+              <img
+                src="/logo-quimicorp-icono.png"
+                alt="Quimicorp"
+                className="h-full w-full object-contain"
+              />
             </div>
-            <div>
-              <h2 className={`text-sm font-black tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <div className="min-w-0 flex-1">
+              <h2 className={`text-sm font-black tracking-tight truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 QUIMICORP
               </h2>
-              <p className={`text-[9px] font-mono tracking-widest font-bold ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                ERP INDUSTRIAL v2.4
+              <p className={`text-[9px] font-mono tracking-widest font-bold truncate ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+                PRODUCCIÓN & PLANTA
               </p>
             </div>
           </div>

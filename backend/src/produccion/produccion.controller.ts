@@ -113,6 +113,9 @@ export class ProduccionController {
       envaseCantidad?: number;
       envaseSku2?: string;
       envaseCantidad2?: number;
+      envaseCliente?: boolean;
+      tipoEnvaseCliente?: string;
+      envaseClienteCantidad?: number;
     },
   ) {
     return this.produccionService.despacharEtiqueta(body?.colaId, body?.numeroGuia, {
@@ -120,6 +123,9 @@ export class ProduccionController {
       envaseCantidad: body?.envaseCantidad,
       envaseSku2: body?.envaseSku2,
       envaseCantidad2: body?.envaseCantidad2,
+      envaseCliente: body?.envaseCliente,
+      tipoEnvaseCliente: body?.tipoEnvaseCliente,
+      envaseClienteCantidad: body?.envaseClienteCantidad,
     });
   }
 
