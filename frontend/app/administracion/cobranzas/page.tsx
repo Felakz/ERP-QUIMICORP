@@ -44,6 +44,11 @@ export default function CuentasCobrarPage() {
   const [filtroPlazo, setFiltroPlazo] = useState<string>('TODOS');
   const [filtroEstado, setFiltroEstado] = useState<string>('PENDIENTE');
 
+  // Filtro por Fecha (Mes o Rango Calendario por Día)
+  const [fechaDesde, setFechaDesde] = useState<string>('');
+  const [fechaHasta, setFechaHasta] = useState<string>('');
+  const [mesFiltro, setMesFiltro] = useState<string>('TODOS');
+
   // Inicializa el filtro de estado desde el query param ?estado=... si existe
   useEffect(() => {
     const estadoParam = new URLSearchParams(window.location.search).get('estado');
@@ -97,6 +102,42 @@ export default function CuentasCobrarPage() {
       return `${d}/${m}/${y}`;
     }
     return f;
+  };
+
+  // Meses disponibles detectados dinámicamente de las operaciones existentes
+  const mesesDisponibles = React.useMemo(() => {
+    const setMeses = new Set<string>();
+    cuentas.forEach((c) => {
+      if (c.fechaEmision) {
+        const isoMes = c.fechaEmision.split('T')[0].slice(0, 7);
+        if (isoMes.length === 7) setMeses.add(isoMes);
+      }
+    });
+    return Array.from(setMeses).sort().reverse();
+  }, [cuentas]);
+
+  const nombreMes = (key: string) => {
+    const [y, m] = key.split('-');
+    const d = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+    const nombre = d.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+    return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+  };
+
+  const handleSeleccionarMes = (mesKey: string) => {
+    setMesFiltro(mesKey);
+    if (mesKey === 'TODOS') {
+      setFechaDesde('');
+      setFechaHasta('');
+      return;
+    }
+    const [yStr, mStr] = mesKey.split('-');
+    const year = parseInt(yStr, 10);
+    const month = parseInt(mStr, 10);
+    const primerDia = `${year}-${String(month).padStart(2, '0')}-01`;
+    const ultimoDiaNum = new Date(year, month, 0).getDate();
+    const ultimoDia = `${year}-${String(month).padStart(2, '0')}-${String(ultimoDiaNum).padStart(2, '0')}`;
+    setFechaDesde(primerDia);
+    setFechaHasta(ultimoDia);
   };
 
   const cargarDatos = async () => {
@@ -302,8 +343,8 @@ export default function CuentasCobrarPage() {
 
     const dataExport = cuentasFiltradas.map((c) => ({
       Comprobante: c.codigoDoc,
-      'Fecha Emisión': c.fechaEmision,
-      'Fecha Vencimiento': c.fechaVencimiento,
+      'Fecha Emisión': formatFecha(c.fechaEmision),
+      'Fecha Vencimiento': formatFecha(c.fechaVencimiento),
       Cliente: c.clienteNombre,
       RUC: c.clienteRuc,
       Producto: c.producto || 'Varios',
@@ -351,6 +392,15 @@ export default function CuentasCobrarPage() {
         if (c.estado !== 'PENDIENTE' && c.estado !== 'VENCIDO') return false;
       } else if (c.estado !== filtroEstado) {
         return false;
+      }
+    }
+
+    // Filtro por Fecha de Emisión (Por Mes o Rango de Días)
+    if (fechaDesde || fechaHasta) {
+      const emision = (c.fechaEmision || '').split('T')[0];
+      if (emision) {
+        if (fechaDesde && emision < fechaDesde) return false;
+        if (fechaHasta && emision > fechaHasta) return false;
       }
     }
 
@@ -604,6 +654,84 @@ export default function CuentasCobrarPage() {
           <span className="text-xs font-mono text-slate-400">
             Filtrado: <strong className="text-cyan-400 font-bold">S/ {cuentasFiltradas.reduce((a, c) => a + Number(c.montoTotal), 0).toLocaleString('es-PE', { minimumFractionDigits: 2 })}</strong>
           </span>
+        </div>
+
+        {/* Fila de Filtros de Calendario: Por Mes y Rango de Días */}
+        <div className={`flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t ${isDark ? 'border-slate-800/60' : 'border-slate-200'}`}>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Filtro Rápido por Mes */}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+              <span className={`text-[11px] font-bold uppercase ${textTitle}`}>Mes:</span>
+              <select
+                value={mesFiltro}
+                onChange={(e) => handleSeleccionarMes(e.target.value)}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-sans font-bold focus:border-[#00F2C3] focus:outline-none transition-all ${inputBg}`}
+              >
+                <option value="TODOS">Todos los Meses (Histórico)</option>
+                {mesesDisponibles.map((m) => (
+                  <option key={m} value={m}>
+                    {nombreMes(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <span className={`text-[10px] uppercase font-bold ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>| Rango por Día:</span>
+
+            {/* Inputs Calendario Desde y Hasta */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border bg-black/20 text-xs font-mono">
+                <span className="text-[10px] text-slate-400 font-sans font-semibold">Desde:</span>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => {
+                    setFechaDesde(e.target.value);
+                    setMesFiltro('CUSTOM');
+                  }}
+                  className={`bg-transparent text-xs font-mono focus:outline-none ${isDark ? 'text-slate-200 [color-scheme:dark]' : 'text-slate-800'}`}
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border bg-black/20 text-xs font-mono">
+                <span className="text-[10px] text-slate-400 font-sans font-semibold">Hasta:</span>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => {
+                    setFechaHasta(e.target.value);
+                    setMesFiltro('CUSTOM');
+                  }}
+                  className={`bg-transparent text-xs font-mono focus:outline-none ${isDark ? 'text-slate-200 [color-scheme:dark]' : 'text-slate-800'}`}
+                />
+              </div>
+
+              {(fechaDesde || fechaHasta || mesFiltro !== 'TODOS') && (
+                <button
+                  type="button"
+                  onClick={() => handleSeleccionarMes('TODOS')}
+                  className="px-2.5 py-1 rounded-xl border border-rose-500/30 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 text-[11px] font-bold transition-all flex items-center gap-1 active:scale-95"
+                  title="Quitar filtro de fechas"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Limpiar Fechas</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Resumen del Rango Activo */}
+          {(fechaDesde || fechaHasta) ? (
+            <span className="text-[11px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00F2C3] animate-pulse" />
+              Período: {formatFecha(fechaDesde)} al {formatFecha(fechaHasta)}
+            </span>
+          ) : (
+            <span className="text-[11px] font-mono text-slate-400">
+              Mostrando histórico completo
+            </span>
+          )}
         </div>
 
         {/* Buscador de Alto Impacto */}
