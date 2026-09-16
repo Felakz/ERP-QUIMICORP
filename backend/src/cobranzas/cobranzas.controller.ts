@@ -34,6 +34,11 @@ export class CobranzasController {
     return this.service.obtenerKpis();
   }
 
+  @Get('analytics')
+  async obtenerAnalitica(@Query('mes') mes?: string) {
+    return this.service.obtenerAnalitica(mes);
+  }
+
   @Get(':id')
   async buscarPorId(@Param('id') id: string) {
     return this.service.buscarPorId(id);

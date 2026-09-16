@@ -13,7 +13,7 @@ async function bootstrap() {
     origin: true,
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type,Accept,Authorization',
+    allowedHeaders: 'Content-Type,Accept,Authorization,Cache-Control,X-Requested-With',
   });
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
@@ -25,7 +25,7 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT ?? 3001;
-  await app.listen(port, '0.0.0.0');
+  await app.listen(port);
   console.log(`🚀 QUIMICORP ERP Backend corriendo en http://localhost:${port}/api/v1`);
 }
 bootstrap();

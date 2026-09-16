@@ -22,7 +22,6 @@ import { apiFetch } from '@/lib/apiClient';
 import {
   CuentaCobrarItem,
   CobranzasKpis,
-  COBRANZAS_EXCEL_SEED,
 } from '@/lib/cobranzasRealData';
 
 import * as XLSX from 'xlsx';
@@ -31,28 +30,24 @@ export default function CuentasCobrarPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [cuentas, setCuentas] = useState<CuentaCobrarItem[]>(COBRANZAS_EXCEL_SEED);
-  const [kpis, setKpis] = useState<CobranzasKpis>(() => {
-    const facturado = COBRANZAS_EXCEL_SEED.reduce((acc, c) => acc + (Number(c.montoTotal) || 0), 0);
-    const pendiente = COBRANZAS_EXCEL_SEED.reduce((acc, c) => acc + (Number(c.saldoPendiente) || 0), 0);
-    return {
-      totalFacturado: facturado,
-      totalCobrado: facturado - pendiente,
-      saldoPendiente: pendiente,
-      totalVencido: 0,
-      totalDocumentos: COBRANZAS_EXCEL_SEED.length,
-    };
+  const [cuentas, setCuentas] = useState<CuentaCobrarItem[]>([]);
+  const [kpis, setKpis] = useState<CobranzasKpis>({
+    totalFacturado: 0,
+    totalCobrado: 0,
+    saldoPendiente: 0,
+    totalVencido: 0,
+    totalDocumentos: 0,
   });
 
   const [loading, setLoading] = useState<boolean>(false);
   const [search, setSearch] = useState<string>('');
   const [filtroPlazo, setFiltroPlazo] = useState<string>('TODOS');
-  const [filtroEstado, setFiltroEstado] = useState<string>('TODOS');
+  const [filtroEstado, setFiltroEstado] = useState<string>('PENDIENTE');
 
-  // Inicializa el filtro de estado desde el query param ?estado=...
+  // Inicializa el filtro de estado desde el query param ?estado=... si existe
   useEffect(() => {
     const estadoParam = new URLSearchParams(window.location.search).get('estado');
-    if (estadoParam === 'PENDIENTE' || estadoParam === 'PAGADO') {
+    if (estadoParam && ['PENDIENTE', 'PAGADO', 'TODOS', 'VENCIDO'].includes(estadoParam)) {
       setFiltroEstado(estadoParam);
     }
   }, []);
@@ -191,20 +186,11 @@ export default function CuentasCobrarPage() {
 
       setModalAbonoOpen(false);
       alert(`✅ Abono de S/ ${monto.toFixed(2)} registrado exitosamente para ${cuentaSeleccionada.codigoDoc}`);
+      // Refrescar en segundo plano para sincronizar PostgreSQL con máxima precisión
+      cargarDatos();
     } catch (err: any) {
       console.error('Error al registrar abono:', err);
-      const nuevoSaldo = Math.max(0, Number(cuentaSeleccionada.saldoPendiente) - monto);
-      const nuevoEstado = nuevoSaldo === 0 ? 'PAGADO' : 'PENDIENTE';
-
-      setCuentas((prev) =>
-        prev.map((c) =>
-          c.id === cuentaSeleccionada.id
-            ? { ...c, saldoPendiente: nuevoSaldo, estado: nuevoEstado as any }
-            : c
-        )
-      );
-      setModalAbonoOpen(false);
-      alert(`✅ Abono registrado localmente (S/ ${monto.toFixed(2)})`);
+      alert(`❌ Error al conectar con el servidor: ${err?.message || 'No se pudo registrar el abono'}. No se aplicó ningún cambio.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -336,11 +322,25 @@ export default function CuentasCobrarPage() {
     }
 
     if (filtroPlazo !== 'TODOS') {
-      if (!c.condicionPago.toLowerCase().includes(filtroPlazo.toLowerCase())) return false;
+      if (filtroPlazo === '07') {
+        if (
+          !c.condicionPago.includes('07') &&
+          !c.condicionPago.toLowerCase().includes('7 día') &&
+          !c.condicionPago.toLowerCase().includes('7 dia')
+        )
+          return false;
+      } else if (!c.condicionPago.toLowerCase().includes(filtroPlazo.toLowerCase())) {
+        return false;
+      }
     }
 
     if (filtroEstado !== 'TODOS') {
-      if (c.estado !== filtroEstado) return false;
+      if (filtroEstado === 'PENDIENTE') {
+        // En cartera pendiente se muestran los pendientes y los vencidos con saldo vivo
+        if (c.estado !== 'PENDIENTE' && c.estado !== 'VENCIDO') return false;
+      } else if (c.estado !== filtroEstado) {
+        return false;
+      }
     }
 
     return true;
@@ -387,6 +387,14 @@ export default function CuentasCobrarPage() {
       badge: '20 DÍAS',
       count: cuentas.filter((c) => c.condicionPago.includes('20')).length,
       badgeCls: 'border-purple-500/40 text-purple-400 bg-purple-500/10',
+    },
+    {
+      id: '30',
+      label: 'Crédito 30 Días',
+      description: 'Plazo comercial estándar corporativo B2B Perú',
+      badge: '30 DÍAS',
+      count: cuentas.filter((c) => c.condicionPago.includes('30')).length,
+      badgeCls: 'border-indigo-500/40 text-indigo-400 bg-indigo-500/10',
     },
     {
       id: '60',
@@ -452,8 +460,8 @@ export default function CuentasCobrarPage() {
         </div>
       </div>
 
-      {/* 6 Tarjetas Horizontales Interactivas de Condición de Pago (Estilo Kardex Neón) */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {/* 7 Tarjetas Horizontales Interactivas de Condición de Pago (Estilo Kardex Neón) */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         {tabsCondicion.map((tab) => {
           const isSelected = filtroPlazo === tab.id;
           return (
@@ -504,7 +512,7 @@ export default function CuentasCobrarPage() {
           <p className="text-2xl font-black font-mono text-emerald-400">
             S/ {kpis.totalFacturado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <span className="text-[10px] text-slate-500 font-mono">74 comprobantes emitidos</span>
+          <span className="text-[10px] text-slate-500 font-mono">{kpis.totalDocumentos} comprobantes emitidos</span>
         </div>
 
         <div className={`rounded-2xl p-4 border space-y-1 transition-all card-hover-lift ${cardBg} ${isDark ? 'hover:border-blue-500/50' : ''}`}>
@@ -544,8 +552,10 @@ export default function CuentasCobrarPage() {
               <Percent className="w-3.5 h-3.5" />
             </div>
           </div>
-          <p className="text-2xl font-black font-mono text-[#00F2C3]">98.5%</p>
-          <span className="text-[10px] text-slate-500">Créditos al día y controlados</span>
+          <p className="text-2xl font-black font-mono text-[#00F2C3]">
+            {kpis.totalFacturado > 0 ? (((kpis.totalCobrado / kpis.totalFacturado) * 100).toFixed(1) + '%') : '0%'}
+          </p>
+          <span className="text-[10px] text-slate-500">Cartera al día (liquidez efectiva)</span>
         </div>
       </div>
 
@@ -553,13 +563,13 @@ export default function CuentasCobrarPage() {
       <div className={`rounded-2xl p-4 border space-y-3 shadow-sm ${cardBg}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Segmented Controls de Estado Iluminados */}
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[11px] font-bold mr-1 uppercase ${textTitle}`}>Estado:</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className={`text-[11px] font-bold mr-1 uppercase ${textTitle}`}>Bandeja:</span>
             {[
-              { id: 'TODOS', label: 'Todos', activeColor: 'bg-slate-700 text-white' },
-              { id: 'PAGADO', label: 'Pagados (Liquidados)', activeColor: 'bg-blue-500 text-white shadow-md shadow-blue-500/30' },
+              { id: 'PENDIENTE', label: 'Cartera Pendiente (Por Cobrar)', activeColor: 'bg-[#00F2C3] text-slate-950 shadow-md shadow-[#00F2C3]/30 font-black' },
+              { id: 'PAGADO', label: 'Historial Pagados (Liquidados)', activeColor: 'bg-blue-500 text-white shadow-md shadow-blue-500/30' },
               { id: 'VENCIDO', label: 'Vencidos', activeColor: 'bg-rose-500 text-white shadow-md shadow-rose-500/30' },
-              { id: 'PENDIENTE', label: 'Pendientes (Por Cobrar)', activeColor: 'bg-[#00F2C3] text-slate-950 shadow-md shadow-[#00F2C3]/30 font-black' },
+              { id: 'TODOS', label: 'Auditoría Completa (Todos)', activeColor: 'bg-slate-700 text-white' },
             ].map((est) => {
               const isSel = filtroEstado === est.id;
               return (
@@ -961,6 +971,7 @@ export default function CuentasCobrarPage() {
                     <option value="Credito 07 dias">Crédito 07 días</option>
                     <option value="Credito 15 dias">Crédito 15 días</option>
                     <option value="Credito 20 dias">Crédito 20 días</option>
+                    <option value="Credito 30 dias">Crédito 30 días</option>
                     <option value="Credito 60 dias">Crédito 60 días</option>
                   </select>
                 </div>

@@ -1145,6 +1145,7 @@ export class PedidosAdminService {
           estado: pagoRecibido ? 'PAGADO' : 'PENDIENTE',
           fechaPago: pagoRecibido ? fechaEmision : null,
           medioPago: pagoRecibido ? medioPago || 'Pago contado' : tipo,
+          canalBanco: dto?.canalBanco?.trim() || null,
           emitidoPor: emitidoPor || null,
         },
       });

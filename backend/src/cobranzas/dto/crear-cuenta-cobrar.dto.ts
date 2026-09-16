@@ -1,4 +1,4 @@
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CrearCuentaCobrarDto {
   @IsString()
@@ -53,4 +53,22 @@ export class CrearCuentaCobrarDto {
   @IsString()
   @IsOptional()
   canalBanco?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  pagoRecibido?: boolean;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  montoAbonadoInicial?: number;
+
+  @IsString()
+  @IsOptional()
+  numOperacion?: string;
+
+  @IsString()
+  @IsOptional()
+  observaciones?: string;
 }
+

@@ -57,7 +57,7 @@ export interface CompactMetric {
   valuePenNeto: number;
   changePercent: number;
   isPositive: boolean;
-  type: 'AMOUNT_DUE' | 'CUSTOMERS' | 'INVOICES' | 'ESTIMATES';
+  type: 'AMOUNT_DUE' | 'CUSTOMERS' | 'INVOICES' | 'ESTIMATES' | 'COBRANZA_REAL';
 }
 
 export interface PaymentCategoryPoint {

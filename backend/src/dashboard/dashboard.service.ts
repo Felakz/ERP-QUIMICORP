@@ -233,7 +233,9 @@ export class DashboardService {
         valueUsdNeto: totalVentasNetasPen / 3.75,
         changePercent: Math.abs(changePercentVentas),
         isPositive: changePercentVentas >= 0,
-        trendLabel: prevVentasNetasPen > 0 ? `vs. período anterior` : 'Período base activo',
+        trendLabel: prevVentasNetasPen > 0
+          ? `${changePercentVentas >= 0 ? '+' : ''}${changePercentVentas}% vs. mes anterior (MoM)`
+          : 'Período base activo',
         iconName: 'TrendingUp',
         unitType: 'currency',
       },
@@ -530,32 +532,59 @@ export class DashboardService {
   /**
    * Métricas Consolidadas de Cobranzas y Cuentas por Cobrar
    */
-  async getCobranzaMetrics() {
+  async getCobranzaMetrics(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
     const db = this.prisma;
     const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444', '#06B6D4', '#EC4899'];
+    const { whereDate, prevStartDate, prevEndDate } = this.resolveDateRange(dateRange, startDateStr, endDateStr);
 
-    const totalCuentas = await db.cuentaCobrar.aggregate({
-      _sum: { montoTotal: true, saldoPendiente: true },
-    });
-    const totalCobrado = await db.pagoAbono.aggregate({ _sum: { montoAbonado: true } });
+    const [
+      totalCuentas,
+      totalCobradoHistorico,
+      totalCobradoPeriodo,
+      totalCobradoPrevio,
+      pendientes,
+      vencidas,
+      porBanco,
+    ] = await Promise.all([
+      db.cuentaCobrar.aggregate({
+        _sum: { montoTotal: true, saldoPendiente: true },
+      }),
+      db.pagoAbono.aggregate({ _sum: { montoAbonado: true } }),
+      db.pagoAbono.aggregate({
+        where: { fechaAbono: whereDate },
+        _sum: { montoAbonado: true },
+      }),
+      db.pagoAbono.aggregate({
+        where: { fechaAbono: { gte: prevStartDate, lt: prevEndDate } },
+        _sum: { montoAbonado: true },
+      }),
+      db.cuentaCobrar.count({ where: { estado: 'PENDIENTE' } }),
+      db.cuentaCobrar.count({
+        where: { estado: 'PENDIENTE', fechaVencimiento: { lt: new Date() } },
+      }),
+      db.cuentaCobrar.groupBy({
+        by: ['canalBanco'],
+        _sum: { montoTotal: true },
+        _count: true,
+      }),
+    ]);
 
-    const pendientes = await db.cuentaCobrar.count({ where: { estado: 'PENDIENTE' } });
-    const vencidas = await db.cuentaCobrar.count({
-      where: { estado: 'PENDIENTE', fechaVencimiento: { lt: new Date() } },
-    });
+    const cobradoPeriodo = Number(totalCobradoPeriodo._sum.montoAbonado) || 0;
+    const cobradoPrevio = Number(totalCobradoPrevio._sum.montoAbonado) || 0;
+    const momCobranzaPercent =
+      cobradoPrevio > 0
+        ? Number((((cobradoPeriodo - cobradoPrevio) / cobradoPrevio) * 100).toFixed(1))
+        : 0;
 
-    // Categorías reales por banco/canal
-    const porBanco = await db.cuentaCobrar.groupBy({
-      by: ['canalBanco'],
-      _sum: { montoTotal: true },
-      _count: true,
-    });
     const total = Number(totalCuentas._sum.montoTotal) || 0;
 
     return {
       amountDue: Number(totalCuentas._sum.saldoPendiente) || 0,
       totalFacturado: total,
-      totalCobrado: Number(totalCobrado._sum.montoAbonado) || 0,
+      totalCobrado: Number(totalCobradoHistorico._sum.montoAbonado) || 0,
+      cobradoPeriodo,
+      cobradoPrevio,
+      momCobranzaPercent,
       pendientes,
       vencidas,
       paymentCategories: (porBanco || [])
@@ -741,7 +770,7 @@ export class DashboardService {
       this.getTopCustomers(dateRange, startDateStr, endDateStr),
       this.getSalesAnalytics(),
       this.getInvoiceTerms(),
-      this.getCobranzaMetrics(),
+      this.getCobranzaMetrics(dateRange, startDateStr, endDateStr),
       this.getRecentDocs(),
       this.getRecentOrders(),
       db.cliente.count(),
@@ -776,19 +805,19 @@ export class DashboardService {
       },
       {
         id: 'cm-3',
+        title: 'Cobranza Bancaria Real (Mes)',
+        valuePenNeto: cobranza.cobradoPeriodo,
+        changePercent: Math.abs(cobranza.momCobranzaPercent || 0),
+        isPositive: (cobranza.momCobranzaPercent || 0) >= 0,
+        type: 'COBRANZA_REAL',
+      },
+      {
+        id: 'cm-4',
         title: 'Invoices Emitidas',
         valuePenNeto: realCuentasCobrarCount > 0 ? realCuentasCobrarCount : realInvoicesCount,
         changePercent: 0,
         isPositive: true,
         type: 'INVOICES',
-      },
-      {
-        id: 'cm-4',
-        title: 'Cotizaciones (Estimates)',
-        valuePenNeto: realEstimatesCount,
-        changePercent: 0,
-        isPositive: false,
-        type: 'ESTIMATES',
       },
     ];
 
