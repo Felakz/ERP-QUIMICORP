@@ -540,6 +540,15 @@ export class PedidosAdminService {
       }
     }
 
+    // 8.1 Fecha que llegó (createdAt / fechaLlegada / fechaEmision)
+    const fechaLlegadaInput = dto.createdAt || dto.fechaLlegada || dto.fechaEmision;
+    if (fechaLlegadaInput !== undefined && fechaLlegadaInput !== null && fechaLlegadaInput !== '') {
+      const parsedLlegada = new Date(fechaLlegadaInput);
+      if (!isNaN(parsedLlegada.getTime())) {
+        dataToUpdate.createdAt = parsedLlegada;
+      }
+    }
+
     // 9. Tipo Comprobante
     if (dto.tipoComprobante !== undefined) {
       dataToUpdate.tipoComprobante = dto.tipoComprobante ? String(dto.tipoComprobante).trim() : null;

@@ -58,6 +58,7 @@ interface PedidoEmitido {
   condicionPago: string;
   fechaPrometida: string;
   estado: string;
+  createdAt?: string;
   aroma?: string | null;
   color?: string | null;
   aromaText?: string | null;
@@ -134,6 +135,7 @@ export default function AdministracionPedidosComercialesPage() {
   const [editCondicion, setEditCondicion] = useState<string>('Contado');
   const [editPrioridad, setEditPrioridad] = useState<'URGENTE' | 'NORMAL' | 'PROGRAMADO'>('NORMAL');
   const [editEstado, setEditEstado] = useState<string>('NUEVO');
+  const [editFechaLlegada, setEditFechaLlegada] = useState<string>('');
   const [editFechaPrometida, setEditFechaPrometida] = useState<string>('');
   const [editTipoComprobante, setEditTipoComprobante] = useState<string>('FACTURA');
   const [editFormulaId, setEditFormulaId] = useState<string>('');
@@ -248,6 +250,7 @@ export default function AdministracionPedidosComercialesPage() {
           condicionPago: p.condicionPago || 'Crédito 30 días',
           fechaPrometida: p.fechaPrometida ? new Date(p.fechaPrometida).toLocaleDateString('es-PE') : '',
           estado: p.estado || 'NUEVO',
+          createdAt: p.createdAt || undefined,
           aroma: p.aroma,
           color: p.color,
           aromaText: p.aromaText || p.aroma,
@@ -445,9 +448,11 @@ export default function AdministracionPedidosComercialesPage() {
     }
   };
 
-  const toISODate = (local: string) => {
-    const m = local.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    return m ? `${m[3]}-${m[2]}-${m[1]}` : local || '';
+  const toISODate = (val: string) => {
+    if (!val) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10);
+    const m = val.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
   };
 
   const abrirModalEditar = (p: PedidoEmitido) => {
@@ -470,7 +475,8 @@ export default function AdministracionPedidosComercialesPage() {
     setEditFormulaId(
       Array.isArray(p.itemsList) && p.itemsList[0]?.codigoFM ? String(p.itemsList[0].codigoFM) : ''
     );
-    setEditFechaPrometida(toISODate(p.fechaPrometida));
+    setEditFechaLlegada(toISODate(p.createdAt || p.fechaLlegada || ''));
+    setEditFechaPrometida(toISODate(p.fechaPrometida || ''));
     setEditError('');
   };
 
@@ -516,7 +522,8 @@ export default function AdministracionPedidosComercialesPage() {
       condicionPago: editCondicion,
       prioridad: editPrioridad,
       estado: editEstado,
-      fechaPrometida: editFechaPrometida,
+      fechaPrometida: editFechaPrometida ? new Date(editFechaPrometida + 'T12:00:00Z').toISOString() : undefined,
+      createdAt: editFechaLlegada ? new Date(editFechaLlegada + 'T12:00:00Z').toISOString() : undefined,
       tipoComprobante: editTipoComprobante || undefined,
     };
     if (matchFormula?.id || matchFormula?.codigoFM || editFormulaId.trim()) {
@@ -1846,16 +1853,37 @@ export default function AdministracionPedidosComercialesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl border bg-slate-500/5 border-slate-500/20">
                 <div>
-                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Fecha Prometida</label>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    📅 Fecha que Llegó (Emisión) *
+                  </label>
+                  <input
+                    type="date"
+                    value={editFechaLlegada}
+                    onChange={(e) => setEditFechaLlegada(e.target.value)}
+                    required
+                    title="Fecha oficial de registro/ingreso del pedido. Al cambiarla, el pedido se ubicará en ese día en el calendario y filtros."
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-semibold ${inputBg}`}
+                  />
+                  <p className="text-[9px] text-slate-500 mt-0.5 font-mono">Reubica el pedido en el calendario</p>
+                </div>
+                <div>
+                  <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    🚚 Fecha Prometida (Entrega)
+                  </label>
                   <input
                     type="date"
                     value={editFechaPrometida}
                     onChange={(e) => setEditFechaPrometida(e.target.value)}
-                    className={`w-full px-3 py-2 rounded-xl border text-xs ${inputBg}`}
+                    title="Fecha pactada con el cliente para la entrega"
+                    className={`w-full px-3 py-2 rounded-xl border text-xs font-semibold ${inputBg}`}
                   />
+                  <p className="text-[9px] text-slate-500 mt-0.5 font-mono">Pactada con el cliente</p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={`block text-[11px] font-bold mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Estado</label>
                   <select
