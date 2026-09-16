@@ -88,6 +88,17 @@ export default function CuentasCobrarPage() {
     ? 'bg-[#151D2A] border-[#1A2232] text-slate-200 placeholder-slate-500'
     : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400';
 
+  const formatFecha = (f?: string) => {
+    if (!f) return '-';
+    const clean = f.split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+      const [y, m, d] = parts;
+      return `${d}/${m}/${y}`;
+    }
+    return f;
+  };
+
   const cargarDatos = async () => {
     setLoading(true);
     try {
@@ -652,7 +663,7 @@ export default function CuentasCobrarPage() {
                   <tr key={c.id} className={`transition-colors ${isDark ? 'hover:bg-[#151D2A]/60' : 'hover:bg-slate-50'}`}>
                     <td className="py-3.5 px-3">
                       <span className="font-bold text-cyan-400 block">{c.codigoDoc}</span>
-                      <span className="text-[10px] text-slate-500 block">{c.fechaEmision}</span>
+                      <span className="text-[10px] text-slate-500 block">{formatFecha(c.fechaEmision)}</span>
                     </td>
                     <td className="py-3.5 px-3 font-sans">
                       <span className="font-bold text-slate-200 block">{c.clienteNombre}</span>
@@ -668,7 +679,7 @@ export default function CuentasCobrarPage() {
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#151D2A] text-slate-300 border border-[#1A2232] block w-max">
                         {c.condicionPago}
                       </span>
-                      <span className="text-[10px] text-slate-400 block mt-0.5">Vence: {c.fechaVencimiento}</span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">Vence: {formatFecha(c.fechaVencimiento)}</span>
                     </td>
                     <td className="py-3.5 px-3 text-right text-slate-300 font-bold">
                       S/ {Number(c.montoTotal).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
