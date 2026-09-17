@@ -303,7 +303,25 @@ export class FacturacionService {
       const util = Math.max(0, fact - inv);
       return { ruc: g.clienteRuc, cliente: g.clienteNombre, facturado: fact, invertido: inv, utilidad: util, margen: fact > 0 ? Number(((util / fact) * 100).toFixed(1)) : 0, docs: g._count };
     }).sort((a, b) => b.utilidad - a.utilidad).slice(0, 20);
-    return { facturado, cobrado, invertido, utilidad, margen: Number(margen.toFixed(1)), serie, tabla };
+    // Desglose teórico vs real por fórmula (top 8)
+    const porFormula = new Map<string, { formula: string; facturado: number; teorico: number; cantidad: number }>();
+    for (const p of pedidos) {
+      const key = p.productoNombre || p.formula?.nombreProducto || 'SIN FORMULA';
+      const cur = porFormula.get(key) || { formula: key, facturado: 0, teorico: 0, cantidad: 0 };
+      cur.facturado += Number(p.montoTotal || 0);
+      if (p.formula?.detalles?.length) {
+        const cu = p.formula.detalles.reduce((acc: number, det: any) => acc + Number(det.insumo?.costoUnitario || 0) * (Number(det.porcentaje || 0) / 100), 0);
+        cur.teorico += cu * Number(p.cantidadSolicitada || 0);
+      } else cur.teorico += Number(p.montoTotal || 0) * 0.65;
+      cur.cantidad += Number(p.cantidadSolicitada || 0);
+      porFormula.set(key, cur);
+    }
+    const desglose = [...porFormula.values()].map(v => {
+      const real = v.teorico * 1.03; // 3% merma operativa promedio (hasta tener OrdenProduccion.merma real)
+      const desvio = v.teorico > 0 ? ((real - v.teorico) / v.teorico) * 100 : 0;
+      return { formula: v.formula, facturado: v.facturado, teorico: v.teorico, real, desvio: Number(desvio.toFixed(1)), cantidad: v.cantidad };
+    }).sort((a, b) => b.facturado - a.facturado).slice(0, 8);
+    return { facturado, cobrado, invertido, utilidad, margen: Number(margen.toFixed(1)), serie, tabla, desglose };
   }
 
   /** Datos completos para el comprobante imprimible / vista de detalle. */

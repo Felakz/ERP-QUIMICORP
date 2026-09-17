@@ -14,6 +14,7 @@ interface RentabilidadData {
   margen: number;
   serie: { month: string; year: number; facturado: number; cobrado: number; invertido: number; utilidad: number; margen: number }[];
   tabla: { ruc: string; cliente: string; facturado: number; invertido: number; utilidad: number; margen: number; docs: number }[];
+  desglose: { formula: string; facturado: number; teorico: number; real: number; desvio: number; cantidad: number }[];
 }
 
 const fmt = (n: number, currency: string, igv: boolean, tc: number) => {
@@ -38,6 +39,10 @@ export default function FacturacionPage() {
   const [incluyeIgv, setIncluyeIgv] = useState(false);
   const [currency, setCurrency] = useState('PEN');
   const [tc, setTc] = useState(3.75);
+  const [searchTabla, setSearchTabla] = useState('');
+  const [sortMargen, setSortMargen] = useState<'desc' | 'asc'>('desc');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -65,6 +70,14 @@ export default function FacturacionPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `rentabilidad_${rango}.csv`; a.click();
   };
+  const exportPdf = () => {
+    if (!data) return;
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const rows = data.tabla.map(r => `<tr><td>${r.ruc}</td><td>${r.cliente}</td><td style="text-align:right">S/ ${r.facturado.toFixed(2)}</td><td style="text-align:right">S/ ${r.invertido.toFixed(2)}</td><td style="text-align:right">${r.margen.toFixed(1)}%</td></tr>`).join('');
+    win.document.write(`<html><head><title>Rentabilidad ${rango}</title><style>body{font-family:Arial;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px}th{background:#0D1421;color:#fff}</style></head><body><h2>QUIMICORP PERU S.A.C. — RUC 20601234567</h2><p>Periodo: ${rango} — ${new Date().toLocaleDateString('es-PE')}</p><p>Facturado: S/ ${data.facturado.toFixed(2)} | Cobrado: S/ ${data.cobrado.toFixed(2)} | Invertido: S/ ${data.invertido.toFixed(2)} | Utilidad: S/ ${data.utilidad.toFixed(2)} (${data.margen.toFixed(1)}%)</p><table><tr><th>RUC</th><th>Cliente</th><th>Facturado</th><th>Costo Real</th><th>Margen</th></tr>${rows}</table></body></html>`);
+    win.document.close(); win.print();
+  };
 
   if (loading) return <div className="p-10 text-center text-xs font-bold text-slate-400">Cargando análisis...</div>;
 
@@ -85,7 +98,8 @@ export default function FacturacionPage() {
             <option value="ESTE_ANO">Año Completo</option>
           </select>
           <button onClick={cargar} className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 ${cardBg} ${isDark ? 'text-slate-300' : 'text-slate-600'}`}><RefreshCw className="w-3.5 h-3.5" /> Actualizar</button>
-          <button onClick={exportExcel} className="px-3 py-2 rounded-xl bg-[#00F2C3] text-slate-950 text-xs font-black flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Exportar</button>
+          <button onClick={exportExcel} className="px-3 py-2 rounded-xl bg-[#00F2C3] text-slate-950 text-xs font-black flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Excel</button>
+          <button onClick={exportPdf} className={`px-3 py-2 rounded-xl border text-xs font-black flex items-center gap-1.5 ${cardBg}`}>PDF</button>
         </div>
       </div>
 
@@ -134,9 +148,12 @@ export default function FacturacionPage() {
       </div>
 
       <div className={`rounded-2xl border shadow-sm overflow-hidden ${cardBg}`}>
-        <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
           <p className={`text-[11px] font-black uppercase ${textValue}`}>Auditoría por Contrato / Producto — {data?.tabla.length || 0} clientes</p>
-          <span className={`text-[10px] ${textMuted}`}>Ordenado por utilidad</span>
+          <div className="flex items-center gap-2">
+            <input value={searchTabla} onChange={e => { setSearchTabla(e.target.value); setPage(1); }} placeholder="Buscar RUC/cliente..." className={`px-3 py-1.5 rounded-xl border text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-white border-slate-200'}`} />
+            <button onClick={() => setSortMargen(s => s === 'desc' ? 'asc' : 'desc')} className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold ${isDark ? 'border-[#1A2232] text-slate-300' : 'border-slate-200'}`}>Margen {sortMargen === 'desc' ? '↓' : '↑'}</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
@@ -148,7 +165,11 @@ export default function FacturacionPage() {
               <th className="text-center px-3 py-2.5 font-black">Docs</th>
             </tr></thead>
             <tbody>
-              {(data?.tabla || []).map(r => (
+              {(() => {
+                const filtrada = (data?.tabla || []).filter(r => !searchTabla || r.ruc.includes(searchTabla) || r.cliente.toLowerCase().includes(searchTabla.toLowerCase())).sort((a, b) => sortMargen === 'desc' ? b.margen - a.margen : a.margen - b.margen);
+                const totalPages = Math.max(1, Math.ceil(filtrada.length / pageSize));
+                const pag = filtrada.slice((page - 1) * pageSize, page * pageSize);
+                return pag.map(r => (
                 <tr key={r.ruc} className={`border-t ${isDark ? 'border-[#131A29]' : 'border-slate-100'}`}>
                   <td className="px-3 py-2.5"><div className="font-bold text-[12px] text-slate-100">{r.cliente}</div><div className="text-[10px] font-mono text-slate-500">{r.ruc}</div></td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-black text-slate-100">{fmt(r.facturado, currency, incluyeIgv, tc)}</td>
@@ -156,19 +177,46 @@ export default function FacturacionPage() {
                   <td className="px-3 py-2.5 text-right"><span className={`px-2 py-1 rounded-full text-[11px] font-black ${r.margen >= 30 ? 'bg-emerald-500/20 text-emerald-400' : r.margen >= 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{r.margen.toFixed(1)}%</span><div className="text-[10px] text-slate-500">{fmt(r.utilidad, currency, incluyeIgv, tc)}</div></td>
                   <td className="px-3 py-2.5 text-center text-[11px] font-bold text-slate-400">{r.docs}</td>
                 </tr>
-              ))}
+              )); })()}
             </tbody>
           </table>
         </div>
+        {(() => {
+          const filtrada = (data?.tabla || []).filter(r => !searchTabla || r.ruc.includes(searchTabla) || r.cliente.toLowerCase().includes(searchTabla.toLowerCase()));
+          const totalPages = Math.max(1, Math.ceil(filtrada.length / pageSize));
+          return filtrada.length > pageSize ? (
+          <div className={`flex items-center justify-between px-4 py-2 border-t text-xs ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200'}`}>
+            <span>{filtrada.length} clientes</span>
+            <div className="flex items-center gap-1">
+              <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="px-2 py-1 rounded border disabled:opacity-40">‹</button>
+              <span>{page} / {totalPages}</span>
+              <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="px-2 py-1 rounded border disabled:opacity-40">›</button>
+            </div>
+          </div>
+          ) : null;
+        })()}
       </div>
 
       <div className={`rounded-2xl border p-4 ${cardBg}`}>
-        <p className={`text-[11px] font-black uppercase ${textValue}`}>Desglose de Desviación de Costos (Planta)</p>
-        <p className={`text-[10px] ${textMuted}`}>Teórico BOM vs Real (reactor + aditivos + mermas) — diferencial por insumo crítico</p>
-        <div className={`mt-3 p-6 rounded-xl border-2 border-dashed text-center ${isDark ? 'border-[#1A2232] text-slate-500' : 'border-slate-200 text-slate-500'}`}>
-          <Factory className="w-6 h-6 mx-auto mb-2 opacity-50" />
-          <p className="text-xs font-bold">Cálculo en base a FormulaDetalle + Kardex + OrdenProduccion.mermas</p>
-          <p className="text-[11px]">Se alimenta del balance de masa real — próximo sprint: comparador teórico vs real por lote</p>
+        <div className="flex items-center justify-between">
+          <div><p className={`text-[11px] font-black uppercase ${textValue}`}>Desglose de Desviación de Costos (Planta)</p><p className={`text-[10px] ${textMuted}`}>Teórico BOM vs Real (reactor + aditivos + 3% merma operativa)</p></div>
+          <span className="text-[10px] font-bold text-amber-400">{(data?.desglose?.length || 0)} fórmulas</span>
+        </div>
+        <div className="overflow-x-auto mt-3">
+          <table className="w-full min-w-[700px]">
+            <thead><tr className="text-[9px] uppercase text-slate-500"><th className="text-left px-2 py-1.5">Fórmula</th><th className="text-right px-2 py-1.5">Facturado</th><th className="text-right px-2 py-1.5">Teórico</th><th className="text-right px-2 py-1.5">Real</th><th className="text-right px-2 py-1.5">Desvío</th></tr></thead>
+            <tbody>
+              {(data?.desglose || []).map(d => (
+                <tr key={d.formula} className={`border-t text-xs ${isDark ? 'border-[#1A2232]' : 'border-slate-100'}`}>
+                  <td className="px-2 py-2 font-bold text-slate-200">{d.formula}<span className="text-[10px] text-slate-500 ml-1">{d.cantidad.toFixed(1)} kg/L</span></td>
+                  <td className="px-2 py-2 text-right font-black text-slate-100">{fmt(d.facturado, currency, incluyeIgv, tc)}</td>
+                  <td className="px-2 py-2 text-right text-slate-400">{fmt(d.teorico, currency, incluyeIgv, tc)}</td>
+                  <td className="px-2 py-2 text-right text-amber-400">{fmt(d.real, currency, incluyeIgv, tc)}</td>
+                  <td className={`px-2 py-2 text-right font-black ${Math.abs(d.desvio) > 5 ? 'text-rose-400' : d.desvio > 2 ? 'text-amber-400' : 'text-emerald-400'}`}>{d.desvio.toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
