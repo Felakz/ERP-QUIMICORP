@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Receipt,
   Plus,
@@ -21,6 +21,8 @@ import {
   Eye,
   Send,
   FileSpreadsheet,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useTheme } from '@/lib/ThemeContext';
@@ -178,15 +180,120 @@ export default function AdministracionOrdenesPage() {
     cargar();
   }, []);
 
+  // Catálogos para Comboboxes inteligentes de Proveedores e Insumos
+  const [proveedoresList, setProveedoresList] = useState<any[]>([]);
+  const [insumosList, setInsumosList] = useState<any[]>([]);
+
   // Form nueva OC
   const [nuevoProveedor, setNuevoProveedor] = useState('');
   const [nuevoRuc, setNuevoRuc] = useState('');
+  const [selectedProveedorId, setSelectedProveedorId] = useState<string>('');
+  const [isProvOpen, setIsProvOpen] = useState(false);
+  const provComboboxRef = useRef<HTMLDivElement>(null);
+
   const [nuevoInsumo, setNuevoInsumo] = useState('');
-  const [nuevaCantidad, setNuevaCantidad] = useState<number>(100);
+  const [isInsumoOpen, setIsInsumoOpen] = useState(false);
+  const insumoComboboxRef = useRef<HTMLDivElement>(null);
+
+  // Estados tipo String para evitar el problema de "025" al escribir "25"
+  const [nuevaCantidadStr, setNuevaCantidadStr] = useState<string>('100');
   const [nuevaUnidad, setNuevaUnidad] = useState('KG');
-  const [nuevoPrecio, setNuevoPrecio] = useState<number>(5.0);
+  const [nuevoPrecioStr, setNuevoPrecioStr] = useState<string>('5.00');
   const [nuevaCondicion, setNuevaCondicion] = useState('Crédito 30 días');
   const [nuevasObs, setNuevasObs] = useState('');
+
+  // Cargar Proveedores e Insumos al montar el componente
+  useEffect(() => {
+    const cargarCatalogos = async () => {
+      try {
+        const { apiFetch } = await import('@/lib/apiClient');
+        const { PROVEEDORES_QUIMICORP_SEED } = await import('@/lib/proveedoresRealData');
+        const { INVENTARIO_REAL_SEED_DATA } = await import('@/lib/inventarioRealData');
+
+        // 1. Cargar proveedores (backend + seed)
+        const resProv = await apiFetch<any[]>('/proveedores').catch(() => ({ data: [] }));
+        const backendProvs = Array.isArray(resProv.data) ? resProv.data : [];
+        const mergedProvs = [...backendProvs];
+        const rucsSet = new Set(backendProvs.map((p: any) => p.ruc));
+        for (const sp of PROVEEDORES_QUIMICORP_SEED) {
+          if (!rucsSet.has(sp.ruc)) {
+            mergedProvs.push(sp);
+            rucsSet.add(sp.ruc);
+          }
+        }
+        setProveedoresList(mergedProvs);
+
+        // 2. Cargar insumos (backend + seed)
+        const resIns = await apiFetch<any[]>('/insumos').catch(() => ({ data: [] }));
+        const backendIns = Array.isArray(resIns.data) ? resIns.data : [];
+        const mappedBackendIns = backendIns.map((i: any) => ({
+          id: i.id,
+          nombre: i.nombre,
+          codigo: i.codigo,
+          familia: i.categoria || i.familia?.nombre || 'QUÍMICOS',
+          unidad: i.unidadMedida || 'KG',
+          precioRef: Number(i.costoUnitario || 0),
+          stock: Number(i.stockReal ?? i.stockTeorico ?? 0),
+        }));
+
+        const nombresSet = new Set(mappedBackendIns.map((i: any) => i.nombre.toLowerCase().trim()));
+        const mergedIns = [...mappedBackendIns];
+        for (const si of INVENTARIO_REAL_SEED_DATA) {
+          if (!nombresSet.has(si.nombre.toLowerCase().trim())) {
+            mergedIns.push({
+              id: si.sku,
+              nombre: si.nombre,
+              codigo: si.sku,
+              familia: si.familia,
+              unidad: si.unidad,
+              precioRef: 0,
+              stock: si.stockReal,
+            });
+            nombresSet.add(si.nombre.toLowerCase().trim());
+          }
+        }
+        setInsumosList(mergedIns);
+      } catch (err) {
+        console.warn('Error cargando catálogos para OC:', err);
+      }
+    };
+    cargarCatalogos();
+  }, []);
+
+  // Cerrar desplegables de combobox al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (provComboboxRef.current && !provComboboxRef.current.contains(event.target as Node)) {
+        setIsProvOpen(false);
+      }
+      if (insumoComboboxRef.current && !insumoComboboxRef.current.contains(event.target as Node)) {
+        setIsInsumoOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filtros de búsqueda en tiempo real para Proveedores e Insumos
+  const filteredProveedores = useMemo(() => {
+    if (!nuevoProveedor.trim()) return proveedoresList.slice(0, 30);
+    const q = nuevoProveedor.toLowerCase().trim();
+    return proveedoresList
+      .filter((p) => (p.razonSocial && p.razonSocial.toLowerCase().includes(q)) || (p.ruc && p.ruc.includes(q)))
+      .slice(0, 30);
+  }, [proveedoresList, nuevoProveedor]);
+
+  const filteredInsumos = useMemo(() => {
+    if (!nuevoInsumo.trim()) return insumosList.slice(0, 30);
+    const q = nuevoInsumo.toLowerCase().trim();
+    return insumosList
+      .filter((i) =>
+        (i.nombre && i.nombre.toLowerCase().includes(q)) ||
+        (i.codigo && i.codigo.toLowerCase().includes(q)) ||
+        (i.familia && i.familia.toLowerCase().includes(q))
+      )
+      .slice(0, 30);
+  }, [insumosList, nuevoInsumo]);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
@@ -230,23 +337,26 @@ export default function AdministracionOrdenesPage() {
 
   const handleCrearOC = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoProveedor.trim() || !nuevoInsumo.trim() || nuevaCantidad <= 0) {
-      alert('Por favor completa todos los datos de la Orden de Compra.');
+    const cant = parseFloat(nuevaCantidadStr) || 0;
+    const prec = parseFloat(nuevoPrecioStr) || 0;
+    if (!nuevoProveedor.trim() || !nuevoInsumo.trim() || cant <= 0 || prec <= 0) {
+      alert('Por favor completa todos los datos de la Orden de Compra con cantidad y precio válidos.');
       return;
     }
+    const sub = cant * prec;
     try {
       const { apiFetch } = require('@/lib/apiClient');
       const res: any = await apiFetch('/ordenes-compra', {
         method: 'POST',
         body: JSON.stringify({
-          proveedorId: (await apiFetch('/proveedores').then((r: any) => r.data?.[0]?.id).catch(() => null)) || (await import('@/lib/apiClient').then(m => m.apiFetch('/proveedores').catch(()=>null))),
+          proveedorId: selectedProveedorId || undefined,
           ruc: nuevoRuc.trim() || '20999999999',
           proveedorNombre: nuevoProveedor.trim(),
           fechaEntregaEstimada: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
           condicionPago: nuevaCondicion,
           comprador: 'Administración Quimicorp',
           observaciones: nuevasObs.trim() || 'Generado desde Administración.',
-          items: [{ insumoNombre: nuevoInsumo.trim(), cantidad: Number(nuevaCantidad), unidadMedida: nuevaUnidad, precioUnitario: Number(nuevoPrecio) }],
+          items: [{ insumoNombre: nuevoInsumo.trim(), cantidad: cant, unidadMedida: nuevaUnidad, precioUnitario: prec }],
         }),
       });
       // Fallback local si backend aún no responde
@@ -262,20 +372,25 @@ export default function AdministracionOrdenesPage() {
         setOrdenes([nuevaOC, ...ordenes]);
       } else throw new Error('fallback');
     } catch {
-      const sub = nuevaCantidad * nuevoPrecio;
       const nuevaOC: OrdenCompraItem = {
         id: `oc-${Date.now()}`, codigoOC: `OC-2026-${String(ordenes.length + 43).padStart(4, '0')}`,
         proveedor: nuevoProveedor.trim(), ruc: nuevoRuc.trim() || '20999999999',
         fechaEmision: new Date().toISOString().split('T')[0],
         fechaEntregaEstimada: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         estado: 'PENDIENTE', totalPEN: sub, moneda: 'PEN', condicionPago: nuevaCondicion, comprador: 'Administración Quimicorp',
-        items: [{ insumo: nuevoInsumo.trim(), cantidad: Number(nuevaCantidad), unidadMedida: nuevaUnidad, precioUnitario: Number(nuevoPrecio), subtotal: sub }],
+        items: [{ insumo: nuevoInsumo.trim(), cantidad: cant, unidadMedida: nuevaUnidad, precioUnitario: prec, subtotal: sub }],
         observaciones: nuevasObs.trim() || 'Generado desde Administración.',
       };
       setOrdenes([nuevaOC, ...ordenes]);
     }
     setIsModalOpen(false);
-    setNuevoProveedor(''); setNuevoRuc(''); setNuevoInsumo(''); setNuevaCantidad(100); setNuevoPrecio(5.0); setNuevasObs('');
+    setNuevoProveedor('');
+    setNuevoRuc('');
+    setSelectedProveedorId('');
+    setNuevoInsumo('');
+    setNuevaCantidadStr('100');
+    setNuevoPrecioStr('5.00');
+    setNuevasObs('');
   };
 
   const handleMarcarRecibido = async (id: string) => {
@@ -547,18 +662,92 @@ export default function AdministracionOrdenesPage() {
             </div>
 
             <form onSubmit={handleCrearOC} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">
-                  Proveedor / Empresa Distribuidora:
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. QUÍMICA SUIZA S.A.C."
-                  value={nuevoProveedor}
-                  onChange={(e) => setNuevoProveedor(e.target.value)}
-                  className={`w-full rounded-xl border p-2.5 ${inputBg}`}
-                />
+              {/* Selector Inteligente con Buscador de Proveedor */}
+              <div className="relative" ref={provComboboxRef}>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-300">
+                    Proveedor / Empresa Distribuidora:
+                  </label>
+                  <span className="text-[10px] text-emerald-400 font-bold">
+                    {proveedoresList.length} proveedores disponibles
+                  </span>
+                </div>
+                <div className="relative">
+                  <Building2 className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Buscar por Razón Social o RUC (ej. Química Suiza, 2060...)"
+                    value={nuevoProveedor}
+                    onChange={(e) => {
+                      setNuevoProveedor(e.target.value);
+                      setIsProvOpen(true);
+                    }}
+                    onFocus={() => setIsProvOpen(true)}
+                    className={`w-full rounded-xl border pl-9 pr-16 p-2.5 ${inputBg}`}
+                  />
+                  <div className="absolute right-2.5 top-2.5 flex items-center gap-1">
+                    {nuevoProveedor && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNuevoProveedor('');
+                          setNuevoRuc('');
+                          setSelectedProveedorId('');
+                        }}
+                        className="p-1 rounded-md text-slate-400 hover:text-white"
+                        title="Limpiar"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsProvOpen(!isProvOpen)}
+                      className="p-1 rounded-md text-slate-400 hover:text-white"
+                      title="Ver lista de proveedores"
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isProvOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dropdown lista flotante de proveedores */}
+                {isProvOpen && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-700 bg-[#0F141C] shadow-2xl divide-y divide-slate-800/60">
+                    {filteredProveedores.length === 0 ? (
+                      <div className="p-3 text-xs text-slate-400 text-center">
+                        No se encontró proveedor con &quot;{nuevoProveedor}&quot;. Se guardará como nuevo texto libre.
+                      </div>
+                    ) : (
+                      filteredProveedores.map((p) => (
+                        <button
+                          key={p.id || p.ruc}
+                          type="button"
+                          onClick={() => {
+                            setNuevoProveedor(p.razonSocial);
+                            setNuevoRuc(p.ruc);
+                            setSelectedProveedorId(p.id || '');
+                            setIsProvOpen(false);
+                          }}
+                          className="w-full text-left p-2.5 hover:bg-emerald-500/10 transition-colors flex items-center justify-between group cursor-pointer"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <p className="font-bold text-slate-200 group-hover:text-emerald-300 truncate">
+                              {p.razonSocial}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                              <span className="font-mono text-emerald-400 font-bold">RUC: {p.ruc}</span>
+                              {p.contacto && <span>• {p.contacto}</span>}
+                              {p.telefono && <span>• Tel: {p.telefono}</span>}
+                            </div>
+                          </div>
+                          {nuevoRuc === p.ruc && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -587,29 +776,118 @@ export default function AdministracionOrdenesPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-300 mb-1">
-                  Insumo / Materia Prima Principal:
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. Texapon 70% o Soda Cáustica Escamas"
-                  value={nuevoInsumo}
-                  onChange={(e) => setNuevoInsumo(e.target.value)}
-                  className={`w-full rounded-xl border p-2.5 ${inputBg}`}
-                />
+              {/* Selector Inteligente con Buscador de Insumo / Materia Prima */}
+              <div className="relative" ref={insumoComboboxRef}>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-300">
+                    Insumo / Materia Prima Principal:
+                  </label>
+                  <span className="text-[10px] text-cyan-400 font-bold">
+                    {insumosList.length} insumos en catálogo
+                  </span>
+                </div>
+                <div className="relative">
+                  <Package className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Buscar químico por nombre o código (ej. Soda Cáustica, Texapon, QC-001...)"
+                    value={nuevoInsumo}
+                    onChange={(e) => {
+                      setNuevoInsumo(e.target.value);
+                      setIsInsumoOpen(true);
+                    }}
+                    onFocus={() => setIsInsumoOpen(true)}
+                    className={`w-full rounded-xl border pl-9 pr-16 p-2.5 ${inputBg}`}
+                  />
+                  <div className="absolute right-2.5 top-2.5 flex items-center gap-1">
+                    {nuevoInsumo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNuevoInsumo('');
+                        }}
+                        className="p-1 rounded-md text-slate-400 hover:text-white"
+                        title="Limpiar"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setIsInsumoOpen(!isInsumoOpen)}
+                      className="p-1 rounded-md text-slate-400 hover:text-white"
+                      title="Ver lista de insumos"
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isInsumoOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dropdown lista flotante de insumos */}
+                {isInsumoOpen && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-700 bg-[#0F141C] shadow-2xl divide-y divide-slate-800/60">
+                    {filteredInsumos.length === 0 ? (
+                      <div className="p-3 text-xs text-slate-400 text-center">
+                        No se encontró insumo con &quot;{nuevoInsumo}&quot;. Se registrará como nuevo insumo.
+                      </div>
+                    ) : (
+                      filteredInsumos.map((i) => (
+                        <button
+                          key={i.id || i.nombre}
+                          type="button"
+                          onClick={() => {
+                            setNuevoInsumo(i.nombre);
+                            if (i.unidad) setNuevaUnidad(i.unidad);
+                            if (i.precioRef && i.precioRef > 0) {
+                              setNuevoPrecioStr(i.precioRef.toFixed(2));
+                            }
+                            setIsInsumoOpen(false);
+                          }}
+                          className="w-full text-left p-2.5 hover:bg-cyan-500/10 transition-colors flex items-center justify-between group cursor-pointer"
+                        >
+                          <div className="min-w-0 pr-2">
+                            <p className="font-bold text-slate-200 group-hover:text-cyan-300 truncate">
+                              {i.nombre}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                              {i.codigo && <span className="font-mono text-cyan-400 font-bold">{i.codigo}</span>}
+                              {i.familia && <span>• {i.familia}</span>}
+                              {i.stock !== undefined && (
+                                <span className="text-amber-400 font-mono">Stock: {i.stock} {i.unidad}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 text-[10px] font-bold">
+                              {i.unidad || 'KG'}
+                            </span>
+                            {i.precioRef && i.precioRef > 0 ? (
+                              <p className="text-[10px] text-emerald-400 font-mono mt-0.5 font-black">
+                                Ref: S/ {i.precioRef.toFixed(2)}
+                              </p>
+                            ) : null}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
+              {/* Cantidad, Unidad y P. Unitario con solución al problema del "025" */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold text-slate-300 mb-1">Cantidad:</label>
                   <input
                     type="number"
                     required
-                    min="1"
-                    value={nuevaCantidad}
-                    onChange={(e) => setNuevaCantidad(Number(e.target.value))}
+                    step="any"
+                    min="0.01"
+                    placeholder="1"
+                    value={nuevaCantidadStr}
+                    onChange={(e) => setNuevaCantidadStr(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className={`w-full rounded-xl border p-2.5 font-mono ${inputBg}`}
                   />
                 </div>
@@ -624,6 +902,8 @@ export default function AdministracionOrdenesPage() {
                     <option value="LT">LT</option>
                     <option value="UND">UND (Envase)</option>
                     <option value="GAL">GAL</option>
+                    <option value="CIL">CIL (Cilindro)</option>
+                    <option value="TN">TN (Tonelada)</option>
                   </select>
                 </div>
                 <div>
@@ -631,10 +911,12 @@ export default function AdministracionOrdenesPage() {
                   <input
                     type="number"
                     required
-                    step="0.01"
+                    step="any"
                     min="0.01"
-                    value={nuevoPrecio}
-                    onChange={(e) => setNuevoPrecio(Number(e.target.value))}
+                    placeholder="0.00"
+                    value={nuevoPrecioStr}
+                    onChange={(e) => setNuevoPrecioStr(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className={`w-full rounded-xl border p-2.5 font-mono ${inputBg}`}
                   />
                 </div>
@@ -643,7 +925,7 @@ export default function AdministracionOrdenesPage() {
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between font-mono">
                 <span className="font-bold text-slate-300">TOTAL ESTIMADO OC:</span>
                 <span className="text-base font-black text-emerald-400">
-                  S/ {(nuevaCantidad * nuevoPrecio).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                  S/ {(((parseFloat(nuevaCantidadStr) || 0) * (parseFloat(nuevoPrecioStr) || 0))).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
 
