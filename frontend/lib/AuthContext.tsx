@@ -40,7 +40,7 @@ const ROLE_HOME_MAP: Record<UserRole, string> = {
   GERENCIA: '/gerencia/dashboard',
   ADMINISTRACION: '/administracion/dashboard',
   GERENTE_ADMINISTRATIVO: '/administracion/dashboard',
-  ASISTENTE_ADMINISTRATIVO: '/administracion/dashboard',
+  ASISTENTE_ADMINISTRATIVO: '/administracion/pedidos',
   FINANZAS: '/administracion/dashboard',
   VENTAS_ATENCION_DIGITAL: '/ventas/dashboard',
   ECOMMERCE_MARKETING: '/ventas/dashboard',

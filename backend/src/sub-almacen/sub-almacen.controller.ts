@@ -11,19 +11,19 @@ export class SubAlmacenController {
   constructor(private readonly subAlmacenService: SubAlmacenService) {}
 
   @Get('disponibles')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN, Role.ASISTENTE_ADMINISTRATIVO)
   listarDisponibles() {
     return this.subAlmacenService.listarDisponibles();
   }
 
   @Patch(':id/reusar')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN, Role.ASISTENTE_ADMINISTRATIVO)
   marcarReusado(@Param('id', ParseUUIDPipe) id: string) {
     return this.subAlmacenService.marcarReusado(id);
   }
 
   @Post()
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN)
+  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN, Role.ASISTENTE_ADMINISTRATIVO)
   registrar(
     @Body()
     body: {

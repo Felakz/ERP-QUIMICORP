@@ -23,11 +23,25 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     '/administracion/clientes',
     '/administracion/cotizador',
     '/administracion/pedidos',
+    // 3. COMPRAS Y ABASTECIMIENTO
+    '/administracion/proveedores',
+    '/administracion/ordenes',
+    '/administracion/compras-ordenes',
+    '/administracion/comparador-precios',
+    '/administracion/comparador',
+    // 4. PRODUCCIÓN Y PLANTA
     '/administracion/control',
+    '/administracion/control-produccion',
     '/administracion/despachos',
     '/administracion/incidencias',
+    // 5. ALMACÉN Y LOGÍSTICA
+    '/administracion/inventario',
     '/administracion/inventario-kardex',
+    '/administracion/gestion-inventario',
     '/administracion/alertas',
+    '/administracion/alertas-stock',
+    // 8. CAPACITACIÓN Y AYUDA
+    '/administracion/manual',
   ],
 
   VENTAS_ATENCION_DIGITAL: [
@@ -51,9 +65,7 @@ export const ASISTENTE_RESTRICTED_PATHS = [
   '/administracion/dashboard',
   '/administracion/cobranzas',
   '/administracion/analisis',
-  '/administracion/proveedores',
-  '/administracion/ordenes',
-  '/administracion/comparador',
+  '/administracion/facturacion',
   '/administracion/formulas',
   '/administracion/asistencia',
   '/administracion/reportes',

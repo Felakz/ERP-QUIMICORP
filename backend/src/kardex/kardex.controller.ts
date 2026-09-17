@@ -23,13 +23,13 @@ export class KardexController {
   constructor(private readonly kardexService: KardexService) {}
 
   @Post('movimientos')
-  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES)
+  @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ASISTENTE_ADMINISTRATIVO)
   registrarMovimiento(@Body() dto: RegistrarMovimientoDto) {
     return this.kardexService.registrarMovimiento(dto);
   }
 
   @Get('movimientos')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO, Role.ASISTENTE_ADMINISTRATIVO)
   listarTodos(
     @Query('take', new DefaultValuePipe(100), ParseIntPipe) take: number,
     @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip: number,
@@ -38,7 +38,7 @@ export class KardexController {
   }
 
   @Get('categorizado')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO, Role.ASISTENTE_ADMINISTRATIVO)
   listarCategorizado(
     @Query('categoria') categoria?: CategoriaKardex,
     @Query('search') search?: string,
@@ -60,7 +60,7 @@ export class KardexController {
   }
 
   @Get('agrupado')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO, Role.ASISTENTE_ADMINISTRATIVO)
   listarAgrupado(
     @Query('categoria') categoria?: CategoriaKardex,
     @Query('search') search?: string,
@@ -78,7 +78,7 @@ export class KardexController {
   }
 
   @Get('insumo/:insumoId')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.ARCHIVO_HISTORICO, Role.ASISTENTE_ADMINISTRATIVO)
   listarPorInsumo(
     @Param('insumoId', ParseUUIDPipe) insumoId: string,
     @Query('take', new DefaultValuePipe(50), ParseIntPipe) take: number,
@@ -88,7 +88,7 @@ export class KardexController {
   }
 
   @Get('bom')
-  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.DISENO_MULTIMEDIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN, Role.COMPRAS_PROVEEDORES, Role.DISENO_MULTIMEDIA, Role.ASISTENTE_ADMINISTRATIVO)
   obtenerBom(@Query('nombre') nombre: string) {
     return this.kardexService.obtenerBomProducto(nombre);
   }
