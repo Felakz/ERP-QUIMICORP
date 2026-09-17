@@ -20,7 +20,9 @@ import {
   Layers,
   Sparkles,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
+
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 import {
@@ -105,6 +107,13 @@ export default function AdministracionProveedoresPage() {
   }, []);
 
   // Modal Nuevo Proveedor
+  interface FormCuentaBancaria {
+    banco: string;
+    moneda: 'SOLES' | 'USD';
+    numeroCuenta: string;
+    cci: string;
+  }
+
   const [modalOpen, setModalOpen] = useState(false);
   const [newRuc, setNewRuc] = useState('');
   const [newRazonSocial, setNewRazonSocial] = useState('');
@@ -112,10 +121,28 @@ export default function AdministracionProveedoresPage() {
   const [newTelefono, setNewTelefono] = useState('');
   const [newCorreo, setNewCorreo] = useState('');
   const [newDireccion, setNewDireccion] = useState('');
-  const [newBanco, setNewBanco] = useState('BCP');
-  const [newMoneda, setNewMoneda] = useState<'SOLES' | 'USD'>('SOLES');
-  const [newCuenta, setNewCuenta] = useState('');
-  const [newCci, setNewCci] = useState('');
+  const [formCuentas, setFormCuentas] = useState<FormCuentaBancaria[]>([
+    { banco: 'BCP', moneda: 'SOLES', numeroCuenta: '', cci: '' },
+  ]);
+
+  const agregarCuentaForm = () => {
+    setFormCuentas((prev) => [
+      ...prev,
+      { banco: 'BBVA', moneda: 'SOLES', numeroCuenta: '', cci: '' },
+    ]);
+  };
+
+  const eliminarCuentaForm = (idx: number) => {
+    setFormCuentas((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const actualizarCuentaForm = (idx: number, campo: keyof FormCuentaBancaria, valor: any) => {
+    setFormCuentas((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], [campo]: valor };
+      return copy;
+    });
+  };
 
   const handleCopy = (text: string, label: string) => {
     if (!text) return;
@@ -131,6 +158,15 @@ export default function AdministracionProveedoresPage() {
       return;
     }
 
+    const cuentasValidas = formCuentas
+      .filter((c) => c.numeroCuenta.trim() || c.cci.trim())
+      .map((c) => ({
+        banco: c.banco,
+        moneda: c.moneda,
+        numeroCuenta: c.numeroCuenta.trim(),
+        cci: c.cci.trim() || undefined,
+      }));
+
     const payload = {
       ruc: newRuc.trim() || `20${Date.now().toString().slice(-9)}`,
       razonSocial: newRazonSocial.trim().toUpperCase(),
@@ -139,16 +175,7 @@ export default function AdministracionProveedoresPage() {
       correo: newCorreo.trim() || undefined,
       direccion: newDireccion.trim() || undefined,
       insumoPrincipal: 'Materia Prima / Reactivos',
-      cuentasBancarias: newCuenta.trim()
-        ? [
-            {
-              banco: newBanco,
-              moneda: newMoneda,
-              numeroCuenta: newCuenta.trim(),
-              cci: newCci.trim() || undefined,
-            },
-          ]
-        : [],
+      cuentasBancarias: cuentasValidas,
     };
 
     try {
@@ -197,8 +224,7 @@ export default function AdministracionProveedoresPage() {
       setNewTelefono('');
       setNewCorreo('');
       setNewDireccion('');
-      setNewCuenta('');
-      setNewCci('');
+      setFormCuentas([{ banco: 'BCP', moneda: 'SOLES', numeroCuenta: '', cci: '' }]);
     } catch (err) {
       alert('Error al registrar proveedor: ' + String(err));
     }
@@ -667,8 +693,8 @@ export default function AdministracionProveedoresPage() {
 
       {/* MODAL REGISTRO NUEVO PROVEEDOR */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-          <div className={`w-full max-w-xl p-6 rounded-2xl border ${cardBg} space-y-4 shadow-2xl animate-in fade-in`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl border ${cardBg} space-y-4 shadow-2xl animate-in fade-in my-6`}>
             <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800/10' : 'border-slate-200'}`}>
               <h3 className={`text-base font-black flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 <Building2 className="w-5 h-5 text-blue-500" />
@@ -735,56 +761,103 @@ export default function AdministracionProveedoresPage() {
                 </div>
               </div>
 
-              {/* Sección Cuenta Bancaria */}
-              <div className={`p-3 rounded-xl border space-y-3 ${isDark ? 'border-blue-500/20 bg-blue-500/5' : 'border-blue-200 bg-blue-50/50'}`}>
-                <span className={`text-[10px] font-bold uppercase tracking-wider block ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
-                  Cuenta Bancaria Inicial (Opcional)
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Banco</label>
-                    <select
-                      value={newBanco}
-                      onChange={(e) => setNewBanco(e.target.value)}
-                      className={`w-full p-2 rounded-xl border ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+              {/* Sección Cuentas Bancarias Dinámicas */}
+              <div className={`p-4 rounded-xl border space-y-3 ${isDark ? 'border-blue-500/20 bg-blue-500/5' : 'border-blue-200 bg-blue-50/50'}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-blue-400" />
+                    <span className={`text-[11px] font-black uppercase tracking-wider ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                      Cuentas Bancarias ({formCuentas.length})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={agregarCuentaForm}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 text-[10px] font-black transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>+ Agregar Otra Cuenta</span>
+                  </button>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto space-y-3 pr-1">
+                  {formCuentas.map((cuenta, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-3 rounded-xl border space-y-2.5 transition-all ${
+                        isDark ? 'bg-[#0D1421] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm'
+                      }`}
                     >
-                      <option value="BCP">BCP</option>
-                      <option value="INTERBANK">INTERBANK</option>
-                      <option value="BBVA">BBVA</option>
-                      <option value="SCOTIABANK">SCOTIABANK</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Moneda</label>
-                    <select
-                      value={newMoneda}
-                      onChange={(e) => setNewMoneda(e.target.value as any)}
-                      className={`w-full p-2 rounded-xl border ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                    >
-                      <option value="SOLES">Soles (S/)</option>
-                      <option value="USD">Dólares ($ USD)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Número CTA CTE</label>
-                    <input
-                      type="text"
-                      placeholder="1910000000000"
-                      value={newCuenta}
-                      onChange={(e) => setNewCuenta(e.target.value)}
-                      className={`w-full p-2 rounded-xl border ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>CCI Interbancario</label>
-                    <input
-                      type="text"
-                      placeholder="00219100000000000000"
-                      value={newCci}
-                      onChange={(e) => setNewCci(e.target.value)}
-                      className={`w-full p-2 rounded-xl border ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
-                    />
-                  </div>
+                      <div className="flex items-center justify-between border-b pb-1.5 border-slate-800/40">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 text-[9px] font-black">
+                            {idx + 1}
+                          </span>
+                          Cuenta {cuenta.banco} ({cuenta.moneda === 'SOLES' ? 'S/ Soles' : '$ USD'})
+                        </span>
+                        {formCuentas.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => eliminarCuentaForm(idx)}
+                            className="p-1 rounded-lg text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            title="Eliminar esta cuenta"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Banco *</label>
+                          <select
+                            value={cuenta.banco}
+                            onChange={(e) => actualizarCuentaForm(idx, 'banco', e.target.value)}
+                            className={`w-full p-2 rounded-xl border text-xs font-bold ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                          >
+                            <option value="BCP">BCP (Banco de Crédito)</option>
+                            <option value="INTERBANK">INTERBANK</option>
+                            <option value="BBVA">BBVA Continental</option>
+                            <option value="SCOTIABANK">SCOTIABANK</option>
+                            <option value="BANCO DE LA NACION">BANCO DE LA NACIÓN</option>
+                            <option value="BANBIF">BANBIF</option>
+                            <option value="PICHINCHA">BANCO PICHINCHA</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Moneda *</label>
+                          <select
+                            value={cuenta.moneda}
+                            onChange={(e) => actualizarCuentaForm(idx, 'moneda', e.target.value as any)}
+                            className={`w-full p-2 rounded-xl border text-xs font-bold ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                          >
+                            <option value="SOLES">Soles (S/ PEN)</option>
+                            <option value="USD">Dólares ($ USD)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Número CTA CTE</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. 1910000000000"
+                            value={cuenta.numeroCuenta}
+                            onChange={(e) => actualizarCuentaForm(idx, 'numeroCuenta', e.target.value)}
+                            className={`w-full p-2 rounded-xl border font-mono text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-[10px] font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>CCI Interbancario</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. 00219100000000000000"
+                            value={cuenta.cci}
+                            onChange={(e) => actualizarCuentaForm(idx, 'cci', e.target.value)}
+                            className={`w-full p-2 rounded-xl border font-mono text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'}`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -798,7 +871,7 @@ export default function AdministracionProveedoresPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow-lg shadow-blue-500/20"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black shadow-lg shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
                 >
                   Guardar Proveedor Homologado
                 </button>

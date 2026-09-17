@@ -159,9 +159,9 @@ export default function AdministracionOrdenesPage() {
   useEffect(() => {
     const cargar = async () => {
       try {
-        const r2 = await apiFetch('/ordenes-compra').catch(() => ({ data: null }));
-
-        if (Array.isArray(r2.data) && r2.data.length > 0) {
+        const { apiFetch } = await import('@/lib/apiClient');
+        const r2 = await apiFetch('/ordenes-compra').catch(() => ({ data: [] }));
+        if (Array.isArray(r2.data)) {
           const mapped: OrdenCompraItem[] = r2.data.map((o: any) => ({
             id: o.id, codigoOC: o.codigoOC, proveedor: o.proveedorNombre, ruc: o.ruc,
             fechaEmision: new Date(o.fechaEmision).toISOString().split('T')[0],
@@ -170,13 +170,10 @@ export default function AdministracionOrdenesPage() {
             items: (o.items || []).map((it: any) => ({ insumo: it.insumoNombre, cantidad: Number(it.cantidad), unidadMedida: it.unidadMedida, precioUnitario: Number(it.precioUnitario), subtotal: Number(it.subtotal) })),
           }));
           setOrdenes(mapped);
-        } else if (r2.data && Array.isArray(r2.data) && r2.data.length === 0) {
-          setOrdenes([]);
         } else {
-          // mantener mock si no hay datos reales aún
-          setOrdenes(INITIAL_ORDENES);
+          setOrdenes([]);
         }
-      } catch { setOrdenes(INITIAL_ORDENES); } finally { setLoading(false); }
+      } catch { setOrdenes([]); } finally { setLoading(false); }
     };
     cargar();
   }, []);

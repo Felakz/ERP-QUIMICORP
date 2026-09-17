@@ -8,7 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('cotizaciones-proveedores')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.COMPRAS_PROVEEDORES)
+@Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.FINANZAS, Role.COMPRAS_PROVEEDORES, Role.ASISTENTE_ADMINISTRATIVO)
 export class CotizacionesProveedoresController {
   constructor(private readonly service: CotizacionesProveedoresService) {}
 

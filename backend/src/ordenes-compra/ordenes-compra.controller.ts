@@ -7,7 +7,7 @@ import { Role } from '@prisma/client';
 
 @Controller('ordenes-compra')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.GERENTE_ADMINISTRATIVO, Role.COMPRAS_PROVEEDORES)
+@Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.GERENTE_ADMINISTRATIVO, Role.COMPRAS_PROVEEDORES, Role.ASISTENTE_ADMINISTRATIVO)
 export class OrdenesCompraController {
   constructor(private readonly service: OrdenesCompraService) {}
 
