@@ -150,14 +150,9 @@ export class DashboardService {
       }),
     ]);
 
-    // Ventas & Facturación del período = cuentas_cobrar (ventas reales / Excel)
-    // SUMADAS con pedidos_comerciales (cotizaciones/órdenes nuevas del mes).
-    const totalVentasNetasPen =
-      cuentasActual.reduce((acc, c) => acc + Number(c.montoTotal || 0), 0) +
-      pedidosActual.reduce((acc, p) => acc + Number(p.montoTotal || 0), 0);
-    const prevVentasNetasPen =
-      cuentasPrevio.reduce((acc, c) => acc + Number(c.montoTotal || 0), 0) +
-      pedidosPrevio.reduce((acc, p) => acc + Number(p.montoTotal || 0), 0);
+    // Ventas & Facturación del período = solo cuentas_cobrar (evita doble conteo con pedidos ya facturados 1:1)
+    const totalVentasNetasPen = cuentasActual.reduce((acc, c) => acc + Number(c.montoTotal || 0), 0);
+    const prevVentasNetasPen = cuentasPrevio.reduce((acc, c) => acc + Number(c.montoTotal || 0), 0);
 
     const changePercentVentas = prevVentasNetasPen > 0
       ? Number((((totalVentasNetasPen - prevVentasNetasPen) / prevVentasNetasPen) * 100).toFixed(1))
@@ -441,11 +436,10 @@ export class DashboardService {
       });
 
       const montoCuentas = monthCuentas.reduce((acc: number, c: any) => acc + Number(c.montoTotal || 0), 0);
-      const montoPedidos = monthOrders.reduce((acc: number, p: any) => acc + Number(p.montoTotal || 0), 0);
       const totalVol = monthOrders.reduce((acc: number, p: any) => acc + Number(p.cantidadSolicitada || 0), 0);
 
-      // Consolidación de ingresos reales: facturas importadas + pedidos operativos nuevos
-      const totalMonto = montoCuentas + montoPedidos;
+      // Solo facturación real (evita doble conteo pedido+cuenta 1:1)
+      const totalMonto = montoCuentas;
 
       result.push({
         month: months[mIdx],
@@ -494,15 +488,11 @@ export class DashboardService {
     keys.forEach((k) => { counts[k] = 0; monto[k] = 0; });
 
     if (cuentas.length > 0 || pedidos.length > 0) {
+      // Solo cuentas (evita doble conteo con pedidos ya facturados)
       cuentas.forEach((c: any) => {
         const b = bucket(cuentasCond(c));
         counts[b] = (counts[b] || 0) + 1;
         monto[b] = (monto[b] || 0) + Number(c.montoTotal || 0);
-      });
-      pedidos.forEach((p: any) => {
-        const b = bucket(cuentasCond(p));
-        counts[b] = (counts[b] || 0) + 1;
-        monto[b] = (monto[b] || 0) + Number(p.montoTotal || 0);
       });
     } else {
       clientes.forEach((c: any) => {
