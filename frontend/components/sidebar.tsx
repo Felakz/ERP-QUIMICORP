@@ -123,11 +123,11 @@ export const adminSidebarItems: SidebarSection[] = [
         icon: Truck,
         href: '/administracion/despachos',
       },
-      {
-        label: 'Incidencias de Producción',
-        icon: AlertOctagon,
-        href: '/administracion/incidencias',
-      },
+      // {
+      //   label: 'Incidencias de Producción',
+      //   icon: AlertOctagon,
+      //   href: '/administracion/incidencias',
+      // },
     ],
   },
   {

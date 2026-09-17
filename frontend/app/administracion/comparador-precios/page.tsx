@@ -127,7 +127,7 @@ export default function AdministracionComparadorPreciosPage() {
           id: i.id,
           codigo: i.codigo,
           nombre: i.nombre,
-          categoria: i.categoria || '',
+          categoria: i.categoria || i.familia?.nombre || 'QUÍMICOS GENERALES',
           unidad: i.unidadMedida || 'KG',
           stockActual: Number(i.stockReal ?? i.stockTeorico ?? 0),
           precioReferencia: Number(i.costoUnitario ?? 0),

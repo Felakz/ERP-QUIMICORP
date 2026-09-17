@@ -213,6 +213,7 @@ model Insumo {
   subAlmacenSobrantes SubAlmacenSobrante[]
   pedidoAditivos      PedidoAditivo[]
   cotizaciones        CotizacionProveedor[]
+  ordenCompraItems  OrdenCompraItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -887,6 +888,7 @@ model Proveedor {
 
   cuentasBancarias CuentaBancariaProveedor[]
   cotizaciones     CotizacionProveedor[]
+  ordenesCompra    OrdenCompra[]
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -932,6 +934,47 @@ model CotizacionProveedor {
   @@index([insumoId])
   @@index([fechaCotizacion])
   @@map("cotizaciones_proveedores")
+}
+
+model OrdenCompra {
+  id                    String               @id @default(uuid())
+  codigoOC              String               @unique @map("codigo_oc")
+  proveedorId           String               @map("proveedor_id")
+  proveedor             Proveedor            @relation(fields: [proveedorId], references: [id])
+  ruc                   String
+  proveedorNombre       String               @map("proveedor_nombre")
+  fechaEmision          DateTime             @map("fecha_emision")
+  fechaEntregaEstimada  DateTime             @map("fecha_entrega_estimada")
+  estado                String               @default("PENDIENTE") // PENDIENTE, EN_TRANSITO, RECIBIDO, ANULADA
+  totalPEN              Decimal              @db.Decimal(14, 2) @map("total_pen")
+  moneda                String               @default("PEN")
+  condicionPago         String?              @map("condicion_pago")
+  comprador             String?
+  observaciones         String?
+  items                 OrdenCompraItem[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([proveedorId])
+  @@index([estado])
+  @@map("ordenes_compra")
+}
+
+model OrdenCompraItem {
+  id              String       @id @default(uuid())
+  ordenCompraId   String       @map("orden_compra_id")
+  ordenCompra     OrdenCompra  @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  insumoId        String?      @map("insumo_id")
+  insumo          Insumo?      @relation(fields: [insumoId], references: [id])
+  insumoNombre    String       @map("insumo_nombre")
+  cantidad        Decimal      @db.Decimal(14, 4)
+  unidadMedida    String       @map("unidad_medida")
+  precioUnitario  Decimal      @db.Decimal(14, 4) @map("precio_unitario")
+  subtotal        Decimal      @db.Decimal(14, 2)
+
+  @@index([ordenCompraId])
+  @@map("orden_compra_items")
 }
 
 model CuentaCobrar {

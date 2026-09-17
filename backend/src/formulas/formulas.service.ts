@@ -8,28 +8,53 @@ export class FormulasService {
   constructor(private readonly prisma: PrismaService) {}
 
   async crear(dto: CrearFormulaDto) {
-    const sumaPorcentajes = dto.detalles.reduce((acc, d) => acc + d.porcentaje, 0);
+    const sumaPorcentajes = dto.detalles.reduce((acc, d) => acc + (Number(d.porcentaje) || 0), 0);
     if (Math.abs(sumaPorcentajes - 100) > 0.01) {
       throw new BadRequestException(
-        `La suma de porcentajes debe ser 100%. Actual: ${sumaPorcentajes.toFixed(2)}%.`,
+        `La suma de porcentajes debe ser exactamente 100%. Actual: ${sumaPorcentajes.toFixed(2)}%.`,
       );
+    }
+
+    const cod = dto.codigoFormula.trim().toUpperCase();
+    const existente = await this.prisma.formulaMaster.findUnique({
+      where: { codigoFormula: cod },
+    });
+    if (existente) {
+      throw new BadRequestException(`El código de fórmula "${cod}" ya está registrado.`);
     }
 
     return this.prisma.formulaMaster.create({
       data: {
-        codigoFormula: dto.codigoFormula,
-        nombreProducto: dto.nombreProducto,
-        densidadTeorica: dto.densidadTeorica,
-        estado: EstadoFormula.EN_REVISION,
+        codigoFormula: cod,
+        nombreProducto: dto.nombreProducto.trim().toUpperCase(),
+        densidadTeorica: Number(dto.densidadTeorica) || 1.0,
+        estado: dto.estado || EstadoFormula.ACTIVA,
+        pasosElaboracion: dto.pasosElaboracion || null,
         detalles: {
-          create: dto.detalles.map((d) => ({
-            insumoId: d.insumoId,
-            porcentaje: d.porcentaje,
-            pesoMasaTeorico: d.porcentaje, // referencial; se recalcula por lote real
-          })),
+          create: dto.detalles.map((d) => {
+            const porc = Number(d.porcentaje) || 0;
+            return {
+              insumoId: d.insumoId || null,
+              nombreComponente: d.nombreComponente || null,
+              skuComponente: d.skuComponente || null,
+              porcentaje: porc,
+              pesoMasaTeorico: Number((porc * 10).toFixed(3)), // referencial para 1000 kg/L base
+            };
+          }),
         },
       },
-      include: { detalles: { include: { insumo: true } } },
+      include: {
+        detalles: {
+          include: {
+            insumo: {
+              include: { familia: true },
+            },
+          },
+        },
+        variants: {
+          include: { cliente: true },
+        },
+      },
     });
   }
 

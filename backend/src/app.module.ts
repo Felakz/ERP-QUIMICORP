@@ -17,6 +17,7 @@ import { CotizacionesProveedoresModule } from './cotizaciones-proveedores/cotiza
 import { CobranzasModule } from './cobranzas/cobranzas.module';
 import { FacturacionModule } from './facturacion/facturacion.module';
 import { AsistenciaModule } from './asistencia/asistencia.module';
+import { OrdenesCompraModule } from './ordenes-compra/ordenes-compra.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AsistenciaModule } from './asistencia/asistencia.module';
     CobranzasModule,
     FacturacionModule,
     AsistenciaModule,
+    OrdenesCompraModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, Wallet, Factory, PiggyBank, Download, RefreshCw, Calendar, Scale, DollarSign } from 'lucide-react';
+import { TrendingUp, Wallet, Factory, PiggyBank, Download, RefreshCw, Calendar, Scale, DollarSign, X } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, Bar } from 'recharts';
@@ -10,9 +10,10 @@ interface RentabilidadData {
   facturado: number;
   cobrado: number;
   invertido: number;
+  egresos: number;
   utilidad: number;
   margen: number;
-  serie: { month: string; year: number; facturado: number; cobrado: number; invertido: number; utilidad: number; margen: number }[];
+  serie: { month: string; year: number; facturado: number; cobrado: number; invertido: number; egresos: number; utilidad: number; margen: number }[];
   tabla: { ruc: string; cliente: string; facturado: number; invertido: number; utilidad: number; margen: number; docs: number }[];
   desglose: { formula: string; facturado: number; teorico: number; real: number; desvio: number; cantidad: number }[];
 }
@@ -36,6 +37,8 @@ export default function FacturacionPage() {
   const [data, setData] = useState<RentabilidadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [rango, setRango] = useState('MES_ACTUAL');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [incluyeIgv, setIncluyeIgv] = useState(false);
   const [currency, setCurrency] = useState('PEN');
   const [tc, setTc] = useState(3.75);
@@ -47,35 +50,47 @@ export default function FacturacionPage() {
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch<RentabilidadData>(`/facturacion/rentabilidad?rango=${rango}`);
+      let url = `/facturacion/rentabilidad?rango=${rango}`;
+      if (fechaDesde) url += `&desde=${fechaDesde}`;
+      if (fechaHasta) url += `&hasta=${fechaHasta}`;
+      const res = await apiFetch<RentabilidadData>(url);
       if (res.data) setData(res.data);
     } catch { setData(null); } finally { setLoading(false); }
-  }, [rango]);
+  }, [rango, fechaDesde, fechaHasta]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
   const kpis = data ? [
     { label: 'Facturado Bruto', valor: data.facturado, icon: Wallet, accent: 'text-sky-400', bg: 'from-sky-500/15 to-cyan-500/10', sub: 'Devengado del período' },
     { label: 'Cobrado Efectivo', valor: data.cobrado, icon: PiggyBank, accent: 'text-emerald-400', bg: 'from-emerald-500/15 to-teal-500/10', sub: 'Flujo en bancos' },
+    { label: 'Egresos (Compras)', valor: data.egresos, icon: DollarSign, accent: 'text-rose-400', bg: 'from-rose-500/15 to-red-500/10', sub: 'OCs del período *' },
     { label: 'Inversión Operativa Real', valor: data.invertido, icon: Factory, accent: 'text-amber-400', bg: 'from-amber-500/15 to-orange-500/10', sub: 'COGS reactor + mermas' },
     { label: 'Margen Operativo Bruto', valor: data.utilidad, icon: TrendingUp, accent: 'text-violet-400', bg: 'from-violet-500/15 to-purple-500/10', sub: `${data.margen.toFixed(1)}% margen` },
   ] : [];
 
+  const periodoVisual = fechaDesde && fechaHasta
+    ? `${fechaDesde.split('-').reverse().join('/')} al ${fechaHasta.split('-').reverse().join('/')}`
+    : rango === 'MES_ACTUAL'
+    ? 'Mes Actual'
+    : rango === 'MES_ANTERIOR'
+    ? 'Mes Anterior'
+    : 'Año Completo';
+
   const exportExcel = () => {
     if (!data) return;
-    const header = `QUIMICORP PERU S.A.C.|RUC 20601234567|Periodo ${rango}\n`;
+    const header = `QUIMICORP PERU S.A.C.|RUC 20601234567|Periodo ${periodoVisual}\n`;
     const rows = data.tabla.map(r => `${r.ruc},${r.cliente},${r.facturado},${r.invertido},${r.utilidad},${r.margen}%`).join('\n');
     const csv = header + 'RUC,Cliente,Facturado,Invertido,Utilidad,Margen\n' + rows;
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `rentabilidad_${rango}.csv`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `rentabilidad_${fechaDesde && fechaHasta ? `${fechaDesde}_a_${fechaHasta}` : rango}.csv`; a.click();
   };
   const exportPdf = () => {
     if (!data) return;
     const win = window.open('', '_blank');
     if (!win) return;
     const rows = data.tabla.map(r => `<tr><td>${r.ruc}</td><td>${r.cliente}</td><td style="text-align:right">S/ ${r.facturado.toFixed(2)}</td><td style="text-align:right">S/ ${r.invertido.toFixed(2)}</td><td style="text-align:right">${r.margen.toFixed(1)}%</td></tr>`).join('');
-    win.document.write(`<html><head><title>Rentabilidad ${rango}</title><style>body{font-family:Arial;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px}th{background:#0D1421;color:#fff}</style></head><body><h2>QUIMICORP PERU S.A.C. — RUC 20601234567</h2><p>Periodo: ${rango} — ${new Date().toLocaleDateString('es-PE')}</p><p>Facturado: S/ ${data.facturado.toFixed(2)} | Cobrado: S/ ${data.cobrado.toFixed(2)} | Invertido: S/ ${data.invertido.toFixed(2)} | Utilidad: S/ ${data.utilidad.toFixed(2)} (${data.margen.toFixed(1)}%)</p><table><tr><th>RUC</th><th>Cliente</th><th>Facturado</th><th>Costo Real</th><th>Margen</th></tr>${rows}</table></body></html>`);
+    win.document.write(`<html><head><title>Rentabilidad ${periodoVisual}</title><style>body{font-family:Arial;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px}th{background:#0D1421;color:#fff}</style></head><body><h2>QUIMICORP PERU S.A.C. — RUC 20601234567</h2><p>Periodo: ${periodoVisual} — ${new Date().toLocaleDateString('es-PE')}</p><p>Facturado: S/ ${data.facturado.toFixed(2)} | Cobrado: S/ ${data.cobrado.toFixed(2)} | Invertido: S/ ${data.invertido.toFixed(2)} | Utilidad: S/ ${data.utilidad.toFixed(2)} (${data.margen.toFixed(1)}%)</p><table><tr><th>RUC</th><th>Cliente</th><th>Facturado</th><th>Costo Real</th><th>Margen</th></tr>${rows}</table></body></html>`);
     win.document.close(); win.print();
   };
 
@@ -91,12 +106,74 @@ export default function FacturacionPage() {
             <p className={`text-[11px] ${textMuted}`}>Ingresos Facturados vs. Costo Real de Producción vs. Utilidad Neta — devengado × masa real</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <select value={rango} onChange={e => setRango(e.target.value)} className={`px-3 py-2 rounded-xl border text-xs font-bold ${cardBg} ${textValue}`}>
-            <option value="MES_ACTUAL">Mes Actual</option>
-            <option value="MES_ANTERIOR">Mes Anterior</option>
-            <option value="ESTE_ANO">Año Completo</option>
-          </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Selector de Rango Rápido */}
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+            <select
+              value={rango}
+              onChange={(e) => {
+                const val = e.target.value;
+                setRango(val);
+                if (val !== 'CUSTOM') {
+                  setFechaDesde('');
+                  setFechaHasta('');
+                }
+              }}
+              className={`px-3 py-2 rounded-xl border text-xs font-bold ${cardBg} ${textValue}`}
+            >
+              <option value="MES_ACTUAL">Mes Actual</option>
+              <option value="MES_ANTERIOR">Mes Anterior</option>
+              <option value="ESTE_ANO">Año Completo</option>
+              <option value="CUSTOM">Rango por Fecha</option>
+            </select>
+          </div>
+
+          {/* Inputs de Calendario Desde y Hasta */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-mono ${isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'}`}>
+              <span className="text-[10px] text-slate-400 font-sans font-semibold">Desde:</span>
+              <input
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => {
+                  setFechaDesde(e.target.value);
+                  setRango('CUSTOM');
+                }}
+                className={`bg-transparent text-xs font-mono focus:outline-none ${isDark ? 'text-slate-200 [color-scheme:dark]' : 'text-slate-800'}`}
+              />
+            </div>
+
+            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-mono ${isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200'}`}>
+              <span className="text-[10px] text-slate-400 font-sans font-semibold">Hasta:</span>
+              <input
+                type="date"
+                value={fechaHasta}
+                onChange={(e) => {
+                  setFechaHasta(e.target.value);
+                  setRango('CUSTOM');
+                }}
+                className={`bg-transparent text-xs font-mono focus:outline-none ${isDark ? 'text-slate-200 [color-scheme:dark]' : 'text-slate-800'}`}
+              />
+            </div>
+
+            {(fechaDesde || fechaHasta || rango === 'CUSTOM') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFechaDesde('');
+                  setFechaHasta('');
+                  setRango('MES_ACTUAL');
+                }}
+                className="px-2.5 py-1.5 rounded-xl border border-rose-500/30 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 text-[11px] font-bold transition-all flex items-center gap-1 active:scale-95"
+                title="Limpiar fechas y volver a Mes Actual"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Limpiar</span>
+              </button>
+            )}
+          </div>
+
           <button onClick={cargar} className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 ${cardBg} ${isDark ? 'text-slate-300' : 'text-slate-600'}`}><RefreshCw className="w-3.5 h-3.5" /> Actualizar</button>
           <button onClick={exportExcel} className="px-3 py-2 rounded-xl bg-[#00F2C3] text-slate-950 text-xs font-black flex items-center gap-1.5"><Download className="w-3.5 h-3.5" /> Excel</button>
           <button onClick={exportPdf} className={`px-3 py-2 rounded-xl border text-xs font-black flex items-center gap-1.5 ${cardBg}`}>PDF</button>
@@ -113,14 +190,14 @@ export default function FacturacionPage() {
           <button onClick={() => setCurrency('USD')} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${currency === 'USD' ? 'bg-[#00F2C3] text-slate-950' : 'text-slate-400'}`}>$ USD</button>
           {currency === 'USD' && <input type="number" step="0.01" value={tc} onChange={e => setTc(Number(e.target.value) || 3.75)} className="w-16 px-2 py-1 rounded-lg border text-xs font-bold bg-[#151D2A] border-[#1A2232] text-slate-200" />}
         </div>
-        <span className="text-[10px] text-slate-500">Cabecera tributaria: QUIMICORP PERÚ S.A.C. · Período {rango}</span>
+        <span className="text-[10px] text-slate-500">Cabecera tributaria: QUIMICORP PERÚ S.A.C. · Período: {periodoVisual}</span>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {kpis.map(k => (
           <div key={k.label} className={`rounded-2xl border p-4 shadow-sm bg-gradient-to-br ${cardBg} ${k.bg}`}>
             <div className="flex items-center justify-between"><p className={`text-[10px] font-black uppercase ${textMuted}`}>{k.label}</p><k.icon className={`w-4 h-4 ${k.accent}`} /></div>
-            <p className={`text-xl font-black mt-1 ${textValue}`}>{fmt(k.valor, currency, incluyeIgv, tc)}</p>
+            <p className={`text-lg font-black mt-1 ${textValue}`}>{fmt(k.valor, currency, incluyeIgv, tc)}</p>
             <p className={`text-[10px] mt-0.5 ${textMuted}`}>{k.sub}</p>
           </div>
         ))}
@@ -139,12 +216,36 @@ export default function FacturacionPage() {
               <Tooltip />
               <Legend />
               <Line yAxisId="left" type="monotone" dataKey="cobrado" name="Cobrado" stroke="#10b981" strokeWidth={2} dot={false} />
-              <Line yAxisId="left" type="monotone" dataKey="invertido" name="Invertido" stroke="#f59e0b" strokeWidth={2} dot={false} />
+              <Line yAxisId="left" type="monotone" dataKey="egresos" name="Egresos" stroke="#ef4444" strokeWidth={2} dot={false} />
+              <Line yAxisId="left" type="monotone" dataKey="invertido" name="Costo" stroke="#f59e0b" strokeWidth={2} dot={false} />
               <Line yAxisId="left" type="monotone" dataKey="utilidad" name="Utilidad" stroke="#00F2C3" strokeWidth={2} dot={false} />
               <Line yAxisId="right" type="monotone" dataKey="margen" name="Margen %" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+        {data?.serie && data.serie.length > 1 && (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-[11px]">
+              <thead><tr className="text-[9px] uppercase text-slate-500"><th className="text-left px-2 py-1">Mes</th><th className="text-right px-2 py-1">Facturado</th><th className="text-right px-2 py-1">Egresos</th><th className="text-right px-2 py-1">Utilidad</th><th className="text-right px-2 py-1">Margen</th><th className="text-right px-2 py-1">MoM</th></tr></thead>
+              <tbody>
+                {data.serie.slice(-6).map((r, i, arr) => {
+                  const prev = i > 0 ? arr[i - 1] : null;
+                  const mom = prev && prev.facturado > 0 ? ((r.facturado - prev.facturado) / prev.facturado) * 100 : 0;
+                  return (
+                    <tr key={r.month + r.year} className="border-t border-slate-800/30">
+                      <td className="px-2 py-1 font-bold">{r.month} {r.year}</td>
+                      <td className="px-2 py-1 text-right">{fmt(r.facturado, currency, incluyeIgv, tc)}</td>
+                      <td className="px-2 py-1 text-right text-rose-400">{fmt(r.egresos, currency, incluyeIgv, tc)}</td>
+                      <td className="px-2 py-1 text-right text-emerald-400">{fmt(r.utilidad, currency, incluyeIgv, tc)}</td>
+                      <td className="px-2 py-1 text-right">{r.margen.toFixed(1)}%</td>
+                      <td className={`px-2 py-1 text-right font-bold ${mom >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{prev ? `${mom >= 0 ? '+' : ''}${mom.toFixed(1)}%` : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className={`rounded-2xl border shadow-sm overflow-hidden ${cardBg}`}>

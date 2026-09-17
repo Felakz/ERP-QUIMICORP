@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
+import { useRouter } from 'next/navigation';
 
 interface AlertaMateriaPrima {
   id: string;
@@ -25,6 +26,7 @@ interface AlertaMateriaPrima {
 export default function AlertasStockPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const router = useRouter();
 
   const [search, setSearch] = useState('');
   const [insumos, setInsumos] = useState<any[]>([]);
@@ -133,7 +135,7 @@ export default function AlertasStockPage() {
         </div>
 
         <button
-          onClick={() => alert('Integración con el módulo de Órdenes de Compra próximamente.')}
+          onClick={() => router.push('/administracion/ordenes')}
           className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-rose-500/20 transition-all card-hover-lift relative z-10"
         >
           <Plus className="w-4 h-4" />
@@ -245,7 +247,18 @@ export default function AlertasStockPage() {
                     </td>
                     <td className="py-3 px-3 text-center">
                       <button
-                        onClick={() => alert('Integración con el módulo de Órdenes de Compra próximamente.')}
+                        onClick={async () => {
+                          // Verificar si tiene cotizaciones/proveedor
+                          try {
+                            const { data } = await apiFetch(`/cotizaciones-proveedores?insumoId=${a.id}`);
+                            if (!data || (Array.isArray(data) && data.length === 0)) {
+                              alert(`⚠️ ${a.nombre} no tiene proveedor registrado. Agrégalo en Comparador de Precios antes de comprar.`);
+                              router.push(`/administracion/comparador-precios?insumo=${encodeURIComponent(a.nombre)}`);
+                              return;
+                            }
+                          } catch {}
+                          router.push(`/administracion/comparador-precios?insumo=${encodeURIComponent(a.nombre)}`);
+                        }}
                         className="px-3 py-1.5 rounded-xl bg-cyan-500/10 text-[#00F2C3] border border-cyan-500/30 hover:bg-cyan-500/20 text-[10px] font-black font-sans transition-all card-hover-lift"
                       >
                         Comprar

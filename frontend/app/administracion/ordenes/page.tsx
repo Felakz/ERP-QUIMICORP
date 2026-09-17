@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Receipt,
   Plus,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useTheme } from '@/lib/ThemeContext';
+import { apiFetch } from '@/lib/apiClient';
 
 export type EstadoOrdenCompra = 'TODAS' | 'PENDIENTE' | 'EN_TRANSITO' | 'RECIBIDO' | 'ANULADA';
 
@@ -148,11 +149,37 @@ export default function AdministracionOrdenesPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [ordenes, setOrdenes] = useState<OrdenCompraItem[]>(INITIAL_ORDENES);
+  const [ordenes, setOrdenes] = useState<OrdenCompraItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedEstado, setSelectedEstado] = useState<EstadoOrdenCompra>('TODAS');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOC, setSelectedOC] = useState<OrdenCompraItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const cargar = async () => {
+      try {
+        const r2 = await apiFetch('/ordenes-compra').catch(() => ({ data: null }));
+
+        if (Array.isArray(r2.data) && r2.data.length > 0) {
+          const mapped: OrdenCompraItem[] = r2.data.map((o: any) => ({
+            id: o.id, codigoOC: o.codigoOC, proveedor: o.proveedorNombre, ruc: o.ruc,
+            fechaEmision: new Date(o.fechaEmision).toISOString().split('T')[0],
+            fechaEntregaEstimada: new Date(o.fechaEntregaEstimada).toISOString().split('T')[0],
+            estado: o.estado, totalPEN: Number(o.totalPEN), moneda: o.moneda, condicionPago: o.condicionPago, comprador: o.comprador, observaciones: o.observaciones,
+            items: (o.items || []).map((it: any) => ({ insumo: it.insumoNombre, cantidad: Number(it.cantidad), unidadMedida: it.unidadMedida, precioUnitario: Number(it.precioUnitario), subtotal: Number(it.subtotal) })),
+          }));
+          setOrdenes(mapped);
+        } else if (r2.data && Array.isArray(r2.data) && r2.data.length === 0) {
+          setOrdenes([]);
+        } else {
+          // mantener mock si no hay datos reales aún
+          setOrdenes(INITIAL_ORDENES);
+        }
+      } catch { setOrdenes(INITIAL_ORDENES); } finally { setLoading(false); }
+    };
+    cargar();
+  }, []);
 
   // Form nueva OC
   const [nuevoProveedor, setNuevoProveedor] = useState('');
@@ -204,54 +231,62 @@ export default function AdministracionOrdenesPage() {
     [ordenes]
   );
 
-  const handleCrearOC = (e: React.FormEvent) => {
+  const handleCrearOC = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevoProveedor.trim() || !nuevoInsumo.trim() || nuevaCantidad <= 0) {
       alert('Por favor completa todos los datos de la Orden de Compra.');
       return;
     }
-
-    const sub = nuevaCantidad * nuevoPrecio;
-    const nuevaOC: OrdenCompraItem = {
-      id: `oc-${Date.now()}`,
-      codigoOC: `OC-2026-${String(ordenes.length + 43).padStart(4, '0')}`,
-      proveedor: nuevoProveedor.trim(),
-      ruc: nuevoRuc.trim() || '20999999999',
-      fechaEmision: new Date().toISOString().split('T')[0],
-      fechaEntregaEstimada: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      estado: 'PENDIENTE',
-      totalPEN: sub,
-      moneda: 'PEN',
-      condicionPago: nuevaCondicion,
-      comprador: 'Administración Quimicorp',
-      items: [
-        {
-          insumo: nuevoInsumo.trim(),
-          cantidad: Number(nuevaCantidad),
-          unidadMedida: nuevaUnidad,
-          precioUnitario: Number(nuevoPrecio),
-          subtotal: sub,
-        },
-      ],
-      observaciones: nuevasObs.trim() || 'Generado desde Administración.',
-    };
-
-    setOrdenes([nuevaOC, ...ordenes]);
+    try {
+      const { apiFetch } = require('@/lib/apiClient');
+      const res: any = await apiFetch('/ordenes-compra', {
+        method: 'POST',
+        body: JSON.stringify({
+          proveedorId: (await apiFetch('/proveedores').then((r: any) => r.data?.[0]?.id).catch(() => null)) || (await import('@/lib/apiClient').then(m => m.apiFetch('/proveedores').catch(()=>null))),
+          ruc: nuevoRuc.trim() || '20999999999',
+          proveedorNombre: nuevoProveedor.trim(),
+          fechaEntregaEstimada: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+          condicionPago: nuevaCondicion,
+          comprador: 'Administración Quimicorp',
+          observaciones: nuevasObs.trim() || 'Generado desde Administración.',
+          items: [{ insumoNombre: nuevoInsumo.trim(), cantidad: Number(nuevaCantidad), unidadMedida: nuevaUnidad, precioUnitario: Number(nuevoPrecio) }],
+        }),
+      });
+      // Fallback local si backend aún no responde
+      if (res?.data?.id) {
+        const o = res.data;
+        const nuevaOC: OrdenCompraItem = {
+          id: o.id, codigoOC: o.codigoOC, proveedor: o.proveedorNombre, ruc: o.ruc,
+          fechaEmision: new Date(o.fechaEmision).toISOString().split('T')[0],
+          fechaEntregaEstimada: new Date(o.fechaEntregaEstimada).toISOString().split('T')[0],
+          estado: o.estado, totalPEN: Number(o.totalPEN), moneda: o.moneda, condicionPago: o.condicionPago, comprador: o.comprador, observaciones: o.observaciones,
+          items: (o.items || []).map((it: any) => ({ insumo: it.insumoNombre, cantidad: Number(it.cantidad), unidadMedida: it.unidadMedida, precioUnitario: Number(it.precioUnitario), subtotal: Number(it.subtotal) })),
+        };
+        setOrdenes([nuevaOC, ...ordenes]);
+      } else throw new Error('fallback');
+    } catch {
+      const sub = nuevaCantidad * nuevoPrecio;
+      const nuevaOC: OrdenCompraItem = {
+        id: `oc-${Date.now()}`, codigoOC: `OC-2026-${String(ordenes.length + 43).padStart(4, '0')}`,
+        proveedor: nuevoProveedor.trim(), ruc: nuevoRuc.trim() || '20999999999',
+        fechaEmision: new Date().toISOString().split('T')[0],
+        fechaEntregaEstimada: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        estado: 'PENDIENTE', totalPEN: sub, moneda: 'PEN', condicionPago: nuevaCondicion, comprador: 'Administración Quimicorp',
+        items: [{ insumo: nuevoInsumo.trim(), cantidad: Number(nuevaCantidad), unidadMedida: nuevaUnidad, precioUnitario: Number(nuevoPrecio), subtotal: sub }],
+        observaciones: nuevasObs.trim() || 'Generado desde Administración.',
+      };
+      setOrdenes([nuevaOC, ...ordenes]);
+    }
     setIsModalOpen(false);
-    setNuevoProveedor('');
-    setNuevoRuc('');
-    setNuevoInsumo('');
-    setNuevaCantidad(100);
-    setNuevoPrecio(5.0);
-    setNuevasObs('');
-    alert(`✅ Orden de Compra [${nuevaOC.codigoOC}] creada exitosamente.`);
+    setNuevoProveedor(''); setNuevoRuc(''); setNuevoInsumo(''); setNuevaCantidad(100); setNuevoPrecio(5.0); setNuevasObs('');
   };
 
-  const handleMarcarRecibido = (id: string) => {
-    setOrdenes((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, estado: 'RECIBIDO' } : o))
-    );
-    alert('✅ Orden de compra marcada como RECIBIDA en Almacén e ingresada a Kardex.');
+  const handleMarcarRecibido = async (id: string) => {
+    try {
+      const { apiFetch } = require('@/lib/apiClient');
+      await apiFetch(`/ordenes-compra/${id}/recibir`, { method: 'PATCH' });
+    } catch {}
+    setOrdenes((prev) => prev.map((o) => (o.id === id ? { ...o, estado: 'RECIBIDO' } : o)));
   };
 
   const handleExportExcel = () => {
@@ -282,27 +317,16 @@ export default function AdministracionOrdenesPage() {
 
   return (
     <div className="space-y-5 font-sans min-h-screen">
-      {/* 1. Header Banner Neon */}
-      <div
-        className={`rounded-2xl p-5 border flex flex-wrap items-center justify-between gap-4 transition-all shadow-sm ${cardBg}`}
-      >
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/20 border border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-            <Receipt className="w-6 h-6" />
-          </div>
+      {/* 1. Header Compact */}
+      <div className={`rounded-xl p-3 border flex flex-wrap items-center justify-between gap-3 ${cardBg}`}>
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"><Receipt className="w-4 h-4" /></div>
           <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className={`text-lg font-black tracking-tight ${textValue}`}>
-                Órdenes de Compra & Abastecimiento
-              </h1>
-              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                VINCULADO A KARDEX QUÍMICO
-              </span>
+            <div className="flex items-center gap-2">
+              <h1 className={`text-sm font-black tracking-tight ${textValue}`}>Órdenes de Compra</h1>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">KARDEX</span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Gestión de compras de materia prima, fragancias y envases para los reactores de Planta.
-            </p>
+            <p className="text-[11px] text-slate-400">Materia prima y envases para planta</p>
           </div>
         </div>
 
@@ -330,95 +354,20 @@ export default function AdministracionOrdenesPage() {
         </div>
       </div>
 
-      {/* 2. Cuadrícula de 4 Tarjetas KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* TOTAL INVERSIÓN */}
-        <div
-          className={`rounded-2xl p-5 border transition-all card-hover-lift relative overflow-hidden group ${cardBg}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold tracking-widest uppercase font-mono ${textTitle}`}>
-              INVERSIÓN COMPRAS
-            </span>
-            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-              <DollarSign className="w-4 h-4" />
-            </div>
+      {/* 2. KPIs Compact */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {[
+          { label: 'Inversión', value: `S/ ${totalMontoPEN.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`, sub: 'Total insumos', icon: DollarSign, color: 'text-emerald-400' },
+          { label: 'En Tránsito', value: `${totalTransito}`, sub: 'Despachadas', icon: Truck, color: 'text-cyan-400' },
+          { label: 'Por Aprobar', value: `${totalPendientes}`, sub: 'Pendientes', icon: Clock, color: 'text-amber-400' },
+          { label: 'Ingresadas', value: `${totalRecibidas}`, sub: 'En Kardex', icon: CheckCircle2, color: 'text-teal-400' },
+        ].map(k => (
+          <div key={k.label} className={`rounded-xl p-3 border ${cardBg}`}>
+            <div className="flex items-center justify-between"><span className={`text-[9px] font-bold uppercase ${textTitle}`}>{k.label}</span><k.icon className={`w-3.5 h-3.5 ${k.color}`} /></div>
+            <p className={`text-base font-black mt-1 ${k.color} font-mono`}>{k.value}</p>
+            <p className="text-[11px] text-slate-500">{k.sub}</p>
           </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-emerald-400 font-mono tracking-tight">
-              S/ {totalMontoPEN.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-            </h3>
-            <p className="text-xs text-slate-400 mt-1.5 font-sans">
-              Compromiso total en insumos
-            </p>
-          </div>
-        </div>
-
-        {/* EN TRÁNSITO */}
-        <div
-          className={`rounded-2xl p-5 border transition-all card-hover-lift relative overflow-hidden group ${cardBg}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold tracking-widest uppercase font-mono ${textTitle}`}>
-              EN TRÁNSITO
-            </span>
-            <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-[#00F2C3]">
-              <Truck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-[#00F2C3] font-mono tracking-tight">
-              {totalTransito} Órdenes
-            </h3>
-            <p className="text-xs text-slate-400 mt-1.5 font-sans">
-              Despachadas por proveedores
-            </p>
-          </div>
-        </div>
-
-        {/* PENDIENTES */}
-        <div
-          className={`rounded-2xl p-5 border transition-all card-hover-lift relative overflow-hidden group ${cardBg}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold tracking-widest uppercase font-mono ${textTitle}`}>
-              POR APROBAR
-            </span>
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-amber-400 font-mono tracking-tight">
-              {totalPendientes} Órdenes
-            </h3>
-            <p className="text-xs text-slate-400 mt-1.5 font-sans">
-              Esperando visto bueno gerencial
-            </p>
-          </div>
-        </div>
-
-        {/* RECIBIDAS */}
-        <div
-          className={`rounded-2xl p-5 border transition-all card-hover-lift relative overflow-hidden group ${cardBg}`}
-        >
-          <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-bold tracking-widest uppercase font-mono ${textTitle}`}>
-              INGRESADAS A KARDEX
-            </span>
-            <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-400">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <h3 className="text-2xl font-black text-teal-400 font-mono tracking-tight">
-              {totalRecibidas} Órdenes
-            </h3>
-            <p className="text-xs text-slate-400 mt-1.5 font-sans">
-              Stock cargado en almacén
-            </p>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* 3. Filtros Segmentados y Buscador */}

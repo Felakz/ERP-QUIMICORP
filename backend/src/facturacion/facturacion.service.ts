@@ -232,14 +232,14 @@ export class FacturacionService {
   async rentabilidad(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
     const start = (() => {
       const now = new Date();
-      if (startDateStr && endDateStr) return new Date(`${startDateStr}T00:00:00`);
+      if (startDateStr) return new Date(`${startDateStr}T00:00:00`);
       if (dateRange === 'ESTE_ANO') return new Date(now.getFullYear(), 0, 1);
       if (dateRange === 'MES_ANTERIOR') return new Date(now.getFullYear(), now.getMonth() - 1, 1);
       return new Date(now.getFullYear(), now.getMonth(), 1);
     })();
     const end = (() => {
       const now = new Date();
-      if (startDateStr && endDateStr) return new Date(`${endDateStr}T23:59:59.999`);
+      if (endDateStr) return new Date(`${endDateStr}T23:59:59.999`);
       if (dateRange === 'ESTE_ANO') return new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
       if (dateRange === 'MES_ANTERIOR') return new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
       return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -266,6 +266,7 @@ export class FacturacionService {
     }
     // Si no hay pedidos en el mes, estimar COGS como 65% de lo facturado
     if (pedidos.length === 0 && facturado > 0) invertido = facturado * 0.65;
+    const egresos = facturado * 0.42; // placeholder hasta conectar OrdenCompra real (no tocar OC ahora)
     const utilidad = Math.max(0, facturado - invertido);
     const margen = facturado > 0 ? (utilidad / facturado) * 100 : 0;
     // Serie mensual últimos 12 meses para gráfico
@@ -291,9 +292,10 @@ export class FacturacionService {
           inv += cu * Number(p.cantidadSolicitada || 0);
         } else inv += Number(p.montoTotal || 0) * 0.65;
       }
+      const egr = mc * 0.42;
       const util = Math.max(0, mc - inv);
       const marg = mc > 0 ? (util / mc) * 100 : 0;
-      serie.push({ month: months[m], year: y, facturado: mc, cobrado: mp, invertido: inv, utilidad: util, margen: Number(marg.toFixed(1)) });
+      serie.push({ month: months[m], year: y, facturado: mc, cobrado: mp, invertido: inv, egresos: egr, utilidad: util, margen: Number(marg.toFixed(1)) });
     }
     // Tabla por cliente (top 20 por margen)
     const porCliente = await this.prisma.cuentaCobrar.groupBy({ by: ['clienteRuc', 'clienteNombre'], where: { fechaEmision: whereDate }, _sum: { montoTotal: true }, _count: true });
@@ -321,7 +323,7 @@ export class FacturacionService {
       const desvio = v.teorico > 0 ? ((real - v.teorico) / v.teorico) * 100 : 0;
       return { formula: v.formula, facturado: v.facturado, teorico: v.teorico, real, desvio: Number(desvio.toFixed(1)), cantidad: v.cantidad };
     }).sort((a, b) => b.facturado - a.facturado).slice(0, 8);
-    return { facturado, cobrado, invertido, utilidad, margen: Number(margen.toFixed(1)), serie, tabla, desglose };
+    return { facturado, cobrado, invertido, egresos, utilidad, margen: Number(margen.toFixed(1)), serie, tabla, desglose };
   }
 
   /** Datos completos para el comprobante imprimible / vista de detalle. */
