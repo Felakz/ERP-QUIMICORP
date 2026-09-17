@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Scale,
   TrendingUp,
@@ -19,6 +19,10 @@ import {
   FileText,
   Phone,
   Sparkles,
+  FlaskConical,
+  ChevronDown,
+  X,
+  Package,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import {
@@ -150,20 +154,67 @@ export default function AdministracionComparadorPreciosPage() {
     fetchComparativa(id);
   };
 
+  const [searchInsumo, setSearchInsumo] = useState<string>('');
+  const [comboboxOpen, setComboboxOpen] = useState<boolean>(false);
+  const comboboxRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar el combobox flotante al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (comboboxRef.current && !comboboxRef.current.contains(event.target as Node)) {
+        setComboboxOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const selectedInsumo = insumosList.find((i) => i.id === selectedInsumoId) || insumosList[0];
 
-  // Categorías disponibles (derivadas del catálogo real) + filtrado por categoría
-  const categorias = Array.from(
-    new Set(insumosList.map((i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase())),
-  ).sort((a, b) => a.localeCompare(b));
-  const insumosFiltrados =
-    selectedCategoria === 'TODAS'
-      ? insumosList
-      : insumosList.filter((i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase() === selectedCategoria);
+  // Categorías disponibles (derivadas del catálogo real)
+  const categorias = useMemo(
+    () =>
+      Array.from(
+        new Set(insumosList.map((i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase())),
+      ).sort((a, b) => a.localeCompare(b)),
+    [insumosList],
+  );
+
+  // Insumos filtrados por categoría y por texto de búsqueda en el combobox
+  const insumosFiltrados = useMemo(() => {
+    return insumosList.filter((i) => {
+      if (selectedCategoria !== 'TODAS') {
+        const cat = (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase();
+        if (cat !== selectedCategoria) return false;
+      }
+      if (searchInsumo.trim()) {
+        const q = searchInsumo.toLowerCase();
+        const matchNom = i.nombre.toLowerCase().includes(q);
+        const matchCod = (i.codigo || '').toLowerCase().includes(q);
+        const matchCat = (i.categoria || '').toLowerCase().includes(q);
+        if (!matchNom && !matchCod && !matchCat) return false;
+      }
+      return true;
+    });
+  }, [insumosList, selectedCategoria, searchInsumo]);
+
+  // Accesos rápidos: 6 insumos principales de la categoría activa
+  const quickInsumos = useMemo(() => {
+    const base =
+      selectedCategoria === 'TODAS'
+        ? insumosList
+        : insumosList.filter(
+            (i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase() === selectedCategoria,
+          );
+    return base.slice(0, 6);
+  }, [insumosList, selectedCategoria]);
 
   const onSeleccionarCategoria = (cat: string) => {
     setSelectedCategoria(cat);
-    const primero = cat === 'TODAS' ? insumosList[0] : insumosList.find((i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase() === cat);
+    const primero =
+      cat === 'TODAS'
+        ? insumosList[0]
+        : insumosList.find((i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase() === cat);
     if (primero) {
       setSelectedInsumoId(primero.id);
       setNuevoInsumoId(primero.id);
@@ -287,65 +338,282 @@ export default function AdministracionComparadorPreciosPage() {
           </button>
         </div>
 
-        {/* Selector de Materia Prima / Insumo por Categoría */}
-        <div className="pt-3 border-t border-slate-800/40 flex flex-col gap-3 relative z-10">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <span className="text-xs font-black text-slate-400 flex items-center gap-1.5 shrink-0">
-              <Layers className="w-4 h-4 text-cyan-400" />
-              Categoría:
-            </span>
-            <select
-              value={selectedCategoria}
-              onChange={(e) => onSeleccionarCategoria(e.target.value)}
-              className={`w-full sm:w-72 p-2.5 rounded-xl border font-black text-xs transition-all ${
-                isDark
-                  ? 'bg-[#151D2A] border-[#1A2232] text-white focus:border-cyan-500/50 focus:shadow-[0_0_10px_rgba(0,242,195,0.15)]'
-                  : 'bg-slate-50 border-slate-200 text-slate-900 shadow-sm'
-              }`}
-            >
-              <option value="TODAS">Todas las categorías ({insumosList.length})</option>
-              {categorias.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat} ({insumosList.filter((i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase() === cat).length})
-                </option>
-              ))}
-            </select>
-            <span className="text-[11px] text-slate-500 font-semibold font-mono">
-              {insumosFiltrados.length} insumo(s) disponibles
-            </span>
-          </div>
+        {/* Selector Ejecutivo de Insumo: Filtro por Categoría + Combobox con Autocompletado */}
+        <div className="pt-4 border-t border-slate-800/40 flex flex-col gap-3 relative z-20">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            {/* 1. Selector de Categoría */}
+            <div className="md:col-span-4 flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-wider">
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                Categoría de Insumo:
+              </label>
+              <div className="relative">
+                <select
+                  value={selectedCategoria}
+                  onChange={(e) => onSeleccionarCategoria(e.target.value)}
+                  className={`w-full py-2.5 pl-3.5 pr-9 rounded-xl border font-bold text-xs transition-all appearance-none cursor-pointer ${
+                    isDark
+                      ? 'bg-[#151D2A] border-[#1A2232] text-white focus:border-cyan-500/50'
+                      : 'bg-slate-50 border-slate-200 text-slate-900 shadow-sm'
+                  }`}
+                >
+                  <option value="TODAS">Todas las Categorías ({insumosList.length})</option>
+                  {categorias.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat} ({insumosList.filter((i) => (i.categoria || 'SIN CATEGORÍA').trim().toUpperCase() === cat).length})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+              </div>
+            </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 flex-1">
-            {insumosFiltrados.length === 0 ? (
-              <span className="text-xs text-slate-400 col-span-full py-2 font-mono">
-                {loadingInsumo ? 'Cargando catálogo de insumos...' : 'No hay insumos disponibles.'}
-              </span>
-            ) : (
-              insumosFiltrados.map((insumo) => {
-                const isSelected = selectedInsumoId === insumo.id;
-                return (
+            {/* 2. Buscador Combobox Inteligente con Autocompletado */}
+            <div className="md:col-span-8 flex flex-col gap-1.5 relative" ref={comboboxRef}>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Search className="w-3.5 h-3.5 text-[#00F2C3]" />
+                  Buscar Insumo para Comparar Precios:
+                </label>
+                <span className="text-[10px] font-mono text-slate-500">
+                  {insumosFiltrados.length} insumos coincidentes
+                </span>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Escribe el nombre o código del insumo (ej: Soda Cáustica, Sulfónico, QUIM-001)..."
+                  value={searchInsumo}
+                  onFocus={() => setComboboxOpen(true)}
+                  onChange={(e) => {
+                    setSearchInsumo(e.target.value);
+                    setComboboxOpen(true);
+                  }}
+                  className={`w-full pl-10 pr-10 py-2.5 rounded-xl border text-xs font-sans transition-all focus:outline-none ${
+                    isDark
+                      ? 'bg-[#151D2A] border-[#1A2232] text-white focus:border-[#00F2C3] focus:ring-1 focus:ring-[#00F2C3]'
+                      : 'bg-white border-slate-300 text-slate-900 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500'
+                  }`}
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                {searchInsumo && (
                   <button
-                    key={insumo.id}
-                    onClick={() => onSeleccionarInsumo(insumo.id)}
-                    className={`px-3 py-2 rounded-xl text-left transition-all border card-hover-lift ${
-                      isSelected
-                        ? isDark
-                          ? 'bg-[#151D2A] text-[#00F2C3] border-[#00F2C3] shadow-[0_0_12px_rgba(0,242,195,0.2)] ring-1 ring-[#00F2C3] font-black'
-                          : 'bg-cyan-50 text-cyan-900 border-cyan-400 shadow-sm font-black'
-                        : isDark
-                        ? 'bg-[#151D2A] text-slate-300 border-[#1A2232] hover:border-slate-700 font-medium'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-medium'
+                    type="button"
+                    onClick={() => {
+                      setSearchInsumo('');
+                      setComboboxOpen(false);
+                    }}
+                    className="absolute right-3 top-2.5 p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800/60"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Dropdown Flotante con Autocompletado */}
+                {comboboxOpen && (
+                  <div
+                    className={`absolute top-full left-0 right-0 mt-1.5 max-h-72 overflow-y-auto rounded-2xl border shadow-2xl z-50 p-2 space-y-1 backdrop-blur-xl ${
+                      isDark
+                        ? 'bg-[#0F141C]/95 border-slate-700/80 shadow-cyan-950/40'
+                        : 'bg-white/95 border-slate-200 shadow-slate-300/60'
                     }`}
                   >
-                    <div className="text-[11px] truncate font-bold">{insumo.nombre}</div>
-                    <div className={`text-[9px] font-mono mt-0.5 ${isSelected ? 'text-[#00F2C3] font-black' : 'opacity-70'}`}>
-                      S/ {insumo.precioReferencia.toFixed(2)} /{insumo.unidad}
+                    <div className="px-2.5 py-1 text-[10px] font-mono text-slate-400 uppercase tracking-wider flex items-center justify-between border-b border-slate-800/40 mb-1">
+                      <span>Catálogo de Insumos ({insumosFiltrados.length})</span>
+                      <span className="text-[9px] text-[#00F2C3]">Selecciona para comparar proveedores</span>
                     </div>
+                    {insumosFiltrados.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-400 italic">
+                        No se encontraron insumos que coincidan con "{searchInsumo}".
+                      </div>
+                    ) : (
+                      insumosFiltrados.map((insumo) => {
+                        const isSelected = selectedInsumoId === insumo.id;
+                        return (
+                          <button
+                            key={insumo.id}
+                            type="button"
+                            onClick={() => {
+                              onSeleccionarInsumo(insumo.id);
+                              setSearchInsumo('');
+                              setComboboxOpen(false);
+                            }}
+                            className={`w-full p-2.5 rounded-xl text-left transition-all flex items-center justify-between gap-3 group ${
+                              isSelected
+                                ? isDark
+                                  ? 'bg-emerald-500/15 border border-[#00F2C3]/60 text-white'
+                                  : 'bg-cyan-100 border border-cyan-400 text-cyan-950'
+                                : isDark
+                                ? 'hover:bg-[#151D2A] text-slate-300 border border-transparent'
+                                : 'hover:bg-slate-100 text-slate-700 border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`p-2 rounded-lg ${
+                                  isSelected
+                                    ? 'bg-[#00F2C3] text-slate-950'
+                                    : 'bg-slate-800/80 text-slate-400 group-hover:text-[#00F2C3]'
+                                }`}
+                              >
+                                <FlaskConical className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold truncate text-white">
+                                    {insumo.nombre}
+                                  </span>
+                                  {insumo.codigo && (
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                                      {insumo.codigo}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-slate-400 block truncate">
+                                  {insumo.categoria || 'Materia Prima'} • Stock: {insumo.stockActual.toLocaleString()} {insumo.unidad}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span
+                                className={`text-xs font-mono font-bold block ${
+                                  isSelected ? 'text-[#00F2C3]' : 'text-emerald-400'
+                                }`}
+                              >
+                                S/ {insumo.precioReferencia.toFixed(2)}
+                              </span>
+                              <span className="text-[9px] text-slate-500 font-mono">
+                                /{insumo.unidad} ref.
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Barra de Insumos Rápidos (Top Insumos con 1 solo clic) */}
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <span className="text-[10px] font-mono uppercase font-bold text-slate-500 flex items-center gap-1 shrink-0">
+              <Sparkles className="w-3 h-3 text-amber-400" />
+              Insumos Frecuentes:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {quickInsumos.map((ins) => {
+                const isSel = selectedInsumoId === ins.id;
+                return (
+                  <button
+                    key={ins.id}
+                    type="button"
+                    onClick={() => onSeleccionarInsumo(ins.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all border ${
+                      isSel
+                        ? isDark
+                          ? 'bg-[#00F2C3]/15 text-[#00F2C3] border-[#00F2C3]/50 shadow-sm'
+                          : 'bg-cyan-100 text-cyan-900 border-cyan-400 shadow-sm'
+                        : isDark
+                        ? 'bg-[#151D2A]/60 text-slate-300 border-[#1A2232] hover:border-slate-600 hover:text-white'
+                        : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                    }`}
+                  >
+                    {ins.nombre}
                   </button>
                 );
-              })
-            )}
+              })}
+              {insumosList.length > quickInsumos.length && (
+                <button
+                  type="button"
+                  onClick={() => setComboboxOpen(true)}
+                  className="px-2 py-1 rounded-lg text-[10px] font-mono text-cyan-400 hover:underline"
+                >
+                  + Buscar entre {insumosList.length} insumos...
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* 4. Tarjeta Ejecutiva Destacada del Insumo Seleccionado (Hero Card) */}
+          {selectedInsumo && (
+            <div
+              className={`mt-2 p-4 rounded-2xl border transition-all relative overflow-hidden flex flex-wrap items-center justify-between gap-4 ${
+                isDark
+                  ? 'bg-gradient-to-r from-[#151D2A] via-[#111722] to-[#151D2A] border-[#00F2C3]/30 shadow-lg shadow-[#00F2C3]/5'
+                  : 'bg-gradient-to-r from-cyan-50/70 via-white to-cyan-50/70 border-cyan-300 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="p-3 rounded-2xl bg-[#00F2C3]/10 border border-[#00F2C3]/30 text-[#00F2C3] shadow-md shadow-[#00F2C3]/10 shrink-0">
+                  <FlaskConical className="w-6 h-6" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#00F2C3]/10 text-[#00F2C3] border border-[#00F2C3]/30 uppercase tracking-wider">
+                      INSUMO SELECCIONADO
+                    </span>
+                    {selectedInsumo.codigo && (
+                      <span className="text-[10px] font-mono text-slate-400">
+                        COD: {selectedInsumo.codigo}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-sans px-2 py-0.5 rounded-full bg-slate-800/80 text-slate-300 border border-slate-700">
+                      {selectedInsumo.categoria || 'Materia Prima'}
+                    </span>
+                  </div>
+                  <h2 className={`text-base font-black tracking-tight truncate mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {selectedInsumo.nombre}
+                  </h2>
+                </div>
+              </div>
+
+              {/* Métricas Rápidas en la Tarjeta */}
+              <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                <div
+                  className={`px-3.5 py-2 rounded-xl border text-right ${
+                    isDark ? 'bg-black/30 border-slate-800' : 'bg-white border-slate-200'
+                  }`}
+                >
+                  <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block">
+                    Stock en Planta
+                  </span>
+                  <span className="text-xs font-mono font-bold text-cyan-400">
+                    {selectedInsumo.stockActual.toLocaleString()} {selectedInsumo.unidad}
+                  </span>
+                </div>
+
+                <div
+                  className={`px-3.5 py-2 rounded-xl border text-right ${
+                    isDark ? 'bg-black/30 border-slate-800' : 'bg-white border-slate-200'
+                  }`}
+                >
+                  <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block">
+                    Precio Ref. Almacén
+                  </span>
+                  <span className="text-xs font-mono font-black text-emerald-400">
+                    S/ {selectedInsumo.precioReferencia.toFixed(2)}{' '}
+                    <span className="text-[10px] font-normal">/{selectedInsumo.unidad}</span>
+                  </span>
+                </div>
+
+                <div
+                  className={`px-3.5 py-2 rounded-xl border text-right ${
+                    isDark ? 'bg-black/30 border-slate-800' : 'bg-white border-slate-200'
+                  }`}
+                >
+                  <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block">
+                    Cotizaciones Registradas
+                  </span>
+                  <span className="text-xs font-mono font-bold text-amber-400">
+                    {ranking.length} ofertas
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
