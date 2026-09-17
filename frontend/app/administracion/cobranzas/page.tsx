@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   CreditCard,
   Search,
@@ -361,60 +361,43 @@ export default function CuentasCobrarPage() {
     XLSX.writeFile(wb, `REPORTE_COBRANZAS_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // Filtrado de Cuentas
-  const cuentasFiltradas = cuentas.filter((c) => {
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const matchDoc = c.codigoDoc.toLowerCase().includes(q);
-      const matchCli = c.clienteNombre.toLowerCase().includes(q);
-      const matchRuc = c.clienteRuc.includes(q);
-      const matchOp = (c.ordenProd || '').toLowerCase().includes(q);
-      const matchProd = (c.producto || '').toLowerCase().includes(q);
-      if (!matchDoc && !matchCli && !matchRuc && !matchOp && !matchProd) return false;
-    }
-
-    if (filtroPlazo !== 'TODOS') {
-      if (filtroPlazo === '07') {
-        if (
-          !c.condicionPago.includes('07') &&
-          !c.condicionPago.toLowerCase().includes('7 día') &&
-          !c.condicionPago.toLowerCase().includes('7 dia')
-        )
-          return false;
-      } else if (!c.condicionPago.toLowerCase().includes(filtroPlazo.toLowerCase())) {
-        return false;
+  // 1. Cuentas filtradas por Fecha (Mes o Rango de Días) y Búsqueda de Texto
+  // Esta lista sirve de base para los conteos dinámicos en las pestañas de condición
+  const cuentasPeriodo = useMemo(() => {
+    return cuentas.filter((c) => {
+      // Filtro por Fecha de Emisión (Por Mes o Rango de Días)
+      if (fechaDesde || fechaHasta) {
+        const emision = (c.fechaEmision || '').split('T')[0];
+        if (emision) {
+          if (fechaDesde && emision < fechaDesde) return false;
+          if (fechaHasta && emision > fechaHasta) return false;
+        }
       }
-    }
 
-    if (filtroEstado !== 'TODOS') {
-      if (filtroEstado === 'PENDIENTE') {
-        // En cartera pendiente se muestran los pendientes y los vencidos con saldo vivo
-        if (c.estado !== 'PENDIENTE' && c.estado !== 'VENCIDO') return false;
-      } else if (c.estado !== filtroEstado) {
-        return false;
+      // Filtro por Texto / Buscador
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchDoc = c.codigoDoc?.toLowerCase().includes(q);
+        const matchCli = c.clienteNombre?.toLowerCase().includes(q);
+        const matchRuc = c.clienteRuc?.includes(q);
+        const matchOp = (c.ordenProd || '').toLowerCase().includes(q);
+        const matchProd = (c.producto || '').toLowerCase().includes(q);
+        if (!matchDoc && !matchCli && !matchRuc && !matchOp && !matchProd) return false;
       }
-    }
 
-    // Filtro por Fecha de Emisión (Por Mes o Rango de Días)
-    if (fechaDesde || fechaHasta) {
-      const emision = (c.fechaEmision || '').split('T')[0];
-      if (emision) {
-        if (fechaDesde && emision < fechaDesde) return false;
-        if (fechaHasta && emision > fechaHasta) return false;
-      }
-    }
+      return true;
+    });
+  }, [cuentas, fechaDesde, fechaHasta, search]);
 
-    return true;
-  });
-
-  // Configuración de las 6 Tarjetas Horizontales de Condición (Estilo Kardex Neón)
-  const tabsCondicion = [
+  // 2. Configuración de las 7 Tarjetas Horizontales de Condición (Estilo Kardex Neón)
+  // Conteo reactivo según el período y búsqueda activos
+  const tabsCondicion = useMemo(() => [
     {
       id: 'TODOS',
       label: 'Todas las Condiciones',
       description: 'Totalidad de ventas al contado y carteras a crédito',
       badge: 'TOTAL CARTERA',
-      count: cuentas.length,
+      count: cuentasPeriodo.length,
       badgeCls: 'border-cyan-500/40 text-cyan-400 bg-cyan-500/10',
     },
     {
@@ -422,7 +405,7 @@ export default function CuentasCobrarPage() {
       label: 'Contado Inmediato',
       description: 'Cobro contra entrega / transferencias liquidadas',
       badge: 'CONTADO',
-      count: cuentas.filter((c) => c.condicionPago.toLowerCase().includes('contado')).length,
+      count: cuentasPeriodo.filter((c) => c.condicionPago.toLowerCase().includes('contado')).length,
       badgeCls: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10',
     },
     {
@@ -430,7 +413,11 @@ export default function CuentasCobrarPage() {
       label: 'Crédito 7 Días',
       description: 'Línea de crédito semanal para clientes frecuentes',
       badge: '7 DÍAS',
-      count: cuentas.filter((c) => c.condicionPago.includes('07')).length,
+      count: cuentasPeriodo.filter((c) =>
+        c.condicionPago.includes('07') ||
+        c.condicionPago.toLowerCase().includes('7 día') ||
+        c.condicionPago.toLowerCase().includes('7 dia')
+      ).length,
       badgeCls: 'border-blue-500/40 text-blue-400 bg-blue-500/10',
     },
     {
@@ -438,7 +425,7 @@ export default function CuentasCobrarPage() {
       label: 'Crédito 15 Días',
       description: 'Línea quincenal con control de documentos',
       badge: '15 DÍAS',
-      count: cuentas.filter((c) => c.condicionPago.includes('15')).length,
+      count: cuentasPeriodo.filter((c) => c.condicionPago.includes('15')).length,
       badgeCls: 'border-amber-500/40 text-amber-400 bg-amber-500/10',
     },
     {
@@ -446,7 +433,7 @@ export default function CuentasCobrarPage() {
       label: 'Crédito 20 Días',
       description: 'Plazo especial institucional y distribuidoras',
       badge: '20 DÍAS',
-      count: cuentas.filter((c) => c.condicionPago.includes('20')).length,
+      count: cuentasPeriodo.filter((c) => c.condicionPago.includes('20')).length,
       badgeCls: 'border-purple-500/40 text-purple-400 bg-purple-500/10',
     },
     {
@@ -454,7 +441,7 @@ export default function CuentasCobrarPage() {
       label: 'Crédito 30 Días',
       description: 'Plazo comercial estándar corporativo B2B Perú',
       badge: '30 DÍAS',
-      count: cuentas.filter((c) => c.condicionPago.includes('30')).length,
+      count: cuentasPeriodo.filter((c) => c.condicionPago.includes('30')).length,
       badgeCls: 'border-indigo-500/40 text-indigo-400 bg-indigo-500/10',
     },
     {
@@ -462,10 +449,82 @@ export default function CuentasCobrarPage() {
       label: 'Crédito 60 Días',
       description: 'Plazo extendido corporativo con aval comercial',
       badge: '60 DÍAS',
-      count: cuentas.filter((c) => c.condicionPago.includes('60')).length,
+      count: cuentasPeriodo.filter((c) => c.condicionPago.includes('60')).length,
       badgeCls: 'border-rose-500/40 text-rose-400 bg-rose-500/10',
     },
-  ];
+  ], [cuentasPeriodo]);
+
+  // 3. Cuentas del ámbito activo (Fecha + Búsqueda + Condición seleccionada)
+  const cuentasAmbito = useMemo(() => {
+    return cuentasPeriodo.filter((c) => {
+      if (filtroPlazo !== 'TODOS') {
+        if (filtroPlazo === '07') {
+          if (
+            !c.condicionPago.includes('07') &&
+            !c.condicionPago.toLowerCase().includes('7 día') &&
+            !c.condicionPago.toLowerCase().includes('7 dia')
+          )
+            return false;
+        } else if (!c.condicionPago.toLowerCase().includes(filtroPlazo.toLowerCase())) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [cuentasPeriodo, filtroPlazo]);
+
+  // 4. KPIs Dinámicos calculados reactivamente según los filtros activos (Fecha, Búsqueda y Condición)
+  const kpisCalculados = useMemo(() => {
+    let totalFacturado = 0;
+    let totalCobrado = 0;
+    let saldoPendiente = 0;
+    let totalVencido = 0;
+    let facturasPendientes = 0;
+    const hoy = new Date();
+
+    for (const c of cuentasAmbito) {
+      const total = Number(c.montoTotal) || 0;
+      const saldo = Number(c.saldoPendiente) || 0;
+      totalFacturado += total;
+      totalCobrado += (total - saldo);
+      saldoPendiente += saldo;
+
+      const isVencido = saldo > 0 && c.fechaVencimiento && new Date(c.fechaVencimiento) < hoy;
+      if (isVencido) {
+        totalVencido += saldo;
+      }
+      if (saldo > 0 || c.estado === 'PENDIENTE' || c.estado === 'VENCIDO') {
+        facturasPendientes += 1;
+      }
+    }
+
+    const saludCartera = totalFacturado > 0 ? (totalCobrado / totalFacturado) * 100 : 0;
+
+    return {
+      totalFacturado: Number(totalFacturado.toFixed(2)),
+      totalCobrado: Number(totalCobrado.toFixed(2)),
+      saldoPendiente: Number(saldoPendiente.toFixed(2)),
+      totalVencido: Number(totalVencido.toFixed(2)),
+      totalDocumentos: cuentasAmbito.length,
+      facturasPendientes,
+      saludCartera,
+    };
+  }, [cuentasAmbito]);
+
+  // 5. Cuentas filtradas finales para la tabla (incorporando la Bandeja de Estado)
+  const cuentasFiltradas = useMemo(() => {
+    return cuentasAmbito.filter((c) => {
+      if (filtroEstado !== 'TODOS') {
+        if (filtroEstado === 'PENDIENTE') {
+          // En cartera pendiente se muestran los pendientes y los vencidos con saldo vivo
+          if (c.estado !== 'PENDIENTE' && c.estado !== 'VENCIDO') return false;
+        } else if (c.estado !== filtroEstado) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [cuentasAmbito, filtroEstado]);
 
   return (
     <div className="space-y-5 font-sans min-h-screen pb-12">
@@ -482,7 +541,7 @@ export default function CuentasCobrarPage() {
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold font-mono tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-[#00F2C3] uppercase flex items-center gap-1.5 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00F2C3] led-pulse" />
-                POSTGRESQL LIVE • {cuentas.length} OPERACIONES
+                POSTGRESQL LIVE • {kpisCalculados.totalDocumentos < cuentas.length ? `${kpisCalculados.totalDocumentos} DE ${cuentas.length}` : `${cuentas.length}`} OPERACIONES
               </span>
             </div>
             <p className={`text-xs mt-0.5 ${textTitle}`}>
@@ -571,9 +630,16 @@ export default function CuentasCobrarPage() {
             </div>
           </div>
           <p className="text-2xl font-black font-mono text-emerald-400">
-            S/ {kpis.totalFacturado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            S/ {kpisCalculados.totalFacturado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <span className="text-[10px] text-slate-500 font-mono">{kpis.totalDocumentos} comprobantes emitidos</span>
+          <div className="flex items-center justify-between text-[10px] font-mono">
+            <span className="text-slate-500">{kpisCalculados.totalDocumentos} comprobantes emitidos</span>
+            {(fechaDesde || fechaHasta || filtroPlazo !== 'TODOS' || search.trim()) && (
+              <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 uppercase tracking-wider">
+                Filtrado
+              </span>
+            )}
+          </div>
         </div>
 
         <div className={`rounded-2xl p-4 border space-y-1 transition-all card-hover-lift ${cardBg} ${isDark ? 'hover:border-blue-500/50' : ''}`}>
@@ -584,10 +650,10 @@ export default function CuentasCobrarPage() {
             </div>
           </div>
           <p className="text-2xl font-black font-mono text-blue-400">
-            S/ {kpis.totalCobrado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            S/ {kpisCalculados.totalCobrado.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <span className="text-[10px] text-cyan-400/80 font-mono font-bold">
-            {((kpis.totalCobrado / (kpis.totalFacturado || 1)) * 100).toFixed(1)}% liquidez efectiva
+            {kpisCalculados.saludCartera.toFixed(1)}% liquidez efectiva
           </span>
         </div>
 
@@ -599,11 +665,18 @@ export default function CuentasCobrarPage() {
             </div>
           </div>
           <p className="text-2xl font-black font-mono text-amber-400">
-            S/ {kpis.saldoPendiente.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            S/ {kpisCalculados.saldoPendiente.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <span className="text-[10px] text-amber-500/80 font-mono font-bold">
-            {cuentas.filter((c) => c.estado === 'PENDIENTE').length} facturas pendientes
-          </span>
+          <div className="flex items-center justify-between text-[10px] font-mono">
+            <span className="text-amber-500/80 font-bold">
+              {kpisCalculados.facturasPendientes} facturas pendientes
+            </span>
+            {kpisCalculados.totalVencido > 0 && (
+              <span className="text-rose-400 font-bold">
+                (S/ {kpisCalculados.totalVencido.toLocaleString('es-PE', { minimumFractionDigits: 2 })} vencido)
+              </span>
+            )}
+          </div>
         </div>
 
         <div className={`rounded-2xl p-4 border space-y-1 transition-all card-hover-lift ${cardBg} ${isDark ? 'hover:border-emerald-500/50' : ''}`}>
@@ -614,7 +687,7 @@ export default function CuentasCobrarPage() {
             </div>
           </div>
           <p className="text-2xl font-black font-mono text-[#00F2C3]">
-            {kpis.totalFacturado > 0 ? (((kpis.totalCobrado / kpis.totalFacturado) * 100).toFixed(1) + '%') : '0%'}
+            {kpisCalculados.totalFacturado > 0 ? (kpisCalculados.saludCartera.toFixed(1) + '%') : '0%'}
           </p>
           <span className="text-[10px] text-slate-500">Cartera al día (liquidez efectiva)</span>
         </div>

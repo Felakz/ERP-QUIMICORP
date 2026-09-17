@@ -228,6 +228,84 @@ export class FacturacionService {
     };
   }
 
+  /** Rentabilidad & Margen: Facturado vs Cobrado vs Invertido (COGS real) vs Utilidad. */
+  async rentabilidad(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
+    const start = (() => {
+      const now = new Date();
+      if (startDateStr && endDateStr) return new Date(`${startDateStr}T00:00:00`);
+      if (dateRange === 'ESTE_ANO') return new Date(now.getFullYear(), 0, 1);
+      if (dateRange === 'MES_ANTERIOR') return new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    })();
+    const end = (() => {
+      const now = new Date();
+      if (startDateStr && endDateStr) return new Date(`${endDateStr}T23:59:59.999`);
+      if (dateRange === 'ESTE_ANO') return new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      if (dateRange === 'MES_ANTERIOR') return new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    })();
+    const whereDate = { gte: start, lte: end };
+    const [cuentas, pagos, pedidos] = await Promise.all([
+      this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: whereDate }, select: { montoTotal: true, pedidoId: true, ordenProd: true } }),
+      this.prisma.pagoAbono.aggregate({ where: { fechaAbono: whereDate }, _sum: { montoAbonado: true } }),
+      this.prisma.pedidoComercial.findMany({
+        where: { createdAt: whereDate, estado: { not: 'RECHAZADO' } },
+        include: { formula: { include: { detalles: { include: { insumo: true } } } } },
+      }),
+    ]);
+    const facturado = cuentas.reduce((a, c) => a + Number(c.montoTotal || 0), 0);
+    const cobrado = Number(pagos._sum.montoAbonado || 0);
+    let invertido = 0;
+    for (const p of pedidos) {
+      if (p.formula?.detalles?.length) {
+        const costoUnit = p.formula.detalles.reduce((acc: number, d: any) => acc + Number(d.insumo?.costoUnitario || 0) * (Number(d.porcentaje || 0) / 100), 0);
+        invertido += costoUnit * Number(p.cantidadSolicitada || 0);
+      } else {
+        invertido += Number(p.montoTotal || 0) * 0.65;
+      }
+    }
+    // Si no hay pedidos en el mes, estimar COGS como 65% de lo facturado
+    if (pedidos.length === 0 && facturado > 0) invertido = facturado * 0.65;
+    const utilidad = Math.max(0, facturado - invertido);
+    const margen = facturado > 0 ? (utilidad / facturado) * 100 : 0;
+    // Serie mensual últimos 12 meses para gráfico
+    const now = new Date();
+    const serie: any[] = [];
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+    const allCuentas = await this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } }, select: { montoTotal: true, fechaEmision: true } });
+    const allPagos = await this.prisma.pagoAbono.findMany({ where: { fechaAbono: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } }, select: { montoAbonado: true, fechaAbono: true } });
+    const allPedidos = await this.prisma.pedidoComercial.findMany({
+      where: { createdAt: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) }, estado: { not: 'RECHAZADO' } },
+      include: { formula: { include: { detalles: { include: { insumo: true } } } } },
+    });
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const m = d.getMonth(), y = d.getFullYear();
+      const mc = allCuentas.filter((c: any) => new Date(c.fechaEmision).getMonth() === m && new Date(c.fechaEmision).getFullYear() === y).reduce((a: number, c: any) => a + Number(c.montoTotal || 0), 0);
+      const mp = allPagos.filter((p: any) => new Date(p.fechaAbono).getMonth() === m && new Date(p.fechaAbono).getFullYear() === y).reduce((a: number, p: any) => a + Number(p.montoAbonado || 0), 0);
+      const mpeds = allPedidos.filter((p: any) => new Date(p.createdAt).getMonth() === m && new Date(p.createdAt).getFullYear() === y);
+      let inv = 0;
+      for (const p of mpeds) {
+        if (p.formula?.detalles?.length) {
+          const cu = p.formula.detalles.reduce((acc: number, det: any) => acc + Number(det.insumo?.costoUnitario || 0) * (Number(det.porcentaje || 0) / 100), 0);
+          inv += cu * Number(p.cantidadSolicitada || 0);
+        } else inv += Number(p.montoTotal || 0) * 0.65;
+      }
+      const util = Math.max(0, mc - inv);
+      const marg = mc > 0 ? (util / mc) * 100 : 0;
+      serie.push({ month: months[m], year: y, facturado: mc, cobrado: mp, invertido: inv, utilidad: util, margen: Number(marg.toFixed(1)) });
+    }
+    // Tabla por cliente (top 20 por margen)
+    const porCliente = await this.prisma.cuentaCobrar.groupBy({ by: ['clienteRuc', 'clienteNombre'], where: { fechaEmision: whereDate }, _sum: { montoTotal: true }, _count: true });
+    const tabla = porCliente.map((g: any) => {
+      const fact = Number(g._sum.montoTotal || 0);
+      const inv = fact * 0.65;
+      const util = Math.max(0, fact - inv);
+      return { ruc: g.clienteRuc, cliente: g.clienteNombre, facturado: fact, invertido: inv, utilidad: util, margen: fact > 0 ? Number(((util / fact) * 100).toFixed(1)) : 0, docs: g._count };
+    }).sort((a, b) => b.utilidad - a.utilidad).slice(0, 20);
+    return { facturado, cobrado, invertido, utilidad, margen: Number(margen.toFixed(1)), serie, tabla };
+  }
+
   /** Datos completos para el comprobante imprimible / vista de detalle. */
   async comprobante(id: string) {
     const cc = await this.prisma.cuentaCobrar.findUnique({

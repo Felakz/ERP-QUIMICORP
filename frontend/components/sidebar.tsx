@@ -47,14 +47,14 @@ export const adminSidebarItems: SidebarSection[] = [
         href: '/administracion/clientes',
       },
       {
-        label: 'Cuentas por Cobrar y Pagar',
+        label: 'Cartera & Cobranzas',
         icon: CreditCard,
         href: '/administracion/cobranzas',
         restrictedForAsistente: true,
       },
       {
-        label: 'Facturación y Vencimientos',
-        icon: Receipt,
+        label: 'Rentabilidad & Margen',
+        icon: TrendingUp,
         href: '/administracion/facturacion',
         restrictedForAsistente: true,
       },

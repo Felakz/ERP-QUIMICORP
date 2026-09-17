@@ -22,6 +22,11 @@ export class FacturacionController {
     return this.service.resumen();
   }
 
+  @Get('rentabilidad')
+  async rentabilidad(@Query('rango') rango?: string, @Query('desde') desde?: string, @Query('hasta') hasta?: string) {
+    return this.service.rentabilidad(rango, desde, hasta);
+  }
+
   @Get('comprobante/:id')
   async comprobante(@Param('id') id: string) {
     return this.service.comprobante(id);
