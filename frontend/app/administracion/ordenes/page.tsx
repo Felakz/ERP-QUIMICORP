@@ -396,7 +396,15 @@ export default function AdministracionOrdenesPage() {
   const handleMarcarRecibido = async (id: string) => {
     try {
       const { apiFetch } = require('@/lib/apiClient');
-      await apiFetch(`/ordenes-compra/${id}/recibir`, { method: 'PATCH' });
+      const res: any = await apiFetch(`/ordenes-compra/${id}/recibir`, { method: 'PATCH' });
+      // Redirigir a Gestión de Insumos con cantidad/monto exacto cotizado
+      const oc = res?.data || ordenes.find(o => o.id === id);
+      if (oc) {
+        const first = oc.items?.[0];
+        alert(`✅ OC ${oc.codigoOC} RECIBIDA — stock actualizado con ${first?.cantidad || ''} ${first?.unidadMedida || ''} exacto cotizado. Redirigiendo a Inventario...`);
+        window.location.href = `/administracion/gestion-inventario?fromOC=${oc.codigoOC}&insumo=${encodeURIComponent(first?.insumo || '')}&cantidad=${first?.cantidad || ''}`;
+        return;
+      }
     } catch {}
     setOrdenes((prev) => prev.map((o) => (o.id === id ? { ...o, estado: 'RECIBIDO' } : o)));
   };

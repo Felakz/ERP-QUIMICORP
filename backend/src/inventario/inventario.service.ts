@@ -235,6 +235,11 @@ export class InventarioService {
       const stockAnterior = Number(insumoActual.stockReal || 0);
       const diff = nuevoStock - stockAnterior;
 
+      // Bloqueo: altas de stock solo vía OC RECIBIDA (cantidad exacta cotizada)
+      if (diff > 0.0001 && !dto.viaOC) {
+        throw new BadRequestException('Alta de stock solo vía Orden de Compra RECIBIDA con cantidad exacta cotizada. Use OC → Recibir.');
+      }
+
       if (Math.abs(diff) > 0.0001) {
         const categoria = this.categoriaKardexSegunTipo(data.tipo || insumoActual.tipo, insumoActual.familia?.nombre);
         const costo = Number(data.costoUnitario !== undefined ? data.costoUnitario : insumoActual.costoUnitario || 0);
