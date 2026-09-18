@@ -6,6 +6,8 @@ import {
   Printer,
   FileText,
   Receipt,
+  Download,
+  Loader2,
 } from 'lucide-react';
 
 export interface CotizacionItem {
@@ -76,16 +78,16 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
   const [docFormat, setDocFormat] = useState<'COTIZACION' | 'BOLETA'>(
     isOriginallyCot ? 'COTIZACION' : 'BOLETA'
   );
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   if (!isOpen) return null;
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   const isCotizacion = docFormat === 'COTIZACION';
   const monedaLabel = data.moneda || 'Soles (S/)';
   const monedaSymbol = monedaLabel.includes('USD') || monedaLabel.includes('$') ? '$' : 'S/';
+
+  // Formatear código correlativo
+  const displayCode = data.codigoOrden?.replace(/^COT-|^OP-/, '') || '000862';
 
   // Construir lista de productos (multilínea o fallback a producto unitario)
   const itemList: CotizacionItem[] = data.items && data.items.length > 0
@@ -106,22 +108,133 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
       ];
 
   // Cálculo de Subtotal e IGV
-  // En las cotizaciones industriales peruanas:
-  // Si los precios unitarios son base imponible: Subtotal = suma de importes, IGV = 18%, Total = Subtotal + IGV
   const subtotalCalc = itemList.reduce((acc, it) => acc + (Number(it.importeTotal) || (it.cantidad * it.precioUnitario)), 0);
   const igvCalc = subtotalCalc * 0.18;
   const totalCalc = subtotalCalc + igvCalc;
 
-  // Formatear código correlativo (ej. "COT-2026-001" -> "000862" o mantener código)
-  const displayCode = data.codigoOrden?.replace(/^COT-|^OP-/, '') || '000862';
+  // ── FUNCIÓN DE IMPRESIÓN AISLADA (Evita hojas en blanco en Chromium / Chrome / Nitro) ──
+  const handlePrint = () => {
+    const element = document.getElementById('printable-document-sheet');
+    if (!element) {
+      window.print();
+      return;
+    }
+
+    // Crear un iframe invisible dedicado únicamente al documento de la cotización
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    // Clonar las hojas de estilo y Tailwind para fidelidad 100%
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Cotización N.° ${displayCode} - ${data.clienteNombre}</title>
+          ${styles}
+          <style>
+            @page {
+              margin: 6mm 8mm;
+              size: A4 portrait;
+            }
+            html, body {
+              background: #ffffff !important;
+              color: #0f172a !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            #print-root-container {
+              width: 100% !important;
+              max-width: 100% !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="print-root-container">
+            ${element.outerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 3000);
+    }, 350);
+  };
+
+  // ── FUNCIÓN DE DESCARGA DIRECTA DE ARCHIVO PDF (.PDF) ──
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('printable-document-sheet');
+    if (!element) return;
+
+    setIsDownloadingPdf(true);
+    try {
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+
+      const cleanClient = (data.clienteNombre || 'CLIENTE').replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Cotizacion_${displayCode}_${cleanClient}.pdf`;
+
+      const opt = {
+        margin: [6, 8, 6, 8] as [number, number, number, number],
+        filename: filename,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+      };
+
+      await html2pdf().from(element).set(opt).save();
+    } catch (err) {
+      console.error('Error generando archivo PDF:', err);
+      // Fallback a impresión si ocurriera algún imprevisto
+      handlePrint();
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   return (
     <>
-      {/* ── CSS Global para Impresión Perfecta en A4 ── */}
+      {/* ── CSS Global para Impresión Directa y Fallback ── */}
       <style jsx global>{`
         @media print {
           @page {
-            margin: 6mm 10mm;
+            margin: 6mm 8mm;
             size: A4 portrait;
           }
           html, body {
@@ -132,26 +245,29 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          body * {
-            visibility: hidden !important;
+          /* Ocultar elementos fuera del modal */
+          body > *:not(.fixed) {
+            display: none !important;
           }
-          #printable-document-sheet,
-          #printable-document-sheet * {
-            visibility: visible !important;
-          }
-          #printable-document-sheet {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
+          .fixed.inset-0 {
+            position: static !important;
+            display: block !important;
             padding: 0 !important;
+            margin: 0 !important;
             background: #ffffff !important;
-            box-shadow: none !important;
-            border: none !important;
+            overflow: visible !important;
           }
           .no-print {
             display: none !important;
+          }
+          #printable-document-sheet {
+            display: block !important;
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+            border: none !important;
           }
         }
       `}</style>
@@ -161,7 +277,7 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
         <div className="w-full max-w-4xl bg-[#0E131F] text-slate-100 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden my-auto print:border-none print:shadow-none print:w-full print:max-w-none print:rounded-none print:bg-white print:text-black">
           
           {/* ── BARRA DE CONTROL SUPERIOR (Oculta al imprimir) ── */}
-          <div className="no-print flex items-center justify-between px-6 py-3.5 bg-[#0A0D14] text-white border-b border-slate-800">
+          <div className="no-print flex flex-wrap items-center justify-between px-6 py-3.5 bg-[#0A0D14] text-white border-b border-slate-800 gap-3">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-xl border border-slate-800">
                 <button
@@ -190,25 +306,44 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
                 </button>
               </div>
 
-              <span className="text-[11px] text-slate-400 hidden sm:inline-block font-mono">
+              <span className="text-[11px] text-slate-400 hidden lg:inline-block font-mono">
                 Formato Oficial Quimicorp Perú S.A.C.
               </span>
             </div>
 
             <div className="flex items-center gap-2">
+              {/* BOTÓN DESCARGAR PDF DIRECTO */}
+              <button
+                type="button"
+                disabled={isDownloadingPdf}
+                onClick={handleDownloadPDF}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black tracking-wider uppercase flex items-center gap-2 shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50"
+                title="Descargar archivo .PDF directamente a tu equipo"
+              >
+                {isDownloadingPdf ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 stroke-[2.5]" />
+                )}
+                <span>{isDownloadingPdf ? 'Generando PDF...' : 'Descargar PDF'}</span>
+              </button>
+
+              {/* BOTÓN IMPRIMIR */}
               <button
                 type="button"
                 onClick={handlePrint}
                 className="px-4 py-2 rounded-xl bg-[#F36B21] hover:bg-[#E05A10] text-white text-xs font-black tracking-wider uppercase flex items-center gap-2 shadow-lg shadow-orange-500/25 transition-all"
+                title="Abrir cuadro de diálogo de impresión"
               >
                 <Printer className="w-4 h-4 stroke-[2.5]" />
-                <span>Imprimir / Guardar PDF</span>
+                <span>Imprimir</span>
               </button>
+
               <button
                 type="button"
                 onClick={onClose}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                title="Cerrar modal"
+                title="Cerrar ventana"
               >
                 <X className="w-5 h-5" />
               </button>
