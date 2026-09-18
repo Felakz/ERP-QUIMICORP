@@ -20,7 +20,10 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   GERENCIA: ['*'],
 
   ASISTENTE_ADMINISTRATIVO: [
+    // 1. ADMINISTRACIÓN & FINANZAS
     '/administracion/clientes',
+    '/administracion/cobranzas',
+    // 2. GESTIÓN COMERCIAL
     '/administracion/cotizador',
     '/administracion/pedidos',
     // 3. COMPRAS Y ABASTECIMIENTO
@@ -32,6 +35,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     // 4. PRODUCCIÓN Y PLANTA
     '/administracion/control',
     '/administracion/control-produccion',
+    '/administracion/formulas',
     '/administracion/despachos',
     '/administracion/incidencias',
     // 5. ALMACÉN Y LOGÍSTICA
@@ -63,10 +67,8 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
 // Módulos y rutas restringidos explícitamente para Asistente
 export const ASISTENTE_RESTRICTED_PATHS = [
   '/administracion/dashboard',
-  '/administracion/cobranzas',
   '/administracion/analisis',
   '/administracion/facturacion',
-  '/administracion/formulas',
   '/administracion/asistencia',
   '/administracion/reportes',
 ];

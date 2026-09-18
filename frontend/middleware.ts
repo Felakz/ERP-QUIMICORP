@@ -3,10 +3,8 @@ import type { NextRequest } from 'next/server';
 
 const ASISTENTE_RESTRICTED_ROUTES = [
   '/administracion/dashboard',
-  '/administracion/cobranzas',
   '/administracion/analisis',
   '/administracion/facturacion',
-  '/administracion/formulas',
   '/administracion/asistencia',
   '/administracion/reportes',
 ];

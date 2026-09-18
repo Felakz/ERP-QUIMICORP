@@ -23,6 +23,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
+import { useAuth } from '@/lib/AuthContext';
 import { FORMULAS_MAESTRAS_REALES, FormulaProducto } from '@/lib/formulasData';
 import { NuevoClienteModal, Cliente } from '../modals/NuevoClienteModal';
 import { CotizacionPDF, CotizacionData, CotizacionItem } from '../pdf/CotizacionPDF';
@@ -98,6 +99,7 @@ export function CommercialOrderForm({
   readOnly = false,
 }: CommercialOrderFormProps) {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const isDark = theme === 'dark';
 
   // Mode state: 'COTIZACION' | 'PEDIDO'
@@ -112,7 +114,14 @@ export function CommercialOrderForm({
   const [contacto, setContacto] = useState(initialData.contacto || '');
   const [telefono, setTelefono] = useState(initialData.telefono || '');
   const [direccion, setDireccion] = useState(initialData.direccion || '');
-  const [condicionPago, setCondicionPago] = useState(initialData.condicionPago || 'Contado / 30 Días');
+  const [condicionPago, setCondicionPago] = useState(initialData.condicionPago || 'Crédito 7 días');
+  const [clienteCorreo, setClienteCorreo] = useState('');
+  const [lugarEntrega, setLugarEntrega] = useState(initialData.direccion || '');
+  const [referenciaEntrega, setReferenciaEntrega] = useState('');
+  const [moneda, setMoneda] = useState('Soles (S/)');
+  const [vigenciaDias, setVigenciaDias] = useState('10 días calendario');
+  const [formaPago, setFormaPago] = useState('Depósito en cuenta');
+  const [plazoEntrega, setPlazoEntrega] = useState('Inmediato / Según stock');
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [clientList, setClientList] = useState<Cliente[]>([]);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
@@ -203,17 +212,24 @@ export function CommercialOrderForm({
     setClientSearchQuery(client.razonSocial);
     setClientRuc(client.ruc);
     if (client.telefono) setTelefono(client.telefono);
-    if (client.direccion) setDireccion(client.direccion);
+    if (client.direccion) {
+      setDireccion(client.direccion);
+      setLugarEntrega(client.direccion);
+    }
     if (client.condicionPago) setCondicionPago(client.condicionPago);
 
-    // Auto-completar el contacto principal o dueño a cargo
+    // Auto-completar el contacto principal o representante con cargo
     const principalContact =
-      client.contactos?.find((c) => c.esPrincipal)?.nombre ||
-      client.contactos?.[0]?.nombre ||
-      client.contacto;
+      client.contactos?.find((c) => c.esPrincipal) ||
+      client.contactos?.[0];
 
     if (principalContact) {
-      setContacto(principalContact);
+      const cargoStr = principalContact.cargo ? ` - ${principalContact.cargo.toUpperCase()}` : '';
+      setContacto(`${principalContact.nombre}${cargoStr}`);
+      if (principalContact.email) setClienteCorreo(principalContact.email);
+      if (principalContact.telefono && !client.telefono) setTelefono(principalContact.telefono);
+    } else if (client.contacto) {
+      setContacto(client.contacto);
     }
 
     setShowClientDropdown(false);
@@ -349,14 +365,21 @@ export function CommercialOrderForm({
         const cotData: CotizacionData = {
           codigoOrden: codigoGenerado,
           codigoRefAdmin: responseData.codigoRefAdmin,
-          fecha: new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' }),
-          fechaEntrega: fechaPrometida,
+          fecha: new Date().toLocaleDateString('es-PE'),
+          vigenciaDias,
+          moneda,
+          responsableVenta: user?.nombre || 'Vendedor 1',
           clienteNombre: clientSearchQuery,
           clienteRuc: clientRuc,
           contactoNombre: contacto,
           contactoTelefono: telefono,
+          clienteCorreo,
           direccionDespacho: direccion,
+          lugarEntrega: lugarEntrega || direccion,
+          referenciaEntrega,
+          formaPago,
           condicionPago,
+          plazoEntrega,
           productoNombre: mainItem.productoNombre,
           formulaCodigo: mainItem.codigoFM,
           varianteNombre: mainItem.varianteId || null,
@@ -638,6 +661,7 @@ export function CommercialOrderForm({
                   type="text"
                   value={contacto}
                   onChange={(e) => setContacto(e.target.value)}
+                  placeholder="Ej. GEYMA NOVILLO - COMPRAS"
                   className={`w-full rounded-xl border p-2.5 ${inputBg}`}
                 />
               </div>
@@ -652,12 +676,71 @@ export function CommercialOrderForm({
                   className={`w-full rounded-xl border p-2.5 font-medium ${inputBg}`}
                 >
                   <option value="Contado" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Contado (Pago Inmediato)</option>
-                  <option value="Credito 07 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 07 Días</option>
-                  <option value="Credito 15 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 15 Días</option>
-                  <option value="Credito 20 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 20 Días</option>
-                  <option value="Credito 30 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 30 Días</option>
-                  <option value="Credito 60 dias" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 60 Días</option>
+                  <option value="Crédito 7 días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 7 días</option>
+                  <option value="Crédito 15 días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 15 días</option>
+                  <option value="Crédito 20 días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 20 días</option>
+                  <option value="Crédito 30 días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 30 días</option>
+                  <option value="Crédito 60 días" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Crédito 60 días</option>
                   <option value="Anticipo 50% / Saldo Contra Entrega" className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>Anticipo 50% (Saldo Contra Entrega)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Lugar de Entrega & Referencia */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                  Lugar de Entrega
+                </label>
+                <input
+                  type="text"
+                  value={lugarEntrega}
+                  onChange={(e) => setLugarEntrega(e.target.value)}
+                  placeholder="Sede o almacén de entrega..."
+                  className={`w-full rounded-xl border p-2.5 ${inputBg}`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                  Referencia de Entrega
+                </label>
+                <input
+                  type="text"
+                  value={referenciaEntrega}
+                  onChange={(e) => setReferenciaEntrega(e.target.value)}
+                  placeholder="Referencia de acceso o logística..."
+                  className={`w-full rounded-xl border p-2.5 ${inputBg}`}
+                />
+              </div>
+            </div>
+
+            {/* Correo del Cliente & Moneda */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                  Correo del Cliente
+                </label>
+                <input
+                  type="email"
+                  value={clienteCorreo}
+                  onChange={(e) => setClienteCorreo(e.target.value)}
+                  placeholder="correo@cliente.com"
+                  className={`w-full rounded-xl border p-2.5 ${inputBg}`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                  Moneda de la Cotización
+                </label>
+                <select
+                  value={moneda}
+                  onChange={(e) => setMoneda(e.target.value)}
+                  className={`w-full rounded-xl border p-2.5 font-bold ${inputBg}`}
+                >
+                  <option value="Soles (S/)">Soles (S/)</option>
+                  <option value="Dólares ($ USD)">Dólares ($ USD)</option>
                 </select>
               </div>
             </div>
@@ -908,15 +991,76 @@ export function CommercialOrderForm({
 
         <div className="flex items-center gap-3 ml-auto">
           {mode === 'COTIZACION' ? (
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => handleSubmit(false)}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2"
-            >
-              <FileText className="w-4 h-4 stroke-[2.5]" />
-              <span>{isSaving ? 'Generando...' : 'Guardar Cotización & Ver Plantilla'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const mainItem = items[0];
+                  const previewData: CotizacionData = {
+                    codigoOrden: '000862',
+                    fecha: new Date().toLocaleDateString('es-PE'),
+                    vigenciaDias,
+                    moneda,
+                    responsableVenta: user?.nombre || 'Vendedor 1',
+                    clienteNombre: clientSearchQuery || 'ALFALION INVESTMENT SAC',
+                    clienteRuc: clientRuc || '20612434124',
+                    contactoNombre: contacto || 'GEYMA NOVILLO - COMPRAS',
+                    contactoTelefono: telefono || '951166256',
+                    clienteCorreo: clienteCorreo || '',
+                    direccionDespacho: direccion || 'CALLE MOCHICAS 175 - SAN MIGUEL',
+                    lugarEntrega: lugarEntrega || direccion || 'CALLE MOCHICAS 175 - SAN MIGUEL',
+                    referenciaEntrega: referenciaEntrega || '',
+                    formaPago,
+                    condicionPago,
+                    plazoEntrega,
+                    productoNombre: mainItem.productoNombre,
+                    formulaCodigo: mainItem.codigoFM,
+                    varianteNombre: mainItem.varianteId || null,
+                    aroma: mainItem.aroma || null,
+                    color: mainItem.color || null,
+                    cantidad: mainItem.cantidad,
+                    unidad: mainItem.unidadMedida,
+                    precioUnitario: mainItem.precioUnitario,
+                    montoTotal: totalGeneral,
+                    notasAdmin: observaciones,
+                    attachTDS,
+                    docType: 'COT',
+                    items: items.map((it) => ({
+                      id: it.id,
+                      codigo: it.codigoFM,
+                      descripcion: it.productoNombre,
+                      variante: it.varianteId,
+                      aroma: it.aroma,
+                      color: it.color,
+                      cantidad: it.cantidad,
+                      unidad: it.unidadMedida,
+                      precioUnitario: it.precioUnitario,
+                      importeTotal: it.cantidad * it.precioUnitario,
+                    })),
+                  };
+                  setPdfData(previewData);
+                  setIsPdfModalOpen(true);
+                }}
+                className={`px-4 py-3 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 ${
+                  isDark
+                    ? 'border-slate-700 text-slate-200 hover:bg-slate-800'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <Printer className="w-4 h-4" />
+                <span>Previsualizar / Imprimir</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => handleSubmit(false)}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-black text-xs tracking-wider uppercase transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4 stroke-[2.5]" />
+                <span>{isSaving ? 'Generando...' : 'Guardar Cotización Oficial'}</span>
+              </button>
+            </div>
           ) : (
             <button
               type="button"

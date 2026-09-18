@@ -12,7 +12,7 @@ export class FormulasController {
   constructor(private readonly formulasService: FormulasService) {}
 
   @Post()
-  @Roles(Role.GERENCIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   crear(@Body() dto: CrearFormulaDto) {
     return this.formulasService.crear(dto);
   }
@@ -30,7 +30,7 @@ export class FormulasController {
   }
 
   @Post(':id/clonar')
-  @Roles(Role.GERENCIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   clonar(
     @Param('id', ParseUUIDPipe) id: string,
     @Body()
@@ -46,7 +46,7 @@ export class FormulasController {
   }
 
   @Post(':id/variantes')
-  @Roles(Role.GERENCIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   agregarVariante(
     @Param('id', ParseUUIDPipe) id: string,
     @Body()
@@ -60,13 +60,13 @@ export class FormulasController {
   }
 
   @Delete('variantes/:variantId')
-  @Roles(Role.GERENCIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   eliminarVariante(@Param('variantId', ParseUUIDPipe) variantId: string) {
     return this.formulasService.eliminarVariante(variantId);
   }
 
   @Patch(':id/activar')
-  @Roles(Role.GERENCIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   activar(@Param('id', ParseUUIDPipe) id: string) {
     return this.formulasService.activar(id);
   }
@@ -81,7 +81,7 @@ export class FormulasController {
   }
 
   @Put(':id')
-  @Roles(Role.GERENCIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   actualizarFormula(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: any,
@@ -90,7 +90,7 @@ export class FormulasController {
   }
 
   @Put('variants/:variantId')
-  @Roles(Role.GERENCIA)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
   actualizarVariante(
     @Param('variantId', ParseUUIDPipe) variantId: string,
     @Body() dto: any,

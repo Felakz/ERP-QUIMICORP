@@ -263,14 +263,6 @@ export default function FormulasPage() {
   // Manejo de Edición de Fórmula
   const handleAbrirEditarModal = () => {
     if (!formulaSeleccionada) return;
-    const permKey = `FORMULA_EDIT_${formulaSeleccionada.id}`;
-
-    if (esAsistente && !permisosAprobados[permKey]) {
-      setPermisoAccion('FORMULA_EDIT');
-      setModalPermisoOpen(true);
-      return;
-    }
-
     setEditNombreProducto(formulaSeleccionada.nombreProducto);
     setEditIngredientes(
       formulaSeleccionada.ingredientes.map(i => ({
@@ -284,14 +276,6 @@ export default function FormulasPage() {
   // Manejo de Clonar Fórmula
   const handleAbrirClonarModal = () => {
     if (!formulaSeleccionada) return;
-    const permKey = `FORMULA_CLONE_${formulaSeleccionada.id}`;
-
-    if (esAsistente && !permisosAprobados[permKey]) {
-      setPermisoAccion('FORMULA_CLONE');
-      setModalPermisoOpen(true);
-      return;
-    }
-
     setClonNombre(`${formulaSeleccionada.nombreProducto} (Exclusiva)`);
     setClonCodigo('');
     setModalClonar(true);

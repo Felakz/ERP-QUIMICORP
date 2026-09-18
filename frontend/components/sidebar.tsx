@@ -50,7 +50,6 @@ export const adminSidebarItems: SidebarSection[] = [
         label: 'Cartera & Cobranzas',
         icon: CreditCard,
         href: '/administracion/cobranzas',
-        restrictedForAsistente: true,
       },
       {
         label: 'Rentabilidad & Margen',
@@ -113,7 +112,6 @@ export const adminSidebarItems: SidebarSection[] = [
         label: 'Sistema Maestro de Fórmulas',
         icon: Beaker,
         href: '/administracion/formulas',
-        restrictedForAsistente: true,
       },
       {
         label: 'Lotes y Despachos',
