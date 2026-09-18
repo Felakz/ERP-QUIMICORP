@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import {
   X,
-  Printer,
   FileText,
   Receipt,
   Download,
@@ -327,16 +326,6 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
                 <span>{isDownloadingPdf ? 'Generando PDF...' : 'Descargar PDF'}</span>
               </button>
 
-              {/* BOTÓN IMPRIMIR */}
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="px-4 py-2 rounded-xl bg-[#F36B21] hover:bg-[#E05A10] text-white text-xs font-black tracking-wider uppercase flex items-center gap-2 shadow-lg shadow-orange-500/25 transition-all"
-                title="Abrir cuadro de diálogo de impresión"
-              >
-                <Printer className="w-4 h-4 stroke-[2.5]" />
-                <span>Imprimir</span>
-              </button>
 
               <button
                 type="button"

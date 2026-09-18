@@ -7,6 +7,7 @@ import {
   Printer,
   Plus,
   Search,
+  Check,
   CheckCircle2,
   AlertTriangle,
   Beaker,
@@ -88,6 +89,148 @@ interface CommercialOrderFormProps {
   onCancel?: () => void;
   context?: 'FORMULA' | 'PEDIDOS';
   readOnly?: boolean;
+}
+
+interface FormulaSearchSelectProps {
+  value: string;
+  formulas: FormulaProducto[];
+  onChange: (formula: FormulaProducto) => void;
+  isDark: boolean;
+  inputBg: string;
+}
+
+function FormulaSearchSelect({
+  value,
+  formulas,
+  onChange,
+  isDark,
+  inputBg,
+}: FormulaSearchSelectProps) {
+  const selected = formulas.find((f) => f.id === value);
+  const [query, setQuery] = useState(
+    selected ? `${selected.codigoFM} - ${selected.nombreProducto}` : ''
+  );
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (selected) {
+      setQuery(`${selected.codigoFM} - ${selected.nombreProducto}`);
+    }
+  }, [value, selected]);
+
+  const filtered = formulas.filter((f) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase().trim();
+    return (
+      f.nombreProducto.toLowerCase().includes(q) ||
+      f.codigoFM.toLowerCase().includes(q) ||
+      (f.categoria && f.categoria.toLowerCase().includes(q))
+    );
+  });
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onFocus={() => setIsOpen(true)}
+          onBlur={() => {
+            setTimeout(() => {
+              setIsOpen(false);
+              if (selected) {
+                setQuery(`${selected.codigoFM} - ${selected.nombreProducto}`);
+              }
+            }, 250);
+          }}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setIsOpen(true);
+          }}
+          placeholder="🔍 Escriba para buscar fórmula (ej. Serum, Colágeno, Jabón, FM-001)..."
+          className={`w-full rounded-xl border p-2.5 text-xs font-bold pl-8 transition-colors ${inputBg} ${
+            isOpen ? 'ring-2 ring-amber-500/40 border-amber-500' : ''
+          }`}
+        />
+        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
+        {query && (
+          <button
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setQuery('');
+              setIsOpen(true);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+            title="Limpiar búsqueda"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <div
+          className={`absolute left-0 right-0 top-full mt-1 z-40 max-h-56 overflow-y-auto rounded-xl border shadow-2xl ${
+            isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200'
+          }`}
+        >
+          {filtered.length === 0 ? (
+            <div className="px-3 py-3 text-xs text-slate-400 italic text-center">
+              No se encontraron fórmulas con "{query}".
+            </div>
+          ) : (
+            filtered.map((f) => {
+              const isSelected = f.id === value;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(f);
+                    setQuery(`${f.codigoFM} - ${f.nombreProducto}`);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between border-b last:border-b-0 cursor-pointer ${
+                    isSelected
+                      ? isDark
+                        ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                        : 'bg-amber-50 border-amber-200 text-amber-900 font-bold'
+                      : isDark
+                      ? 'hover:bg-slate-800/80 border-slate-800/60 text-slate-200'
+                      : 'hover:bg-slate-50 border-slate-100 text-slate-800'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-amber-400 text-[11px]">
+                        [{f.codigoFM}]
+                      </span>
+                      <span className="font-bold">{f.nombreProducto}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      Base estándar: {f.pesoObjetivo || 1000} KG {f.categoria ? `· ${f.categoria}` : ''}
+                    </div>
+                  </div>
+
+                  {isSelected ? (
+                    <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+                      <Check className="w-3 h-3" /> Seleccionada
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-semibold">
+                      Elegir
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CommercialOrderForm({
@@ -176,9 +319,25 @@ export function CommercialOrderForm({
           setSelectedClient(matched);
           setClientSearchQuery(matched.razonSocial);
           setClientRuc(matched.ruc);
-          if (matched.telefono) setTelefono(matched.telefono);
           if (matched.direccion) setDireccion(matched.direccion);
           if (matched.condicionPago) setCondicionPago(matched.condicionPago);
+
+          const principal = matched.contactos?.find((c) => c.esPrincipal) || matched.contactos?.[0];
+          if (principal) {
+            if (!contacto) {
+              const cargoStr = principal.cargo ? ` - ${principal.cargo.toUpperCase()}` : '';
+              setContacto(`${principal.nombre}${cargoStr}`);
+            }
+            if (!telefono) {
+              setTelefono(principal.telefono || matched.telefono || '');
+            }
+            if (principal.email && !clienteCorreo) {
+              setClienteCorreo(principal.email);
+            }
+          } else {
+            if (matched.contacto && !contacto) setContacto(matched.contacto);
+            if (matched.telefono && !telefono) setTelefono(matched.telefono);
+          }
         }
       }
     }
@@ -211,14 +370,13 @@ export function CommercialOrderForm({
     setSelectedClient(client);
     setClientSearchQuery(client.razonSocial);
     setClientRuc(client.ruc);
-    if (client.telefono) setTelefono(client.telefono);
     if (client.direccion) {
       setDireccion(client.direccion);
       setLugarEntrega(client.direccion);
     }
     if (client.condicionPago) setCondicionPago(client.condicionPago);
 
-    // Auto-completar el contacto principal o representante con cargo
+    // Auto-completar el contacto principal o representante con cargo y su teléfono directo
     const principalContact =
       client.contactos?.find((c) => c.esPrincipal) ||
       client.contactos?.[0];
@@ -227,12 +385,113 @@ export function CommercialOrderForm({
       const cargoStr = principalContact.cargo ? ` - ${principalContact.cargo.toUpperCase()}` : '';
       setContacto(`${principalContact.nombre}${cargoStr}`);
       if (principalContact.email) setClienteCorreo(principalContact.email);
-      if (principalContact.telefono && !client.telefono) setTelefono(principalContact.telefono);
+      setTelefono(principalContact.telefono || client.telefono || '');
     } else if (client.contacto) {
       setContacto(client.contacto);
+      setTelefono(client.telefono || '');
+    } else {
+      setContacto('');
+      setTelefono(client.telefono || '');
     }
 
     setShowClientDropdown(false);
+  };
+
+  // ── Contactos Registrados del Cliente Seleccionado ──
+  const availableContacts = React.useMemo(() => {
+    if (!selectedClient) return [];
+    const list: Array<{
+      id?: string;
+      nombre: string;
+      cargo?: string | null;
+      telefono?: string | null;
+      email?: string | null;
+      esPrincipal?: boolean;
+    }> = [];
+
+    if (Array.isArray(selectedClient.contactos) && selectedClient.contactos.length > 0) {
+      selectedClient.contactos.forEach((c) => {
+        if (c.nombre && c.nombre.trim()) {
+          list.push({
+            id: c.id,
+            nombre: c.nombre.trim(),
+            cargo: c.cargo?.trim() || null,
+            telefono: c.telefono?.trim() || null,
+            email: c.email?.trim() || null,
+            esPrincipal: !!c.esPrincipal,
+          });
+        }
+      });
+    }
+
+    // Fallback: si no tiene array de contactos pero tiene campo contacto antiguo
+    if (list.length === 0 && selectedClient.contacto && selectedClient.contacto.trim()) {
+      list.push({
+        id: 'legacy-contact',
+        nombre: selectedClient.contacto.trim(),
+        cargo: 'Representante',
+        telefono: selectedClient.telefono?.trim() || null,
+        email: null,
+        esPrincipal: true,
+      });
+    }
+
+    return list;
+  }, [selectedClient]);
+
+  // Contacto coincidente con la entrada actual
+  const matchedContact = React.useMemo(() => {
+    if (!contacto.trim() || availableContacts.length === 0) return null;
+    const cleanInp = contacto.trim().toLowerCase();
+
+    // 1. Coincidencia exacta por nombre
+    const exact = availableContacts.find((c) => c.nombre.trim().toLowerCase() === cleanInp);
+    if (exact) return exact;
+
+    // 2. Coincidencia exacta con nombre y cargo (ej. "Angie - PEDIDOS")
+    const formattedExact = availableContacts.find((c) => {
+      const full = `${c.nombre}${c.cargo ? ` - ${c.cargo}` : ''}`.trim().toLowerCase();
+      return full === cleanInp;
+    });
+    if (formattedExact) return formattedExact;
+
+    // 3. Coincidencia por prefijo / inclusión
+    const prefix = availableContacts.find((c) => {
+      const n = c.nombre.trim().toLowerCase();
+      return cleanInp.startsWith(n) || n.startsWith(cleanInp);
+    });
+    if (prefix) return prefix;
+
+    return null;
+  }, [contacto, availableContacts]);
+
+  // Validez del contacto: válido si el cliente no tiene contactos en ficha o coincide con uno registrado
+  const isContactValid = availableContacts.length === 0 || !!matchedContact;
+
+  // Comprobar si el teléfono coincide con el del contacto registrado
+  const isPhoneMatchingRegistered = React.useMemo(() => {
+    if (!matchedContact?.telefono || !telefono.trim()) return true;
+    const cleanTel = telefono.replace(/\D/g, '');
+    const cleanReg = matchedContact.telefono.replace(/\D/g, '');
+    return cleanTel === cleanReg || cleanTel.includes(cleanReg) || cleanReg.includes(cleanTel);
+  }, [matchedContact, telefono]);
+
+  const handleSelectRegisteredContact = (c: {
+    nombre: string;
+    cargo?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+  }) => {
+    const cargoStr = c.cargo ? ` - ${c.cargo.toUpperCase()}` : '';
+    setContacto(`${c.nombre}${cargoStr}`);
+    if (c.telefono) {
+      setTelefono(c.telefono);
+    } else if (selectedClient?.telefono) {
+      setTelefono(selectedClient.telefono);
+    }
+    if (c.email) {
+      setClienteCorreo(c.email);
+    }
   };
 
   const handleCreatedClient = (newClient: Cliente) => {
@@ -316,6 +575,40 @@ export function CommercialOrderForm({
 
     setSelectedClient(effectiveClient);
 
+    // ── Validar Contacto y Teléfono de la Ficha del Cliente ──
+    const clientRegisteredContacts =
+      effectiveClient.contactos && effectiveClient.contactos.length > 0
+        ? effectiveClient.contactos
+        : effectiveClient.contacto
+        ? [{ nombre: effectiveClient.contacto, cargo: 'Representante', telefono: effectiveClient.telefono }]
+        : [];
+
+    if (clientRegisteredContacts.length > 0) {
+      if (!contacto.trim()) {
+        setToastMessage('⚠️ Debe indicar el contacto registrado para la cotización.');
+        return;
+      }
+
+      const validMatch = clientRegisteredContacts.find((c) => {
+        const cleanNombre = c.nombre.trim().toLowerCase();
+        const cleanInp = contacto.trim().toLowerCase();
+        const full = `${c.nombre}${c.cargo ? ` - ${c.cargo}` : ''}`.toLowerCase();
+        return cleanInp === cleanNombre || cleanInp === full || cleanInp.startsWith(cleanNombre) || cleanNombre.startsWith(cleanInp);
+      });
+
+      if (!validMatch) {
+        setToastMessage(
+          `⚠️ El contacto "${contacto}" no está registrado en la ficha de ${effectiveClient.razonSocial}. Contactos válidos: ${clientRegisteredContacts.map((c) => c.nombre).join(', ')}.`
+        );
+        return;
+      }
+    }
+
+    if (!telefono.trim()) {
+      setToastMessage('⚠️ Ingrese el número de teléfono o celular del contacto.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const mainItem = items[0];
@@ -325,14 +618,14 @@ export function CommercialOrderForm({
         clienteInline: {
           razonSocial: effectiveClient.razonSocial,
           ruc: effectiveClient.ruc || '00000000',
-          telefono: effectiveClient.telefono?.trim() || undefined,
+          telefono: telefono.trim() || effectiveClient.telefono?.trim() || undefined,
           direccion: effectiveClient.direccion?.trim() || undefined,
           condicionPago,
         },
         cliente: effectiveClient.razonSocial,
         ruc: effectiveClient.ruc || '00000000',
         contacto: contacto.trim() || undefined,
-        telefono: effectiveClient.telefono?.trim() || undefined,
+        telefono: telefono.trim() || effectiveClient.telefono?.trim() || undefined,
         direccion: effectiveClient.direccion?.trim() || undefined,
         condicionPago,
         formulaId: mainItem.formulaId,
@@ -618,19 +911,48 @@ export function CommercialOrderForm({
               </div>
 
               <div>
-                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
-                  Teléfono / Contacto
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className={`block text-[10px] uppercase font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                    Teléfono / Contacto *
+                  </label>
+                  {matchedContact?.telefono && (
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                      isPhoneMatchingRegistered
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    }`}>
+                      {isPhoneMatchingRegistered ? (
+                        <>
+                          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>Tel. Verificado</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
+                          <span>Modificado</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={telefono}
                   onChange={(e) => setTelefono(e.target.value)}
-                  readOnly={!!selectedClient}
-                  title={selectedClient ? 'Campo bloqueado — viene de la cartera' : ''}
+                  placeholder="Ej. 951166256"
                   className={`w-full rounded-xl border p-2.5 font-mono ${inputBg} ${
-                    selectedClient ? (isDark ? 'bg-[#101826] border-emerald-500/30 cursor-not-allowed opacity-80' : 'bg-emerald-50/50 border-emerald-300 cursor-not-allowed') : ''
+                    matchedContact?.telefono && !isPhoneMatchingRegistered ? 'border-amber-500/60' : ''
                   }`}
                 />
+                {matchedContact?.telefono && !isPhoneMatchingRegistered && (
+                  <button
+                    type="button"
+                    onClick={() => setTelefono(matchedContact.telefono || '')}
+                    className="mt-1 text-[10px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <span>↺ Restablecer a teléfono de ficha ({matchedContact.telefono})</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -654,16 +976,111 @@ export function CommercialOrderForm({
             {/* Contacto & Condición de Pago */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
-                  Atención / Contacto
-                </label>
-                <input
-                  type="text"
-                  value={contacto}
-                  onChange={(e) => setContacto(e.target.value)}
-                  placeholder="Ej. GEYMA NOVILLO - COMPRAS"
-                  className={`w-full rounded-xl border p-2.5 ${inputBg}`}
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className={`block text-[10px] uppercase font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                    Atención / Contacto *
+                  </label>
+                  {availableContacts.length > 0 && (
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${
+                      isContactValid && matchedContact
+                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                    }`}>
+                      {isContactValid && matchedContact ? (
+                        <>
+                          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
+                          <span>Oficial Validado</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
+                          <span>No Registrado</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                {/* Selector rápido de Contactos Registrados */}
+                {availableContacts.length > 0 && (
+                  <div className="mb-2">
+                    <select
+                      value={matchedContact ? (matchedContact.id || matchedContact.nombre) : ''}
+                      onChange={(e) => {
+                        const found = availableContacts.find(
+                          (c) => (c.id || c.nombre) === e.target.value
+                        );
+                        if (found) handleSelectRegisteredContact(found);
+                      }}
+                      className={`w-full text-xs rounded-xl border p-2 font-medium transition-all cursor-pointer ${
+                        isDark
+                          ? 'bg-[#101826] border-emerald-500/40 text-emerald-300 focus:border-emerald-500'
+                          : 'bg-emerald-50 border-emerald-300 text-emerald-900 focus:border-emerald-600'
+                      }`}
+                    >
+                      <option value="" disabled>
+                        📋 Seleccionar de la ficha ({availableContacts.length} contactos registrados)...
+                      </option>
+                      {availableContacts.map((c) => (
+                        <option
+                          key={c.id || c.nombre}
+                          value={c.id || c.nombre}
+                          className={isDark ? 'bg-[#151D2A] text-slate-200' : 'bg-white text-slate-900'}
+                        >
+                          {c.nombre} {c.cargo ? `(${c.cargo})` : ''} · Cel: {c.telefono || 'Sin celular'} {c.esPrincipal ? '★ Principal' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={contacto}
+                    onChange={(e) => setContacto(e.target.value)}
+                    placeholder="Ej. Angie - PEDIDOS"
+                    list="registered-contacts-datalist"
+                    className={`w-full rounded-xl border p-2.5 ${inputBg} ${
+                      availableContacts.length > 0 && !isContactValid && contacto.trim()
+                        ? 'border-amber-500/70 focus:border-amber-500 ring-1 ring-amber-500/30'
+                        : ''
+                    }`}
+                  />
+                  <datalist id="registered-contacts-datalist">
+                    {availableContacts.map((c) => (
+                      <option
+                        key={c.id || c.nombre}
+                        value={`${c.nombre}${c.cargo ? ` - ${c.cargo.toUpperCase()}` : ''}`}
+                      />
+                    ))}
+                  </datalist>
+                </div>
+
+                {/* Sub-información de validación del contacto */}
+                {isContactValid && matchedContact ? (
+                  <div className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
+                    <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
+                    <span>
+                      Registrado: <strong>{matchedContact.nombre}</strong> {matchedContact.cargo ? `(${matchedContact.cargo})` : ''}
+                      {matchedContact.telefono ? ` · Tel: ${matchedContact.telefono}` : ''}
+                    </span>
+                  </div>
+                ) : availableContacts.length > 0 ? (
+                  <div className="mt-1 flex items-start gap-1.5 text-[10px] text-amber-400 font-medium">
+                    <AlertTriangle className="w-3 h-3 shrink-0 text-amber-400 mt-0.5" />
+                    <span>
+                      {contacto.trim()
+                        ? `"${contacto}" no figura en la ficha del cliente. Elija uno de los ${availableContacts.length} contactos registrados arriba.`
+                        : `Seleccione un contacto registrado del cliente.`}
+                    </span>
+                  </div>
+                ) : selectedClient ? (
+                  <div className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400">
+                    <Info className="w-3.5 h-3.5 shrink-0 text-slate-400" />
+                    <span>Cliente sin contactos registrados en ficha.</span>
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -838,22 +1255,23 @@ export function CommercialOrderForm({
                   )}
                 </div>
 
-                {/* Selección de Fórmula */}
+                {/* Selección de Fórmula con Buscador en Tiempo Real */}
                 <div>
-                  <label className={`block text-[10px] uppercase font-bold mb-1 ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
-                    Fórmula Maestra Base *
-                  </label>
-                  <select
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={`block text-[10px] uppercase font-bold ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>
+                      Fórmula Maestra Base *
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {(formulasList.length > 0 ? formulasList : FORMULAS_MAESTRAS_REALES).length} fórmulas disponibles
+                    </span>
+                  </div>
+                  <FormulaSearchSelect
                     value={item.formulaId}
-                    onChange={(e) => handleUpdateItem(idx, 'formulaId', e.target.value)}
-                    className={`w-full rounded-xl border p-2 text-xs font-bold ${inputBg}`}
-                  >
-                    {(formulasList.length > 0 ? formulasList : FORMULAS_MAESTRAS_REALES).map((f) => (
-                      <option key={f.id} value={f.id} className={isDark ? 'bg-[#151D2A] text-white' : 'bg-white text-slate-900'}>
-                        {f.codigoFM} - {f.nombreProducto} ({f.pesoObjetivo} KG Base)
-                      </option>
-                    ))}
-                  </select>
+                    formulas={formulasList.length > 0 ? formulasList : FORMULAS_MAESTRAS_REALES}
+                    onChange={(formula) => handleUpdateItem(idx, 'formulaId', formula.id)}
+                    isDark={isDark}
+                    inputBg={inputBg}
+                  />
                 </div>
 
                 {/* Personalización Dinámica de Aditivos (Fragancias & Pigmentos Reales) */}
@@ -1047,8 +1465,8 @@ export function CommercialOrderForm({
                     : 'border-slate-300 text-slate-700 hover:bg-slate-100'
                 }`}
               >
-                <Printer className="w-4 h-4" />
-                <span>Previsualizar / Imprimir</span>
+                <FileText className="w-4 h-4" />
+                <span>Ver / Descargar Cotización</span>
               </button>
 
               <button

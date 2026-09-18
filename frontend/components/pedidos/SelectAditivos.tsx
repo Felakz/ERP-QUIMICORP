@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Palette, Plus, X, AlertCircle, Check } from 'lucide-react';
+import { Sparkles, Palette, X, Search, Check } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 
@@ -19,19 +19,19 @@ export interface AditivoSeleccionado {
   nombre: string;
   codigo: string;
   tipo: 'FRAGANCIA' | 'PIGMENTO';
-  porcentaje: number;
+  porcentaje?: number;
   gramosCalculados?: number;
 }
 
 interface SelectAditivosProps {
-  cantidadKg: number;
+  cantidadKg?: number;
   value: AditivoSeleccionado[];
   onChange: (aditivos: AditivoSeleccionado[]) => void;
   disabled?: boolean;
 }
 
 export function SelectAditivos({
-  cantidadKg,
+  cantidadKg = 100,
   value = [],
   onChange,
   disabled = false,
@@ -42,6 +42,13 @@ export function SelectAditivos({
   const [fraganciasDisponibles, setFraganciasDisponibles] = useState<InsumoAditivo[]>([]);
   const [pigmentosDisponibles, setPigmentosDisponibles] = useState<InsumoAditivo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Estados para búsqueda de fragancias y pigmentos
+  const [searchFragancia, setSearchFragancia] = useState('');
+  const [showFraganciaDropdown, setShowFraganciaDropdown] = useState(false);
+
+  const [searchPigmento, setSearchPigmento] = useState('');
+  const [showPigmentoDropdown, setShowPigmentoDropdown] = useState(false);
 
   // Cargar catálogo de fragancias y pigmentos desde la API
   useEffect(() => {
@@ -75,7 +82,7 @@ export function SelectAditivos({
     };
   }, []);
 
-  // Agregar un aditivo seleccionado
+  // Agregar un aditivo seleccionado (la dosificación se maneja internamente)
   const handleAddAditivo = (insumo: InsumoAditivo) => {
     if (value.some((a) => a.insumoId === insumo.id)) return;
 
@@ -99,29 +106,24 @@ export function SelectAditivos({
     onChange(value.filter((a) => a.insumoId !== insumoId));
   };
 
-  // Actualizar porcentaje de un aditivo
-  const handleUpdatePorcentaje = (insumoId: string, nuevoPorcentaje: number) => {
-    const safePct = Math.max(0.01, Math.min(10, nuevoPorcentaje || 0.1));
-    const kg = Number(cantidadKg) || 100;
-    const gramos = kg * 1000 * (safePct / 100);
-
-    const updated = value.map((a) =>
-      a.insumoId === insumoId
-        ? {
-            ...a,
-            porcentaje: safePct,
-            gramosCalculados: Math.round(gramos * 100) / 100,
-          }
-        : a
-    );
-    onChange(updated);
-  };
-
   const fraganciasSeleccionadas = value.filter((a) => a.tipo === 'FRAGANCIA');
   const pigmentosSeleccionados = value.filter((a) => a.tipo === 'PIGMENTO');
 
   const cardBg = isDark ? 'bg-[#151D2A] border-[#1A2232]' : 'bg-slate-50 border-slate-200';
   const textMuted = isDark ? 'text-slate-400' : 'text-slate-500';
+
+  // Filtros de búsqueda
+  const filteredFragancias = fraganciasDisponibles.filter((f) => {
+    if (!searchFragancia.trim()) return true;
+    const q = searchFragancia.toLowerCase().trim();
+    return f.nombre.toLowerCase().includes(q) || f.codigo.toLowerCase().includes(q);
+  });
+
+  const filteredPigmentos = pigmentosDisponibles.filter((p) => {
+    if (!searchPigmento.trim()) return true;
+    const q = searchPigmento.toLowerCase().trim();
+    return p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q);
+  });
 
   return (
     <div className="space-y-3 font-sans text-xs">
@@ -132,90 +134,137 @@ export function SelectAditivos({
             <Sparkles className="w-3.5 h-3.5" />
             <span className="text-[11px] uppercase tracking-wider">Fragancia / Aroma Industrial</span>
           </div>
-          <span className="text-[10px] font-mono text-purple-400/80 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-            Default: 1.00% ({((Number(cantidadKg) || 100) * 10).toFixed(1)} g)
-          </span>
+          {fraganciasSeleccionadas.length > 0 && (
+            <span className="text-[10px] font-mono text-purple-400 font-bold bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+              {fraganciasSeleccionadas.length} seleccionada{fraganciasSeleccionadas.length > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
-        {/* Dropdown / Selector rápido de Fragancias */}
+        {/* Buscador de Fragancias */}
         {!disabled && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <select
-              value=""
-              onChange={(e) => {
-                const insumo = fraganciasDisponibles.find((f) => f.id === e.target.value);
-                if (insumo) handleAddAditivo(insumo);
-              }}
-              className={`rounded-lg border px-2.5 py-1.5 text-xs font-sans ${
-                isDark
-                  ? 'bg-[#0B0F17] border-[#1A2232] text-slate-200 focus:border-purple-500'
-                  : 'bg-white border-slate-300 text-slate-800'
-              }`}
-            >
-              <option value="">+ Seleccionar Fragancia...</option>
-              {fraganciasDisponibles.map((f) => (
-                <option key={f.id} value={f.id} disabled={value.some((a) => a.insumoId === f.id)}>
-                  {f.nombre} ({f.codigo})
-                </option>
-              ))}
-            </select>
+          <div className="relative">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchFragancia}
+                onFocus={() => setShowFraganciaDropdown(true)}
+                onBlur={() => setTimeout(() => setShowFraganciaDropdown(false), 250)}
+                onChange={(e) => {
+                  setSearchFragancia(e.target.value);
+                  setShowFraganciaDropdown(true);
+                }}
+                placeholder="🔍 Escriba para buscar fragancia por nombre o código..."
+                className={`w-full rounded-xl border p-2 text-xs font-medium pl-8 transition-colors ${
+                  isDark
+                    ? 'bg-[#0B0F17] border-[#1A2232] text-slate-200 placeholder-slate-500 focus:border-purple-500'
+                    : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-600'
+                }`}
+              />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
+              {searchFragancia && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setSearchFragancia('');
+                    setShowFraganciaDropdown(true);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {showFraganciaDropdown && (
+              <div
+                className={`absolute left-0 right-0 top-full mt-1 z-30 max-h-48 overflow-y-auto rounded-xl border shadow-xl ${
+                  isDark ? 'bg-[#0F141C] border-purple-500/30' : 'bg-white border-purple-200'
+                }`}
+              >
+                {filteredFragancias.length === 0 ? (
+                  <div className="px-3 py-2 text-[11px] text-slate-400 italic text-center">
+                    No se encontraron fragancias con "{searchFragancia}".
+                  </div>
+                ) : (
+                  filteredFragancias.map((f) => {
+                    const isSelected = value.some((a) => a.insumoId === f.id);
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        disabled={isSelected}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleAddAditivo(f);
+                          setSearchFragancia('');
+                          setShowFraganciaDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between border-b last:border-b-0 ${
+                          isSelected
+                            ? 'opacity-40 cursor-not-allowed bg-slate-900/40 text-slate-500'
+                            : isDark
+                            ? 'hover:bg-purple-950/40 border-slate-800 text-slate-200 cursor-pointer'
+                            : 'hover:bg-purple-50 border-slate-100 text-slate-800 cursor-pointer'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{f.nombre}</span>
+                          <span className="text-[10px] font-mono text-purple-400">[{f.codigo}]</span>
+                        </div>
+                        {isSelected ? (
+                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Añadida
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-purple-400 font-bold hover:underline">
+                            + Seleccionar
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Lista de Fragancias Añadidas con Slider / Input de % */}
+        {/* Lista de Fragancias Añadidas (Sin Dosificación ni Masa) */}
         {fraganciasSeleccionadas.length > 0 ? (
-          <div className="space-y-2 pt-1">
-            {fraganciasSeleccionadas.map((ad) => {
-              const gramos = (Number(cantidadKg) || 100) * 1000 * (ad.porcentaje / 100);
-              return (
-                <div
-                  key={ad.insumoId}
-                  className={`p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2 ${
-                    isDark ? 'bg-[#0B0F17]/80 border-purple-500/30' : 'bg-white border-purple-200 shadow-sm'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ad.nombre}</span>
-                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>[{ad.codigo}]</span>
-                    </div>
-                    <div className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      Masa calculada: <strong className={isDark ? 'text-purple-400' : 'text-purple-700'}>{gramos.toFixed(1)} g</strong> en {cantidadKg} KG
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <label className={`text-[10px] font-bold uppercase ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Dosificación:</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        max="5.0"
-                        disabled={disabled}
-                        value={ad.porcentaje}
-                        onChange={(e) => handleUpdatePorcentaje(ad.insumoId, parseFloat(e.target.value) || 0.1)}
-                        className={`w-16 rounded border px-1.5 py-0.5 text-center font-mono font-bold text-xs ${
-                          isDark ? 'bg-[#151D2A] border-purple-500/40 text-purple-300' : 'bg-slate-50 border-purple-300 text-purple-800'
-                        }`}
-                      />
-                      <span className={`font-mono font-bold ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>%</span>
-                    </div>
-
-                    {!disabled && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAditivo(ad.insumoId)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
-                        title="Quitar fragancia"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+          <div className="space-y-1.5 pt-1">
+            {fraganciasSeleccionadas.map((ad) => (
+              <div
+                key={ad.insumoId}
+                className={`px-3 py-2 rounded-xl border flex items-center justify-between gap-2 ${
+                  isDark ? 'bg-[#0B0F17]/90 border-purple-500/40 shadow-sm' : 'bg-white border-purple-200 shadow-sm'
+                }`}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`font-bold text-xs ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
+                    {ad.nombre}
+                  </span>
+                  <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-purple-400' : 'text-purple-700'}`}>
+                    [{ad.codigo}]
+                  </span>
+                  <span className="text-[9px] font-semibold text-purple-400/90 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
+                    Fragancia seleccionada
+                  </span>
                 </div>
-              );
-            })}
+
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAditivo(ad.insumoId)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                    title="Quitar fragancia"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           <p className={`text-[11px] italic ${textMuted}`}>Sin fragancia añadida (Base neutra / sin aroma).</p>
@@ -229,92 +278,133 @@ export function SelectAditivos({
             <Palette className="w-3.5 h-3.5" />
             <span className="text-[11px] uppercase tracking-wider">Pigmento / Colorante</span>
           </div>
-          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
-            isDark ? 'text-amber-400/80 bg-amber-500/10 border-amber-500/20' : 'text-amber-800 bg-amber-100 border-amber-300'
-          }`}>
-            Default: 0.50% ({((Number(cantidadKg) || 100) * 5).toFixed(1)} g)
-          </span>
+          {pigmentosSeleccionados.length > 0 && (
+            <span className="text-[10px] font-mono text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              {pigmentosSeleccionados.length} seleccionado{pigmentosSeleccionados.length > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
 
-        {/* Dropdown / Selector rápido de Pigmentos */}
+        {/* Buscador de Pigmentos */}
         {!disabled && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <select
-              value=""
-              onChange={(e) => {
-                const insumo = pigmentosDisponibles.find((p) => p.id === e.target.value);
-                if (insumo) handleAddAditivo(insumo);
-              }}
-              className={`rounded-lg border px-2.5 py-1.5 text-xs font-sans ${
-                isDark
-                  ? 'bg-[#0B0F17] border-[#1A2232] text-slate-200 focus:border-amber-500'
-                  : 'bg-white border-slate-300 text-slate-800'
-              }`}
-            >
-              <option value="">+ Seleccionar Pigmento...</option>
-              {pigmentosDisponibles.map((p) => (
-                <option key={p.id} value={p.id} disabled={value.some((a) => a.insumoId === p.id)}>
-                  {p.nombre} ({p.codigo})
-                </option>
-              ))}
-            </select>
+          <div className="relative">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchPigmento}
+                onFocus={() => setShowPigmentoDropdown(true)}
+                onBlur={() => setTimeout(() => setShowPigmentoDropdown(false), 250)}
+                onChange={(e) => {
+                  setSearchPigmento(e.target.value);
+                  setShowPigmentoDropdown(true);
+                }}
+                placeholder="🔍 Escriba para buscar pigmento por nombre o código..."
+                className={`w-full rounded-xl border p-2 text-xs font-medium pl-8 transition-colors ${
+                  isDark
+                    ? 'bg-[#0B0F17] border-[#1A2232] text-slate-200 placeholder-slate-500 focus:border-amber-500'
+                    : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-600'
+                }`}
+              />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none" />
+              {searchPigmento && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setSearchPigmento('');
+                    setShowPigmentoDropdown(true);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs p-1"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {showPigmentoDropdown && (
+              <div
+                className={`absolute left-0 right-0 top-full mt-1 z-30 max-h-48 overflow-y-auto rounded-xl border shadow-xl ${
+                  isDark ? 'bg-[#0F141C] border-amber-500/30' : 'bg-white border-amber-200'
+                }`}
+              >
+                {filteredPigmentos.length === 0 ? (
+                  <div className="px-3 py-2 text-[11px] text-slate-400 italic text-center">
+                    No se encontraron pigmentos con "{searchPigmento}".
+                  </div>
+                ) : (
+                  filteredPigmentos.map((p) => {
+                    const isSelected = value.some((a) => a.insumoId === p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        disabled={isSelected}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleAddAditivo(p);
+                          setSearchPigmento('');
+                          setShowPigmentoDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between border-b last:border-b-0 ${
+                          isSelected
+                            ? 'opacity-40 cursor-not-allowed bg-slate-900/40 text-slate-500'
+                            : isDark
+                            ? 'hover:bg-amber-950/40 border-slate-800 text-slate-200 cursor-pointer'
+                            : 'hover:bg-amber-50 border-slate-100 text-slate-800 cursor-pointer'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold">{p.nombre}</span>
+                          <span className="text-[10px] font-mono text-amber-400">[{p.codigo}]</span>
+                        </div>
+                        {isSelected ? (
+                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Añadido
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-amber-400 font-bold hover:underline">
+                            + Seleccionar
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Lista de Pigmentos Añadidos con Slider / Input de % */}
+        {/* Lista de Pigmentos Añadidos (Sin Dosificación ni Masa) */}
         {pigmentosSeleccionados.length > 0 ? (
-          <div className="space-y-2 pt-1">
-            {pigmentosSeleccionados.map((ad) => {
-              const gramos = (Number(cantidadKg) || 100) * 1000 * (ad.porcentaje / 100);
-              return (
-                <div
-                  key={ad.insumoId}
-                  className={`p-2 rounded-lg border flex flex-wrap items-center justify-between gap-2 ${
-                    isDark ? 'bg-[#0B0F17]/80 border-amber-500/30' : 'bg-white border-amber-200 shadow-sm'
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ad.nombre}</span>
-                      <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>[{ad.codigo}]</span>
-                    </div>
-                    <div className={`text-[10px] font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      Masa calculada: <strong className={isDark ? 'text-amber-400' : 'text-amber-700'}>{gramos.toFixed(1)} g</strong> en {cantidadKg} KG
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <label className={`text-[10px] font-bold uppercase ${isDark ? 'text-slate-400' : 'text-slate-700'}`}>Dosificación:</label>
-                      <input
-                        type="number"
-                        step="0.05"
-                        min="0.05"
-                        max="3.0"
-                        disabled={disabled}
-                        value={ad.porcentaje}
-                        onChange={(e) => handleUpdatePorcentaje(ad.insumoId, parseFloat(e.target.value) || 0.1)}
-                        className={`w-16 rounded border px-1.5 py-0.5 text-center font-mono font-bold text-xs ${
-                          isDark ? 'bg-[#151D2A] border-amber-500/40 text-amber-300' : 'bg-slate-50 border-amber-300 text-amber-800'
-                        }`}
-                      />
-                      <span className={`font-mono font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>%</span>
-                    </div>
-
-                    {!disabled && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveAditivo(ad.insumoId)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
-                        title="Quitar pigmento"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+          <div className="space-y-1.5 pt-1">
+            {pigmentosSeleccionados.map((ad) => (
+              <div
+                key={ad.insumoId}
+                className={`px-3 py-2 rounded-xl border flex items-center justify-between gap-2 ${
+                  isDark ? 'bg-[#0B0F17]/90 border-amber-500/40 shadow-sm' : 'bg-white border-amber-200 shadow-sm'
+                }`}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`font-bold text-xs ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ad.nombre}</span>
+                  <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>[{ad.codigo}]</span>
+                  <span className="text-[9px] font-semibold text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    Pigmento seleccionado
+                  </span>
                 </div>
-              );
-            })}
+
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAditivo(ad.insumoId)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                    title="Quitar pigmento"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           <p className={`text-[11px] italic ${textMuted}`}>Sin pigmento añadido (Color natural / transparente).</p>
