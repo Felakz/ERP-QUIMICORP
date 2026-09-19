@@ -22,6 +22,12 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
+import {
+  TOLERANCIA_MERMA_GRAMOS,
+  gramosAPorcentaje,
+  normalizarPorcentajesExacto,
+  porcentajeAGramos,
+} from '@/lib/formulaGramos';
 
 interface InsumoItem {
   id: string;
@@ -92,15 +98,7 @@ function normalizarPasos(pasos: PasoElaboracion[] | string[] | null | undefined)
   });
 }
 
-// La fórmula se dosifica en gramos por cada kilo de lote (1000 g).
-// El backend/BD sigue trabajando en porcentaje: la conversión se hace solo al mostrar y al guardar.
-function porcentajeAGramos(porcentaje: number): number {
-  return parseFloat(((Number(porcentaje) || 0) * 10).toFixed(3));
-}
-
-function gramosAPorcentaje(gramos: number): number {
-  return parseFloat(((Number(gramos) || 0) / 10).toFixed(4));
-}
+// La fórmula se dosifica en gramos por cada kilo de lote (ver @/lib/formulaGramos).
 
 export default function GerenciaFormulasPage() {
   const { theme } = useTheme();
@@ -175,6 +173,7 @@ export default function GerenciaFormulasPage() {
   const es100Exacto = Math.abs(diferencia100) <= 0.01;
   const totalGramosCrear = porcentajeAGramos(totalPorcentajeCrear);
   const diferenciaGramos = porcentajeAGramos(diferencia100);
+  const dentroDeTolerancia = !es100Exacto && Math.abs(diferenciaGramos) <= TOLERANCIA_MERMA_GRAMOS;
 
   const costoEstimadoPorKg = crearIngredientes.reduce((sum, ing) => {
     const ins = insumosList.find((i) => i.id === ing.insumoId);
@@ -290,9 +289,9 @@ export default function GerenciaFormulasPage() {
       setCrearError('Debe ingresar al menos un insumo componente.');
       return;
     }
-    if (!es100Exacto) {
+    if (!es100Exacto && Math.abs(diferenciaGramos) > TOLERANCIA_MERMA_GRAMOS) {
       setCrearError(
-        `La suma debe ser exactamente 1000 g por kilo. Actual: ${totalGramosCrear.toFixed(2)} g.`
+        `La suma debe ser 1000 g por kilo (tolerancia ±${TOLERANCIA_MERMA_GRAMOS} g por merma). Actual: ${totalGramosCrear.toFixed(2)} g.`
       );
       return;
     }
@@ -310,14 +309,19 @@ export default function GerenciaFormulasPage() {
         .map((p) => ({ ...p, titulo: (p.titulo || '').trim() }))
         .filter((p) => p.titulo);
 
+      // Si hay una diferencia menor por merma, se normaliza a 1000 g exactos al guardar.
+      const porcentajesFinales = es100Exacto
+        ? crearIngredientes.map((i) => Number(i.porcentaje))
+        : normalizarPorcentajesExacto(crearIngredientes.map((i) => Number(i.porcentaje)));
+
       const payload = {
         codigoFormula: crearCodigo.trim().toUpperCase(),
         nombreProducto: crearNombre.trim().toUpperCase(),
         densidadTeorica: parseFloat(crearDensidad) || 1.0,
-        detalles: crearIngredientes.map((i) => ({
+        detalles: crearIngredientes.map((i, idx) => ({
           insumoId: i.insumoId || undefined,
           nombreComponente: i.componente.trim().toUpperCase(),
-          porcentaje: Number(i.porcentaje),
+          porcentaje: porcentajesFinales[idx],
         })),
         pasosElaboracion: pasosValidos.length > 0 ? pasosValidos : null,
       };
@@ -396,11 +400,20 @@ export default function GerenciaFormulasPage() {
 
     // Si no hay variante, guardamos la fórmula maestra (nombre + ingredientes + pasos)
     if (!selectedId) return;
+    const porcentajesBase = editIngredientes.map((i) => Number(i.porcentaje) || 0);
+    const totalBase = porcentajesBase.reduce((acc, p) => acc + p, 0);
+    if (Math.abs(porcentajeAGramos(100 - totalBase)) > TOLERANCIA_MERMA_GRAMOS) {
+      setErrorMsg(
+        `La suma debe ser 1000 g por kilo (tolerancia ±${TOLERANCIA_MERMA_GRAMOS} g por merma). Actual: ${porcentajeAGramos(totalBase).toFixed(2)} g.`
+      );
+      return;
+    }
+    const porcentajesFinales = normalizarPorcentajesExacto(porcentajesBase);
     const payload = {
       nombreProducto: editNombre,
-      detalles: editIngredientes.map((i) => ({
+      detalles: editIngredientes.map((i, idx) => ({
         nombreComponente: i.componente,
-        porcentaje: Number(i.porcentaje) || 0,
+        porcentaje: porcentajesFinales[idx],
       })),
       pasosElaboracion: pasos,
     };
@@ -917,7 +930,7 @@ export default function GerenciaFormulasPage() {
                       2. Composición de Materia Prima & Dosificación (g por kilo)
                     </p>
                     <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      La suma de gramos por kilo debe totalizar exactamente 1000 g.
+                      La suma de gramos por kilo debe totalizar 1000 g (tolerancia ±10 g por merma, se normaliza al registrar).
                     </p>
                   </div>
                   <button
@@ -950,7 +963,7 @@ export default function GerenciaFormulasPage() {
                     ) : diferencia100 > 0 ? (
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                          Faltan {diferenciaGramos.toFixed(2)} g
+                          Faltan {diferenciaGramos.toFixed(2)} g{dentroDeTolerancia ? ' · se ajusta por merma' : ''}
                         </span>
                         <button
                           type="button"
@@ -962,6 +975,10 @@ export default function GerenciaFormulasPage() {
                           <span>Balancear con Agua</span>
                         </button>
                       </div>
+                    ) : dentroDeTolerancia ? (
+                      <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                        Excede por {Math.abs(diferenciaGramos).toFixed(2)} g · se ajusta por merma
+                      </span>
                     ) : (
                       <span className="text-[11px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg">
                         Excede por {Math.abs(diferenciaGramos).toFixed(2)} g

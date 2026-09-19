@@ -35,16 +35,12 @@ import {
 } from '@/lib/formulasData';
 import { CommercialOrderForm } from '@/components/pedidos/CommercialOrderForm';
 import { ModalSolicitarPermiso } from '@/components/modals/ModalSolicitarPermiso';
-
-// La fórmula se dosifica en gramos por cada kilo de lote (1000 g).
-// El backend/BD sigue trabajando en porcentaje: la conversión se hace solo al mostrar y al guardar.
-function porcentajeAGramos(porcentaje: number): number {
-  return parseFloat(((Number(porcentaje) || 0) * 10).toFixed(3));
-}
-
-function gramosAPorcentaje(gramos: number): number {
-  return parseFloat(((Number(gramos) || 0) / 10).toFixed(4));
-}
+import {
+  TOLERANCIA_MERMA_GRAMOS,
+  gramosAPorcentaje,
+  normalizarPorcentajesExacto,
+  porcentajeAGramos,
+} from '@/lib/formulaGramos';
 
 interface ClienteAPI {
   id: string;
@@ -296,11 +292,19 @@ export default function FormulasPage() {
     if (!formulaSeleccionada) return;
     try {
       setEditGuardando(true);
+      const porcentajesBase = editIngredientes.map((i) => Number(i.porcentaje) || 0);
+      const totalBase = porcentajesBase.reduce((acc, p) => acc + p, 0);
+      if (Math.abs(porcentajeAGramos(100 - totalBase)) > TOLERANCIA_MERMA_GRAMOS) {
+        alert(`❌ La suma debe ser 1000 g por kilo (tolerancia ±${TOLERANCIA_MERMA_GRAMOS} g por merma). Actual: ${porcentajeAGramos(totalBase).toFixed(2)} g.`);
+        setEditGuardando(false);
+        return;
+      }
+      const porcentajesFinales = normalizarPorcentajesExacto(porcentajesBase);
       const payload = {
         nombreProducto: editNombreProducto,
-        detalles: editIngredientes.map(i => ({
+        detalles: editIngredientes.map((i, idx) => ({
           nombreComponente: i.componente,
-          porcentaje: Number(i.porcentaje) || 0
+          porcentaje: porcentajesFinales[idx]
         }))
       };
 
