@@ -982,7 +982,7 @@ export default function GerenciaFormulasPage() {
                 {/* Lista de Insumos */}
                 <div className="max-h-72 overflow-y-auto space-y-2.5 pr-1">
                   {crearIngredientes.map((ing, idx) => {
-                    const masaKg = ((Number(ing.porcentaje) || 0) * 10).toFixed(2);
+                    const gramosPorKilo = ((Number(ing.porcentaje) || 0) * 10).toFixed(2);
                     const insMatched = insumosList.find(
                       (i) =>
                         i.id === ing.insumoId ||
@@ -1046,7 +1046,7 @@ export default function GerenciaFormulasPage() {
                           </div>
                           <div className="w-24 text-right">
                             <span className="text-[10px] font-mono text-slate-500">
-                              ~{masaKg} kg/t
+                              ~{gramosPorKilo} g/kg
                             </span>
                           </div>
                           <button
