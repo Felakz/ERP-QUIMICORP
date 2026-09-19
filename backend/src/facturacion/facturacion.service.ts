@@ -1,9 +1,60 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { CostoOperativoPeriodoDto } from './dto/costo-operativo.dto';
+
+interface CostoOperativoCalculado {
+  cantidadBase: number;
+  manoObraLote: number;
+  supervisionLote: number;
+  depreciacionLote: number;
+  energiaLote: number;
+  usoLocalLote: number;
+}
 
 @Injectable()
 export class FacturacionService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async obtenerCostoOperativo(periodo: string) {
+    return this.prisma.costoOperativoPeriodo.findUnique({ where: { periodo } });
+  }
+
+  async actualizarCostoOperativo(periodo: string, dto: CostoOperativoPeriodoDto) {
+    if (periodo !== dto.periodo) {
+      throw new NotFoundException('El periodo de la ruta y del cuerpo deben coincidir.');
+    }
+
+    return this.prisma.costoOperativoPeriodo.upsert({
+      where: { periodo },
+      create: {
+        periodo,
+        cantidadBase: dto.cantidadBase,
+        manoObraLote: dto.manoObraLote,
+        supervisionLote: dto.supervisionLote,
+        depreciacionLote: dto.depreciacionLote,
+        energiaLote: dto.energiaLote,
+        usoLocalLote: dto.usoLocalLote,
+        alquilerMensual: dto.alquilerMensual,
+        energiaMensual: dto.energiaMensual,
+        horasProductivas: dto.horasProductivas,
+        valorMaquinaria: dto.valorMaquinaria,
+        depreciacionAnual: dto.depreciacionAnual,
+      },
+      update: {
+        cantidadBase: dto.cantidadBase,
+        manoObraLote: dto.manoObraLote,
+        supervisionLote: dto.supervisionLote,
+        depreciacionLote: dto.depreciacionLote,
+        energiaLote: dto.energiaLote,
+        usoLocalLote: dto.usoLocalLote,
+        alquilerMensual: dto.alquilerMensual,
+        energiaMensual: dto.energiaMensual,
+        horasProductivas: dto.horasProductivas,
+        valorMaquinaria: dto.valorMaquinaria,
+        depreciacionAnual: dto.depreciacionAnual,
+      },
+    });
+  }
 
   /** Estado de pago derivado: saldo pendiente + vencimiento pasado => VENCIDO (sin job nocturno). */
   private derivarEstado(cc: any): string {
@@ -245,29 +296,59 @@ export class FacturacionService {
       return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     })();
     const whereDate = { gte: start, lte: end };
-    const [cuentas, pagos, pedidos] = await Promise.all([
+    const [cuentas, pagos, pedidos, ordenesCompra, costosOperativos] = await Promise.all([
       this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: whereDate }, select: { montoTotal: true, pedidoId: true, ordenProd: true } }),
       this.prisma.pagoAbono.aggregate({ where: { fechaAbono: whereDate }, _sum: { montoAbonado: true } }),
       this.prisma.pedidoComercial.findMany({
         where: { createdAt: whereDate, estado: { not: 'RECHAZADO' } },
-        include: { formula: { include: { detalles: { include: { insumo: true } } } } },
+        include: {
+          formula: { include: { detalles: { include: { insumo: true } } } },
+          aditivos: { include: { insumo: true } },
+          adicionales: { include: { insumo: true } },
+        },
       }),
+      this.prisma.ordenCompra.findMany({
+        where: { estado: 'RECIBIDO', updatedAt: whereDate },
+        select: { totalPEN: true },
+      }),
+      this.prisma.costoOperativoPeriodo.findMany(),
     ]);
+    const costosPorPeriodo = new Map<string, CostoOperativoCalculado>(
+      costosOperativos.map((costo) => [
+        costo.periodo,
+        {
+          cantidadBase: Number(costo.cantidadBase),
+          manoObraLote: Number(costo.manoObraLote),
+          supervisionLote: Number(costo.supervisionLote),
+          depreciacionLote: Number(costo.depreciacionLote),
+          energiaLote: Number(costo.energiaLote),
+          usoLocalLote: Number(costo.usoLocalLote),
+        },
+      ]),
+    );
     const facturado = cuentas.reduce((a, c) => a + Number(c.montoTotal || 0), 0);
     const cobrado = Number(pagos._sum.montoAbonado || 0);
     let invertido = 0;
     for (const p of pedidos) {
       if (p.formula?.detalles?.length) {
         const costoUnit = p.formula.detalles.reduce((acc: number, d: any) => acc + Number(d.insumo?.costoUnitario || 0) * (Number(d.porcentaje || 0) / 100), 0);
-        invertido += costoUnit * Number(p.cantidadSolicitada || 0);
-      } else {
-        invertido += Number(p.montoTotal || 0) * 0.65;
+        const costoAditivos = p.aditivos.reduce(
+          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+          0,
+        );
+        const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
+        const costoAdicionales = p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
+        invertido += (costoUnit + costoIndirecto) * Number(p.cantidadSolicitada || 0) + costoAditivos + costoAdicionales;
+      } else if (p.aditivos.length) {
+        invertido += p.aditivos.reduce(
+          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+          0,
+        );
+        invertido += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
       }
     }
-    // Si no hay pedidos en el mes, estimar COGS como 65% de lo facturado
-    if (pedidos.length === 0 && facturado > 0) invertido = facturado * 0.65;
-    const egresos = facturado * 0.42; // placeholder hasta conectar OrdenCompra real (no tocar OC ahora)
-    const utilidad = Math.max(0, facturado - invertido);
+    const egresos = ordenesCompra.reduce((total, orden) => total + Number(orden.totalPEN), 0);
+    const utilidad = facturado - invertido;
     const margen = facturado > 0 ? (utilidad / facturado) * 100 : 0;
     // Serie mensual últimos 12 meses para gráfico
     const now = new Date();
@@ -275,34 +356,73 @@ export class FacturacionService {
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
     const allCuentas = await this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } }, select: { montoTotal: true, fechaEmision: true } });
     const allPagos = await this.prisma.pagoAbono.findMany({ where: { fechaAbono: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } }, select: { montoAbonado: true, fechaAbono: true } });
-    const allPedidos = await this.prisma.pedidoComercial.findMany({
+    const [allPedidos, allOrdenesCompra] = await Promise.all([
+      this.prisma.pedidoComercial.findMany({
       where: { createdAt: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) }, estado: { not: 'RECHAZADO' } },
-      include: { formula: { include: { detalles: { include: { insumo: true } } } } },
-    });
+      include: {
+        formula: { include: { detalles: { include: { insumo: true } } } },
+        aditivos: { include: { insumo: true } },
+        adicionales: { include: { insumo: true } },
+      },
+      }),
+      this.prisma.ordenCompra.findMany({
+        where: { estado: 'RECIBIDO', updatedAt: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } },
+        select: { totalPEN: true, updatedAt: true },
+      }),
+    ]);
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const m = d.getMonth(), y = d.getFullYear();
       const mc = allCuentas.filter((c: any) => new Date(c.fechaEmision).getMonth() === m && new Date(c.fechaEmision).getFullYear() === y).reduce((a: number, c: any) => a + Number(c.montoTotal || 0), 0);
       const mp = allPagos.filter((p: any) => new Date(p.fechaAbono).getMonth() === m && new Date(p.fechaAbono).getFullYear() === y).reduce((a: number, p: any) => a + Number(p.montoAbonado || 0), 0);
-      const mpeds = allPedidos.filter((p: any) => new Date(p.createdAt).getMonth() === m && new Date(p.createdAt).getFullYear() === y);
+        const mpeds = allPedidos.filter((p: any) => new Date(p.createdAt).getMonth() === m && new Date(p.createdAt).getFullYear() === y);
       let inv = 0;
       for (const p of mpeds) {
         if (p.formula?.detalles?.length) {
           const cu = p.formula.detalles.reduce((acc: number, det: any) => acc + Number(det.insumo?.costoUnitario || 0) * (Number(det.porcentaje || 0) / 100), 0);
-          inv += cu * Number(p.cantidadSolicitada || 0);
-        } else inv += Number(p.montoTotal || 0) * 0.65;
+          const costoAditivos = p.aditivos.reduce(
+            (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+            0,
+          );
+          const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
+          inv += (cu + costoIndirecto) * Number(p.cantidadSolicitada || 0) + costoAditivos;
+          inv += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
+        } else if (p.aditivos.length) {
+          inv += p.aditivos.reduce(
+            (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+            0,
+          );
+          inv += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
+        }
       }
-      const egr = mc * 0.42;
-      const util = Math.max(0, mc - inv);
+      const egr = allOrdenesCompra
+        .filter((orden) => new Date(orden.updatedAt).getMonth() === m && new Date(orden.updatedAt).getFullYear() === y)
+        .reduce((total, orden) => total + Number(orden.totalPEN), 0);
+      const util = mc - inv;
       const marg = mc > 0 ? (util / mc) * 100 : 0;
       serie.push({ month: months[m], year: y, facturado: mc, cobrado: mp, invertido: inv, egresos: egr, utilidad: util, margen: Number(marg.toFixed(1)) });
     }
     // Tabla por cliente (top 20 por margen)
     const porCliente = await this.prisma.cuentaCobrar.groupBy({ by: ['clienteRuc', 'clienteNombre'], where: { fechaEmision: whereDate }, _sum: { montoTotal: true }, _count: true });
+    const costosPorCliente = new Map<string, number>();
+    for (const pedido of pedidos) {
+      const costoUnitario = pedido.formula?.detalles?.reduce(
+        (total: number, detalle: any) => total + Number(detalle.insumo?.costoUnitario || 0) * (Number(detalle.porcentaje || 0) / 100),
+        0,
+      ) || 0;
+      const costoIndirecto = this.costoIndirectoUnitario(new Date(pedido.createdAt), costosPorPeriodo);
+      const costoPedido = (costoUnitario + costoIndirecto) * Number(pedido.cantidadSolicitada || 0);
+      const costoAditivos = pedido.aditivos.reduce(
+        (total: number, aditivo: any) => total + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+        0,
+      );
+      const costoAdicionales = pedido.adicionales.reduce((total: number, adicional: any) => total + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
+      costosPorCliente.set(pedido.clienteRuc, (costosPorCliente.get(pedido.clienteRuc) || 0) + costoPedido + costoAditivos + costoAdicionales);
+    }
     const tabla = porCliente.map((g: any) => {
       const fact = Number(g._sum.montoTotal || 0);
-      const inv = fact * 0.65;
-      const util = Math.max(0, fact - inv);
+       const inv = costosPorCliente.get(g.clienteRuc) || 0;
+       const util = fact - inv;
       return { ruc: g.clienteRuc, cliente: g.clienteNombre, facturado: fact, invertido: inv, utilidad: util, margen: fact > 0 ? Number(((util / fact) * 100).toFixed(1)) : 0, docs: g._count };
     }).sort((a, b) => b.utilidad - a.utilidad).slice(0, 20);
     // Desglose teórico vs real por fórmula (top 8)
@@ -313,17 +433,44 @@ export class FacturacionService {
       cur.facturado += Number(p.montoTotal || 0);
       if (p.formula?.detalles?.length) {
         const cu = p.formula.detalles.reduce((acc: number, det: any) => acc + Number(det.insumo?.costoUnitario || 0) * (Number(det.porcentaje || 0) / 100), 0);
-        cur.teorico += cu * Number(p.cantidadSolicitada || 0);
-      } else cur.teorico += Number(p.montoTotal || 0) * 0.65;
+        const costoAditivos = p.aditivos.reduce(
+          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+          0,
+        );
+        const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
+        cur.teorico += (cu + costoIndirecto) * Number(p.cantidadSolicitada || 0) + costoAditivos;
+        cur.teorico += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
+      } else if (p.aditivos.length) {
+        cur.teorico += p.aditivos.reduce(
+          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+          0,
+        );
+        cur.teorico += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
+      }
       cur.cantidad += Number(p.cantidadSolicitada || 0);
       porFormula.set(key, cur);
     }
     const desglose = [...porFormula.values()].map(v => {
-      const real = v.teorico * 1.03; // 3% merma operativa promedio (hasta tener OrdenProduccion.merma real)
-      const desvio = v.teorico > 0 ? ((real - v.teorico) / v.teorico) * 100 : 0;
+      const real = v.teorico;
+      const desvio = 0;
       return { formula: v.formula, facturado: v.facturado, teorico: v.teorico, real, desvio: Number(desvio.toFixed(1)), cantidad: v.cantidad };
     }).sort((a, b) => b.facturado - a.facturado).slice(0, 8);
     return { facturado, cobrado, invertido, egresos, utilidad, margen: Number(margen.toFixed(1)), serie, tabla, desglose };
+  }
+
+  private costoIndirectoUnitario(
+    fecha: Date,
+    costosPorPeriodo: Map<string, CostoOperativoCalculado>,
+  ): number {
+    const periodo = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+    const costo = costosPorPeriodo.get(periodo);
+    if (!costo || costo.cantidadBase <= 0) return 0;
+    const costoLote = costo.manoObraLote
+      + costo.supervisionLote
+      + costo.depreciacionLote
+      + costo.energiaLote
+      + costo.usoLocalLote;
+    return costoLote / costo.cantidadBase;
   }
 
   /** Datos completos para el comprobante imprimible / vista de detalle. */

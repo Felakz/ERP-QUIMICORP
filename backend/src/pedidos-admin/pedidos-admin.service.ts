@@ -246,6 +246,39 @@ export class PedidosAdminService {
       }
     }
 
+    // Los adicionales pertenecen a una línea concreta de la cotización,
+    // no a la fórmula. El descuento físico se realiza únicamente al despachar.
+    if (Array.isArray(dto.adicionales)) {
+      for (const adicional of dto.adicionales) {
+        const cantidad = Number(adicional.cantidad);
+        const precioVenta = Number(adicional.precioUnitarioVenta);
+        if (!['ENVASES', 'BALDES_HERRAMIENTAS'].includes(adicional.categoria) || cantidad <= 0 || precioVenta < 0) {
+          throw new BadRequestException('Adicional inválido: categoría, cantidad o precio no válidos.');
+        }
+        const insumo = adicional.insumoId
+          ? await db.insumo.findUnique({ where: { id: adicional.insumoId } })
+          : null;
+        if (adicional.categoria === 'ENVASES' && !insumo) {
+          throw new BadRequestException('Todo envase debe estar enlazado a un insumo real del inventario.');
+        }
+        await db.pedidoAdicional.create({
+          data: {
+            pedidoId: nuevoPedido.id,
+            itemIndex: Number(adicional.itemIndex) || 0,
+            productoNombre: String(adicional.productoNombre || dto.producto || '').trim(),
+            categoria: adicional.categoria,
+            insumoId: insumo?.id || null,
+            descripcion: String(adicional.descripcion || '').trim(),
+            unidadMedida: String(adicional.unidadMedida || 'UN').toUpperCase(),
+            cantidad,
+            precioUnitarioVenta: precioVenta,
+            costoUnitario: Number(insumo?.costoUnitario || 0),
+            subtotal: cantidad * precioVenta,
+          },
+        });
+      }
+    }
+
     // ── Emitir WebSocket SOLO para pedidos OP ──
     if (mode === 'PEDIDO' && this.produccionGateway && this.produccionGateway.server) {
       this.produccionGateway.server.emit('order:created_to_plant', nuevoPedido);

@@ -1,5 +1,5 @@
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "postgresql://quimicorp:quimicorp_dev_password@localhost:5432/quimicorp_erp?schema=public";
+  throw new Error('DATABASE_URL es obligatorio para iniciar el backend.');
 }
 
 import { NestFactory } from '@nestjs/core';

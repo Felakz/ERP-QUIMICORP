@@ -44,6 +44,26 @@ export interface FormItem {
   cantidad: number;
   unidadMedida: string;
   precioUnitario: number;
+  adicionales?: PedidoAdicionalForm[];
+}
+
+interface PedidoAdicionalForm {
+  categoria: 'ENVASES' | 'BALDES_HERRAMIENTAS';
+  insumoId?: string;
+  descripcion: string;
+  unidadMedida: string;
+  cantidad: number;
+  precioUnitarioVenta: number;
+}
+
+interface InsumoAdicionalCatalogo {
+  id: string;
+  nombre: string;
+  codigo: string;
+  unidadMedida: string;
+  costoUnitario: number;
+  tipo?: string;
+  familia?: { nombre: string } | null;
 }
 
 export interface PedidoPayload {
@@ -271,6 +291,7 @@ export function CommercialOrderForm({
 
   // Dynamic Formulas state
   const [formulasList, setFormulasList] = useState<FormulaProducto[]>(FORMULAS_MAESTRAS_REALES);
+  const [insumosAdicionales, setInsumosAdicionales] = useState<InsumoAdicionalCatalogo[]>([]);
 
   // Multiple Items State
   const initialFormula = FORMULAS_MAESTRAS_REALES.find((f) => f.id === initialData.formulaId) || FORMULAS_MAESTRAS_REALES[0];
@@ -361,9 +382,15 @@ export function CommercialOrderForm({
     }
   };
 
+  const fetchInsumosAdicionales = async () => {
+    const { data, ok } = await apiFetch<InsumoAdicionalCatalogo[]>('/insumos');
+    if (ok && Array.isArray(data)) setInsumosAdicionales(data);
+  };
+
   useEffect(() => {
     fetchClientes();
     fetchFormulas();
+    fetchInsumosAdicionales();
   }, []);
 
   const handleSelectClient = (client: Cliente) => {
@@ -546,7 +573,10 @@ export function CommercialOrderForm({
     });
   };
 
-  const totalGeneral = items.reduce((acc, item) => acc + item.cantidad * item.precioUnitario, 0);
+  const totalGeneral = items.reduce(
+    (acc, item) => acc + item.cantidad * item.precioUnitario + (item.adicionales || []).reduce((sum, adicional) => sum + adicional.cantidad * adicional.precioUnitarioVenta, 0),
+    0,
+  );
 
   // Submit Order / Quotation
   const handleSubmit = async (bypassStockCheck = false) => {
@@ -643,6 +673,7 @@ export function CommercialOrderForm({
         aromaText: mainItem.aroma?.trim() || null,
         colorText: mainItem.color?.trim() || null,
         aditivos: mainItem.aditivos || [],
+        adicionales: items.flatMap((item, itemIndex) => (item.adicionales || []).map((adicional) => ({ ...adicional, itemIndex, productoNombre: item.productoNombre }))),
         observacionesAdmin: observaciones.trim() || (mode === 'COTIZACION' ? 'Cotización comercial emitida para cliente.' : 'Orden de producción formal emitida a Planta.'),
         itemsJson: items,
       };
@@ -697,6 +728,15 @@ export function CommercialOrderForm({
             precioUnitario: it.precioUnitario,
             importeTotal: it.cantidad * it.precioUnitario,
           })),
+          ...items.flatMap((it) => (it.adicionales || []).map((adicional) => ({
+            id: `${it.id}-${adicional.descripcion}`,
+            codigo: adicional.insumoId ? 'ADICIONAL' : undefined,
+            descripcion: `${adicional.categoria === 'ENVASES' ? 'Envase' : 'Balde / herramienta'} - ${adicional.descripcion}`,
+            cantidad: adicional.cantidad,
+            unidad: adicional.unidadMedida,
+            precioUnitario: adicional.precioUnitarioVenta,
+            importeTotal: adicional.cantidad * adicional.precioUnitarioVenta,
+          }))),
         };
         setPdfData(cotData);
 
@@ -1349,6 +1389,135 @@ export function CommercialOrderForm({
                   </div>
                 </div>
 
+                <div className="border-t border-slate-800/40 pt-3">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={(item.adicionales || []).length > 0}
+                      onChange={(event) => {
+                        if (!event.target.checked) {
+                          handleUpdateItem(idx, 'adicionales', []);
+                        } else if (!(item.adicionales || []).length) {
+                          handleUpdateItem(idx, 'adicionales', [{
+                            categoria: 'ENVASES',
+                            descripcion: '',
+                            unidadMedida: 'UN',
+                            cantidad: 1,
+                            precioUnitarioVenta: 0,
+                          }]);
+                        }
+                      }}
+                      className="rounded border-slate-600 text-amber-500 focus:ring-amber-500"
+                    />
+                    <span>Agregar adicionales a este producto</span>
+                  </label>
+
+                  {(item.adicionales || []).length > 0 && (
+                    <div className="mt-3 space-y-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">Adicionales con cargo</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateItem(idx, 'adicionales', [
+                            ...(item.adicionales || []),
+                            { categoria: 'ENVASES', descripcion: '', unidadMedida: 'UN', cantidad: 1, precioUnitarioVenta: 0 },
+                          ])}
+                          className="text-[10px] font-bold text-amber-400 hover:text-amber-300"
+                        >
+                          + Agregar línea
+                        </button>
+                      </div>
+                      {(item.adicionales || []).map((adicional, adicionalIndex) => {
+                        const catalogo = insumosAdicionales.filter((insumo) =>
+                          adicional.categoria === 'ENVASES'
+                            ? insumo.tipo === 'ENVASE' || insumo.familia?.nombre.toLowerCase().includes('envase')
+                            : true,
+                        );
+                        return (
+                          <div key={`${item.id}-adicional-${adicionalIndex}`} className="grid grid-cols-1 gap-2 md:grid-cols-5">
+                            <select
+                              value={adicional.categoria}
+                              onChange={(event) => {
+                                const adicionales = [...(item.adicionales || [])];
+                                adicionales[adicionalIndex] = { ...adicionales[adicionalIndex], categoria: event.target.value as PedidoAdicionalForm['categoria'], insumoId: undefined, descripcion: '' };
+                                handleUpdateItem(idx, 'adicionales', adicionales);
+                              }}
+                              className={`rounded-lg border p-2 text-[11px] font-bold ${inputBg}`}
+                            >
+                              <option value="ENVASES">Envases</option>
+                              <option value="BALDES_HERRAMIENTAS">Baldes / Herramientas</option>
+                            </select>
+                            <select
+                              value={adicional.insumoId || ''}
+                              onChange={(event) => {
+                                const insumo = insumosAdicionales.find((candidate) => candidate.id === event.target.value);
+                                const adicionales = [...(item.adicionales || [])];
+                                adicionales[adicionalIndex] = {
+                                  ...adicionales[adicionalIndex],
+                                  insumoId: insumo?.id,
+                                  descripcion: insumo?.nombre || adicionales[adicionalIndex].descripcion,
+                                  unidadMedida: insumo?.unidadMedida || adicionales[adicionalIndex].unidadMedida,
+                                };
+                                handleUpdateItem(idx, 'adicionales', adicionales);
+                              }}
+                              className={`rounded-lg border p-2 text-[11px] ${inputBg}`}
+                            >
+                              <option value="">Seleccionar insumo real</option>
+                              {catalogo.map((insumo) => <option key={insumo.id} value={insumo.id}>{insumo.codigo} - {insumo.nombre}</option>)}
+                            </select>
+                            <input
+                              value={adicional.descripcion}
+                              onChange={(event) => {
+                                const adicionales = [...(item.adicionales || [])];
+                                adicionales[adicionalIndex] = { ...adicionales[adicionalIndex], descripcion: event.target.value };
+                                handleUpdateItem(idx, 'adicionales', adicionales);
+                              }}
+                              placeholder="Descripción"
+                              className={`rounded-lg border p-2 text-[11px] ${inputBg}`}
+                            />
+                            <input
+                              type="number"
+                              min="0.0001"
+                              step="0.01"
+                              value={adicional.cantidad}
+                              onChange={(event) => {
+                                const adicionales = [...(item.adicionales || [])];
+                                adicionales[adicionalIndex] = { ...adicionales[adicionalIndex], cantidad: Number(event.target.value) || 0 };
+                                handleUpdateItem(idx, 'adicionales', adicionales);
+                              }}
+                              className={`rounded-lg border p-2 text-[11px] ${inputBg}`}
+                              placeholder="Cantidad"
+                            />
+                            <div className="flex gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={adicional.precioUnitarioVenta}
+                                onChange={(event) => {
+                                  const adicionales = [...(item.adicionales || [])];
+                                  adicionales[adicionalIndex] = { ...adicionales[adicionalIndex], precioUnitarioVenta: Number(event.target.value) || 0 };
+                                  handleUpdateItem(idx, 'adicionales', adicionales);
+                                }}
+                                className={`min-w-0 flex-1 rounded-lg border p-2 text-[11px] ${inputBg}`}
+                                placeholder="Precio venta"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateItem(idx, 'adicionales', (item.adicionales || []).filter((_, i) => i !== adicionalIndex))}
+                                className="rounded-lg p-2 text-rose-400 hover:bg-rose-500/10"
+                                title="Eliminar adicional"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 {/* Importe de la Fila */}
                 <div className="flex justify-between items-center text-xs font-mono pt-1 border-t border-slate-800/40">
                   <span className="text-slate-400">Importe Línea:</span>
@@ -1455,6 +1624,15 @@ export function CommercialOrderForm({
                       precioUnitario: it.precioUnitario,
                       importeTotal: it.cantidad * it.precioUnitario,
                     })),
+                    ...items.flatMap((it) => (it.adicionales || []).map((adicional) => ({
+                      id: `${it.id}-${adicional.descripcion}`,
+                      codigo: adicional.insumoId ? 'ADICIONAL' : undefined,
+                      descripcion: `${adicional.categoria === 'ENVASES' ? 'Envase' : 'Balde / herramienta'} - ${adicional.descripcion}`,
+                      cantidad: adicional.cantidad,
+                      unidad: adicional.unidadMedida,
+                      precioUnitario: adicional.precioUnitarioVenta,
+                      importeTotal: adicional.cantidad * adicional.precioUnitarioVenta,
+                    }))),
                   };
                   setPdfData(previewData);
                   setIsPdfModalOpen(true);

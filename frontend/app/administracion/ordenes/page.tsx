@@ -54,98 +54,71 @@ interface OrdenCompraItem {
   observaciones?: string;
 }
 
-const INITIAL_ORDENES: OrdenCompraItem[] = [
-  {
-    id: 'oc-001',
-    codigoOC: 'OC-2026-0042',
-    proveedor: 'QUÍMICA SUIZA S.A.C.',
-    ruc: '20100030045',
-    fechaEmision: '2026-09-02',
-    fechaEntregaEstimada: '2026-09-06',
-    estado: 'EN_TRANSITO',
-    totalPEN: 14500.00,
-    moneda: 'PEN',
-    condicionPago: 'Crédito 30 días',
-    comprador: 'Elvis Yarleque',
-    items: [
-      { insumo: 'Texapon 70% (Lauril Éter Sulfato de Sodio)', cantidad: 2000, unidadMedida: 'KG', precioUnitario: 4.80, subtotal: 9600.00 },
-      { insumo: 'Comperlan KD (Dietanolamida de Coco)', cantidad: 500, unidadMedida: 'KG', precioUnitario: 9.80, subtotal: 4900.00 },
-    ],
-    observaciones: 'Lote prioritario para producción de Detergente Líquido y Lavavajillas.',
-  },
-  {
-    id: 'oc-002',
-    codigoOC: 'OC-2026-0041',
-    proveedor: 'DISAN PERÚ S.A.',
-    ruc: '20345678901',
-    fechaEmision: '2026-09-01',
-    fechaEntregaEstimada: '2026-09-04',
-    estado: 'RECIBIDO',
-    totalPEN: 8900.00,
-    moneda: 'PEN',
-    condicionPago: 'Contado Contra Entrega',
-    comprador: 'Elvis Yarleque',
-    items: [
-      { insumo: 'Ácido Sulfónico Lineal (LABSA 96%)', cantidad: 1500, unidadMedida: 'KG', precioUnitario: 5.20, subtotal: 7800.00 },
-      { insumo: 'Colorante Azul Brillante Especial', cantidad: 20, unidadMedida: 'KG', precioUnitario: 55.00, subtotal: 1100.00 },
-    ],
-    observaciones: 'Ingresado al Kardex de Almacén e insumos pesados conformes.',
-  },
-  {
-    id: 'oc-003',
-    codigoOC: 'OC-2026-0040',
-    proveedor: 'CRODA PERÚ S.A.',
-    ruc: '20501234567',
-    fechaEmision: '2026-08-28',
-    fechaEntregaEstimada: '2026-09-05',
-    estado: 'PENDIENTE',
-    totalPEN: 6350.00,
-    moneda: 'PEN',
-    condicionPago: 'Crédito 15 días',
-    comprador: 'Asistente Compras',
-    items: [
-      { insumo: 'Fragancia Lavanda Francesa Concentrada', cantidad: 50, unidadMedida: 'LT', precioUnitario: 85.00, subtotal: 4250.00 },
-      { insumo: 'Fragancia Limón Citrus Industrial', cantidad: 30, unidadMedida: 'LT', precioUnitario: 70.00, subtotal: 2100.00 },
-    ],
-    observaciones: 'Pendiente de confirmación de guía de despacho por el proveedor.',
-  },
-  {
-    id: 'oc-004',
-    codigoOC: 'OC-2026-0039',
-    proveedor: 'PLÁSTICOS INDUSTRIALES DEL PERÚ S.A.C.',
-    ruc: '20498765432',
-    fechaEmision: '2026-08-25',
-    fechaEntregaEstimada: '2026-08-30',
-    estado: 'RECIBIDO',
-    totalPEN: 12400.00,
-    moneda: 'PEN',
-    condicionPago: 'Crédito 45 días',
-    comprador: 'Elvis Yarleque',
-    items: [
-      { insumo: 'Galonera Blanca 4L con Tapa Precinto', cantidad: 3000, unidadMedida: 'UND', precioUnitario: 2.80, subtotal: 8400.00 },
-      { insumo: 'Bidón 20L Azul Reforzado con Rosca', cantidad: 400, unidadMedida: 'UND', precioUnitario: 10.00, subtotal: 4000.00 },
-    ],
-    observaciones: 'Recepción completa en almacén de envases.',
-  },
-  {
-    id: 'oc-005',
-    codigoOC: 'OC-2026-0038',
-    proveedor: 'MATHIESEN PERÚ S.A.C.',
-    ruc: '20223344556',
-    fechaEmision: '2026-08-20',
-    fechaEntregaEstimada: '2026-08-26',
-    estado: 'RECIBIDO',
-    totalPEN: 18200.00,
-    moneda: 'PEN',
-    condicionPago: 'Crédito 30 días',
-    comprador: 'Elvis Yarleque',
-    items: [
-      { insumo: 'Soda Cáustica en Escamas 99% (Hidróxido de Sodio)', cantidad: 4000, unidadMedida: 'KG', precioUnitario: 3.50, subtotal: 14000.00 },
-      { insumo: 'Hipoclorito de Sodio 10% Industrial', cantidad: 3500, unidadMedida: 'LT', precioUnitario: 1.20, subtotal: 4200.00 },
-    ],
-    observaciones: 'Lote de químicos base para reactores de blanqueo.',
-  },
-];
+interface BackendOrdenCompraItem {
+  id: string;
+  insumoId: string | null;
+  insumoNombre: string;
+  cantidad: number | string;
+  unidadMedida: string;
+  precioUnitario: number | string;
+  subtotal: number | string;
+}
+
+interface BackendOrdenCompra {
+  id: string;
+  codigoOC: string;
+  proveedorNombre: string;
+  ruc: string;
+  fechaEmision: string;
+  fechaEntregaEstimada: string;
+  estado: OrdenCompraItem['estado'];
+  totalPEN: number | string;
+  moneda: 'PEN' | 'USD';
+  condicionPago: string;
+  comprador: string;
+  observaciones?: string;
+  items: BackendOrdenCompraItem[];
+}
+
+interface ProveedorCatalogo {
+  id: string;
+  razonSocial: string;
+  ruc: string;
+  contacto?: string | null;
+  telefono?: string | null;
+}
+
+interface InsumoCatalogo {
+  id: string;
+  nombre: string;
+  codigo: string;
+  familia: string;
+  unidad: string;
+  precioRef: number;
+  stock: number;
+}
+
+const mapOrdenCompra = (orden: BackendOrdenCompra): OrdenCompraItem => ({
+  id: orden.id,
+  codigoOC: orden.codigoOC,
+  proveedor: orden.proveedorNombre,
+  ruc: orden.ruc,
+  fechaEmision: new Date(orden.fechaEmision).toISOString().split('T')[0],
+  fechaEntregaEstimada: new Date(orden.fechaEntregaEstimada).toISOString().split('T')[0],
+  estado: orden.estado,
+  totalPEN: Number(orden.totalPEN),
+  moneda: orden.moneda,
+  condicionPago: orden.condicionPago,
+  comprador: orden.comprador,
+  observaciones: orden.observaciones,
+  items: orden.items.map((item) => ({
+    insumo: item.insumoNombre,
+    cantidad: Number(item.cantidad),
+    unidadMedida: item.unidadMedida,
+    precioUnitario: Number(item.precioUnitario),
+    subtotal: Number(item.subtotal),
+  })),
+});
 
 export default function AdministracionOrdenesPage() {
   const { theme } = useTheme();
@@ -161,28 +134,22 @@ export default function AdministracionOrdenesPage() {
   useEffect(() => {
     const cargar = async () => {
       try {
-        const { apiFetch } = await import('@/lib/apiClient');
-        const r2 = await apiFetch('/ordenes-compra').catch(() => ({ data: [] }));
-        if (Array.isArray(r2.data)) {
-          const mapped: OrdenCompraItem[] = r2.data.map((o: any) => ({
-            id: o.id, codigoOC: o.codigoOC, proveedor: o.proveedorNombre, ruc: o.ruc,
-            fechaEmision: new Date(o.fechaEmision).toISOString().split('T')[0],
-            fechaEntregaEstimada: new Date(o.fechaEntregaEstimada).toISOString().split('T')[0],
-            estado: o.estado, totalPEN: Number(o.totalPEN), moneda: o.moneda, condicionPago: o.condicionPago, comprador: o.comprador, observaciones: o.observaciones,
-            items: (o.items || []).map((it: any) => ({ insumo: it.insumoNombre, cantidad: Number(it.cantidad), unidadMedida: it.unidadMedida, precioUnitario: Number(it.precioUnitario), subtotal: Number(it.subtotal) })),
-          }));
-          setOrdenes(mapped);
-        } else {
-          setOrdenes([]);
-        }
-      } catch { setOrdenes([]); } finally { setLoading(false); }
+        const response = await apiFetch<BackendOrdenCompra[]>('/ordenes-compra');
+        if (!response.ok || !response.data) throw new Error(response.error || 'No se pudieron cargar las órdenes.');
+        setOrdenes(response.data.map(mapOrdenCompra));
+      } catch (error) {
+        setOrdenes([]);
+        console.error('Error cargando órdenes de compra:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     cargar();
   }, []);
 
   // Catálogos para Comboboxes inteligentes de Proveedores e Insumos
-  const [proveedoresList, setProveedoresList] = useState<any[]>([]);
-  const [insumosList, setInsumosList] = useState<any[]>([]);
+  const [proveedoresList, setProveedoresList] = useState<ProveedorCatalogo[]>([]);
+  const [insumosList, setInsumosList] = useState<InsumoCatalogo[]>([]);
 
   // Form nueva OC
   const [nuevoProveedor, setNuevoProveedor] = useState('');
@@ -206,27 +173,23 @@ export default function AdministracionOrdenesPage() {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const { apiFetch } = await import('@/lib/apiClient');
-        const { PROVEEDORES_QUIMICORP_SEED } = await import('@/lib/proveedoresRealData');
-        const { INVENTARIO_REAL_SEED_DATA } = await import('@/lib/inventarioRealData');
+        const resProv = await apiFetch<ProveedorCatalogo[]>('/proveedores');
+        if (!resProv.ok || !resProv.data) throw new Error(resProv.error || 'No se pudieron cargar proveedores.');
+        setProveedoresList(resProv.data);
 
-        // 1. Cargar proveedores (backend + seed)
-        const resProv = await apiFetch<any[]>('/proveedores').catch(() => ({ data: [] }));
-        const backendProvs = Array.isArray(resProv.data) ? resProv.data : [];
-        const mergedProvs = [...backendProvs];
-        const rucsSet = new Set(backendProvs.map((p: any) => p.ruc));
-        for (const sp of PROVEEDORES_QUIMICORP_SEED) {
-          if (!rucsSet.has(sp.ruc)) {
-            mergedProvs.push(sp);
-            rucsSet.add(sp.ruc);
-          }
-        }
-        setProveedoresList(mergedProvs);
-
-        // 2. Cargar insumos (backend + seed)
-        const resIns = await apiFetch<any[]>('/insumos').catch(() => ({ data: [] }));
-        const backendIns = Array.isArray(resIns.data) ? resIns.data : [];
-        const mappedBackendIns = backendIns.map((i: any) => ({
+        const resIns = await apiFetch<Array<{
+          id: string;
+          nombre: string;
+          codigo: string;
+          categoria?: string | null;
+          familia?: { nombre: string } | null;
+          unidadMedida: string;
+          costoUnitario: number | string;
+          stockReal?: number | string | null;
+          stockTeorico?: number | string | null;
+        }>>('/insumos');
+        if (!resIns.ok || !resIns.data) throw new Error(resIns.error || 'No se pudieron cargar insumos.');
+        const mappedBackendIns: InsumoCatalogo[] = resIns.data.map((i) => ({
           id: i.id,
           nombre: i.nombre,
           codigo: i.codigo,
@@ -235,26 +198,11 @@ export default function AdministracionOrdenesPage() {
           precioRef: Number(i.costoUnitario || 0),
           stock: Number(i.stockReal ?? i.stockTeorico ?? 0),
         }));
-
-        const nombresSet = new Set(mappedBackendIns.map((i: any) => i.nombre.toLowerCase().trim()));
-        const mergedIns = [...mappedBackendIns];
-        for (const si of INVENTARIO_REAL_SEED_DATA) {
-          if (!nombresSet.has(si.nombre.toLowerCase().trim())) {
-            mergedIns.push({
-              id: si.sku,
-              nombre: si.nombre,
-              codigo: si.sku,
-              familia: si.familia,
-              unidad: si.unidad,
-              precioRef: 0,
-              stock: si.stockReal,
-            });
-            nombresSet.add(si.nombre.toLowerCase().trim());
-          }
-        }
-        setInsumosList(mergedIns);
-      } catch (err) {
-        console.warn('Error cargando catálogos para OC:', err);
+        setInsumosList(mappedBackendIns);
+      } catch (error) {
+        setProveedoresList([]);
+        setInsumosList([]);
+        console.error('Error cargando catálogos para OC:', error);
       }
     };
     cargarCatalogos();
@@ -343,10 +291,8 @@ export default function AdministracionOrdenesPage() {
       alert('Por favor completa todos los datos de la Orden de Compra con cantidad y precio válidos.');
       return;
     }
-    const sub = cant * prec;
     try {
-      const { apiFetch } = require('@/lib/apiClient');
-      const res: any = await apiFetch('/ordenes-compra', {
+      const res = await apiFetch<BackendOrdenCompra>('/ordenes-compra', {
         method: 'POST',
         body: JSON.stringify({
           proveedorId: selectedProveedorId || undefined,
@@ -359,29 +305,11 @@ export default function AdministracionOrdenesPage() {
           items: [{ insumoNombre: nuevoInsumo.trim(), cantidad: cant, unidadMedida: nuevaUnidad, precioUnitario: prec }],
         }),
       });
-      // Fallback local si backend aún no responde
-      if (res?.data?.id) {
-        const o = res.data;
-        const nuevaOC: OrdenCompraItem = {
-          id: o.id, codigoOC: o.codigoOC, proveedor: o.proveedorNombre, ruc: o.ruc,
-          fechaEmision: new Date(o.fechaEmision).toISOString().split('T')[0],
-          fechaEntregaEstimada: new Date(o.fechaEntregaEstimada).toISOString().split('T')[0],
-          estado: o.estado, totalPEN: Number(o.totalPEN), moneda: o.moneda, condicionPago: o.condicionPago, comprador: o.comprador, observaciones: o.observaciones,
-          items: (o.items || []).map((it: any) => ({ insumo: it.insumoNombre, cantidad: Number(it.cantidad), unidadMedida: it.unidadMedida, precioUnitario: Number(it.precioUnitario), subtotal: Number(it.subtotal) })),
-        };
-        setOrdenes([nuevaOC, ...ordenes]);
-      } else throw new Error('fallback');
-    } catch {
-      const nuevaOC: OrdenCompraItem = {
-        id: `oc-${Date.now()}`, codigoOC: `OC-2026-${String(ordenes.length + 43).padStart(4, '0')}`,
-        proveedor: nuevoProveedor.trim(), ruc: nuevoRuc.trim() || '20999999999',
-        fechaEmision: new Date().toISOString().split('T')[0],
-        fechaEntregaEstimada: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        estado: 'PENDIENTE', totalPEN: sub, moneda: 'PEN', condicionPago: nuevaCondicion, comprador: 'Administración Quimicorp',
-        items: [{ insumo: nuevoInsumo.trim(), cantidad: cant, unidadMedida: nuevaUnidad, precioUnitario: prec, subtotal: sub }],
-        observaciones: nuevasObs.trim() || 'Generado desde Administración.',
-      };
-      setOrdenes([nuevaOC, ...ordenes]);
+      if (!res.ok || !res.data) throw new Error(res.error || 'No se pudo crear la orden de compra.');
+      setOrdenes((actuales) => [mapOrdenCompra(res.data as BackendOrdenCompra), ...actuales]);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No se pudo crear la orden de compra.');
+      return;
     }
     setIsModalOpen(false);
     setNuevoProveedor('');
@@ -395,18 +323,12 @@ export default function AdministracionOrdenesPage() {
 
   const handleMarcarRecibido = async (id: string) => {
     try {
-      const { apiFetch } = require('@/lib/apiClient');
-      const res: any = await apiFetch(`/ordenes-compra/${id}/recibir`, { method: 'PATCH' });
-      // Redirigir a Gestión de Insumos con cantidad/monto exacto cotizado
-      const oc = res?.data || ordenes.find(o => o.id === id);
-      if (oc) {
-        const first = oc.items?.[0];
-        alert(`✅ OC ${oc.codigoOC} RECIBIDA — stock actualizado con ${first?.cantidad || ''} ${first?.unidadMedida || ''} exacto cotizado. Redirigiendo a Inventario...`);
-        window.location.href = `/administracion/gestion-inventario?fromOC=${oc.codigoOC}&insumo=${encodeURIComponent(first?.insumo || '')}&cantidad=${first?.cantidad || ''}`;
-        return;
-      }
-    } catch {}
-    setOrdenes((prev) => prev.map((o) => (o.id === id ? { ...o, estado: 'RECIBIDO' } : o)));
+      const res = await apiFetch<BackendOrdenCompra>(`/ordenes-compra/${id}/recibir`, { method: 'PATCH' });
+      if (!res.ok || !res.data) throw new Error(res.error || 'No se pudo recibir la orden de compra.');
+      setOrdenes((prev) => prev.map((orden) => (orden.id === id ? mapOrdenCompra(res.data as BackendOrdenCompra) : orden)));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'No se pudo recibir la orden de compra.');
+    }
   };
 
   const handleExportExcel = () => {

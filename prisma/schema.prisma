@@ -78,6 +78,11 @@ enum TipoMovimiento {
   SALIDA_MERMA
 }
 
+enum CategoriaAdicional {
+  BALDES_HERRAMIENTAS
+  ENVASES
+}
+
 enum EstadoSubAlmacen {
   DISPONIBLE
   REUSADO
@@ -212,6 +217,7 @@ model Insumo {
   kardexCategorizados KardexMovimiento[]
   subAlmacenSobrantes SubAlmacenSobrante[]
   pedidoAditivos      PedidoAditivo[]
+  pedidoAdicionales    PedidoAdicional[]
   cotizaciones        CotizacionProveedor[]
   ordenCompraItems  OrdenCompraItem[]
 
@@ -770,6 +776,7 @@ model PedidoComercial {
   clienteRef         Cliente?                 @relation(fields: [clienteId], references: [id])
 
   aditivos           PedidoAditivo[]
+  adicionales        PedidoAdicional[]
   ordenesProduccion  OrdenProduccion[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -798,6 +805,32 @@ model PedidoAditivo {
   @@index([insumoId])
   @@index([tipo])
   @@map("pedido_aditivos")
+}
+
+model PedidoAdicional {
+  id                  String             @id @default(uuid())
+  pedidoId            String             @map("pedido_id")
+  pedido              PedidoComercial    @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  itemIndex           Int                @default(0) @map("item_index")
+  productoNombre      String             @map("producto_nombre")
+  categoria           CategoriaAdicional
+  insumoId            String?            @map("insumo_id")
+  insumo              Insumo?            @relation(fields: [insumoId], references: [id], onDelete: SetNull)
+  descripcion         String
+  unidadMedida        String             @map("unidad_medida")
+  cantidad            Decimal            @db.Decimal(14, 4)
+  cantidadDespachada  Decimal            @default(0) @map("cantidad_despachada") @db.Decimal(14, 4)
+  precioUnitarioVenta Decimal            @map("precio_unitario_venta") @db.Decimal(14, 4)
+  costoUnitario       Decimal            @default(0) @map("costo_unitario") @db.Decimal(14, 4)
+  subtotal            Decimal            @db.Decimal(14, 2)
+  kardexDescontado    Boolean            @default(false) @map("kardex_descontado")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  @@index([pedidoId])
+  @@index([insumoId])
+  @@index([categoria])
+  @@map("pedido_adicionales")
 }
 
 // ============================================================================
@@ -975,6 +1008,28 @@ model OrdenCompraItem {
 
   @@index([ordenCompraId])
   @@map("orden_compra_items")
+}
+
+// Parámetros aprobados por Finanzas para distribuir costos indirectos por unidad.
+model CostoOperativoPeriodo {
+  id                 String   @id @default(uuid())
+  periodo            String   @unique // YYYY-MM
+  cantidadBase       Decimal  @map("cantidad_base") @db.Decimal(14, 4)
+  manoObraLote       Decimal  @map("mano_obra_lote") @db.Decimal(14, 4)
+  supervisionLote    Decimal  @map("supervision_lote") @db.Decimal(14, 4)
+  depreciacionLote   Decimal  @map("depreciacion_lote") @db.Decimal(14, 4)
+  energiaLote        Decimal  @map("energia_lote") @db.Decimal(14, 4)
+  usoLocalLote       Decimal  @map("uso_local_lote") @db.Decimal(14, 4)
+  alquilerMensual    Decimal? @map("alquiler_mensual") @db.Decimal(14, 4)
+  energiaMensual     Decimal? @map("energia_mensual") @db.Decimal(14, 4)
+  horasProductivas   Decimal? @map("horas_productivas") @db.Decimal(14, 4)
+  valorMaquinaria    Decimal? @map("valor_maquinaria") @db.Decimal(14, 4)
+  depreciacionAnual  Decimal? @map("depreciacion_anual") @db.Decimal(8, 4)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([periodo])
+  @@map("costos_operativos_periodo")
 }
 
 model CuentaCobrar {

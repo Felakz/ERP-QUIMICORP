@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, IsEnum } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CrearOrdenCompraItemDto {
@@ -6,8 +6,12 @@ export class CrearOrdenCompraItemDto {
   insumoNombre!: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   insumoId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  familiaId?: string;
 
   @IsNumber()
   cantidad!: number;
@@ -20,8 +24,9 @@ export class CrearOrdenCompraItemDto {
 }
 
 export class CrearOrdenCompraDto {
-  @IsString()
-  proveedorId!: string;
+  @IsOptional()
+  @IsUUID()
+  proveedorId?: string;
 
   @IsString()
   ruc!: string;

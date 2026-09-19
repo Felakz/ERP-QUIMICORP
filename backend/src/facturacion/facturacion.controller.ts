@@ -1,9 +1,10 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
 import { FacturacionService } from './facturacion.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { CostoOperativoPeriodoDto } from './dto/costo-operativo.dto';
 
 @Controller('facturacion')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -25,6 +26,17 @@ export class FacturacionController {
   @Get('rentabilidad')
   async rentabilidad(@Query('rango') rango?: string, @Query('desde') desde?: string, @Query('hasta') hasta?: string) {
     return this.service.rentabilidad(rango, desde, hasta);
+  }
+
+  @Get('costos-operativos/:periodo')
+  async costoOperativo(@Param('periodo') periodo: string) {
+    return this.service.obtenerCostoOperativo(periodo);
+  }
+
+  @Put('costos-operativos/:periodo')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.GERENTE_ADMINISTRATIVO, Role.FINANZAS)
+  async actualizarCostoOperativo(@Param('periodo') periodo: string, @Body() dto: CostoOperativoPeriodoDto) {
+    return this.service.actualizarCostoOperativo(periodo, dto);
   }
 
   @Get('comprobante/:id')

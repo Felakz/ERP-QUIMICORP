@@ -64,7 +64,7 @@ export default function FacturacionPage() {
     { label: 'Facturado Bruto', valor: data.facturado, icon: Wallet, accent: 'text-sky-400', bg: 'from-sky-500/15 to-cyan-500/10', sub: 'Devengado del período' },
     { label: 'Cobrado Efectivo', valor: data.cobrado, icon: PiggyBank, accent: 'text-emerald-400', bg: 'from-emerald-500/15 to-teal-500/10', sub: 'Flujo en bancos' },
     { label: 'Egresos (Compras)', valor: data.egresos, icon: DollarSign, accent: 'text-rose-400', bg: 'from-rose-500/15 to-red-500/10', sub: 'OCs del período *' },
-    { label: 'Inversión Operativa Real', valor: data.invertido, icon: Factory, accent: 'text-amber-400', bg: 'from-amber-500/15 to-orange-500/10', sub: 'COGS reactor + mermas' },
+    { label: 'Costo Directo Real', valor: data.invertido, icon: Factory, accent: 'text-amber-400', bg: 'from-amber-500/15 to-orange-500/10', sub: 'Materia prima e insumos' },
     { label: 'Margen Operativo Bruto', valor: data.utilidad, icon: TrendingUp, accent: 'text-violet-400', bg: 'from-violet-500/15 to-purple-500/10', sub: `${data.margen.toFixed(1)}% margen` },
   ] : [];
 

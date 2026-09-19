@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { CrearOrdenCompraDto } from './dto/crear-orden-compra.dto';
 
 @Controller('ordenes-compra')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -17,7 +18,7 @@ export class OrdenesCompraController {
   }
 
   @Post()
-  async crear(@Body() dto: any) {
+  async crear(@Body() dto: CrearOrdenCompraDto) {
     return this.service.crear(dto);
   }
 

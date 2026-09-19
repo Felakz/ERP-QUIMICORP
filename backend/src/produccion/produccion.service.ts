@@ -680,6 +680,22 @@ export class ProduccionService {
       });
     }
 
+    // Adicionales de la línea del pedido: se descuentan una sola vez al despacho.
+    if (orden?.pedidoComercialId) {
+      const pedidoAdicionales = await this.prisma.pedidoAdicional.findMany({
+        where: { pedidoId: orden.pedidoComercialId, kardexDescontado: false },
+        include: { insumo: { include: { familia: true } } },
+      });
+      const ultimoSegmento = cola.loteCodigo.split('-').pop() || '';
+      const itemIndex = /^\d+$/.test(ultimoSegmento) ? Math.max(0, Number(ultimoSegmento) - 1) : 0;
+      const adicionalesDeLinea = pedidoAdicionales.filter((adicional) => adicional.itemIndex === itemIndex);
+      if (adicionalesDeLinea.length > 0) {
+        const usuarioId = orden.supervisorId || (await this.prisma.usuario.findFirst({ where: { dni: '70000000' } }))?.id;
+        if (!usuarioId) throw new BadRequestException('No se pudo determinar el usuario responsable del despacho.');
+        await this.descontarAdicionalesDespacho(adicionalesDeLinea, cola.loteCodigo, numeroGuia, usuarioId);
+      }
+    }
+
     return {
       ...colaActualizada,
       envaseDescontado,
@@ -692,6 +708,75 @@ export class ProduccionService {
           }
         : {}),
     };
+  }
+
+  private async descontarAdicionalesDespacho(
+    adicionales: Array<{
+      id: string;
+      categoria: 'ENVASES' | 'BALDES_HERRAMIENTAS';
+      cantidad: unknown;
+      cantidadDespachada: unknown;
+      insumoId: string | null;
+      insumo: { id: string; codigo: string; nombre: string; unidadMedida: string; stockReal: unknown; costoUnitario: unknown; familia: { nombre: string } } | null;
+    }>,
+    loteCodigo: string,
+    numeroGuia: string | undefined,
+    usuarioId: string,
+  ) {
+    const documentoRef = numeroGuia?.trim() || `LOTE-${loteCodigo}`;
+    await this.prisma.$transaction(async (tx) => {
+      for (const adicional of adicionales) {
+        if (!adicional.insumoId || !adicional.insumo) continue;
+        const cantidadPendiente = Number(adicional.cantidad) - Number(adicional.cantidadDespachada);
+        if (cantidadPendiente <= 0) continue;
+        const insumo = await tx.insumo.findUniqueOrThrow({ where: { id: adicional.insumoId }, include: { familia: true } });
+        const stockAnterior = Number(insumo.stockReal);
+        if (stockAnterior < cantidadPendiente) {
+          throw new BadRequestException(`Stock insuficiente de ${insumo.codigo} (${insumo.nombre}).`);
+        }
+        const stockNuevo = stockAnterior - cantidadPendiente;
+        const costo = Number(insumo.costoUnitario || 0);
+        const categoria = adicional.categoria === 'ENVASES' ? CategoriaKardex.ENVASE : CategoriaKardex.INSUMO;
+        await tx.insumo.update({ where: { id: insumo.id }, data: { stockReal: stockNuevo } });
+        await tx.kardexMovimiento.create({
+          data: {
+            categoriaKardex: categoria,
+            productoNombre: insumo.nombre,
+            familia: insumo.familia.nombre,
+            categoriaNombre: insumo.familia.nombre,
+            proveedorCliente: `Adicional pedido - ${loteCodigo}`,
+            unidadMedida: insumo.unidadMedida,
+            fecha: new Date(),
+            tipoDoc: 'GUIA',
+            numero: documentoRef,
+            tipoOperacion: TipoMovimiento.SALIDA_VENTA,
+            cantidadEntrada: 0,
+            cantidadSalida: cantidadPendiente,
+            saldoFinal: stockNuevo,
+            costoUnitario: costo,
+            montoSalidaPen: cantidadPendiente * costo,
+            montoSaldoPen: stockNuevo * costo,
+            insumoId: insumo.id,
+            usuarioId,
+          },
+        });
+        await tx.kardexInmutable.create({
+          data: {
+            insumoId: insumo.id,
+            tipoMovimiento: TipoMovimientoKardex.SALIDA,
+            cantidad: cantidadPendiente,
+            stockAnterior,
+            stockNuevo,
+            documentoReferencia: documentoRef,
+            usuarioId,
+          },
+        });
+        await tx.pedidoAdicional.update({
+          where: { id: adicional.id },
+          data: { cantidadDespachada: Number(adicional.cantidad), kardexDescontado: true },
+        });
+      }
+    });
   }
 
   async rechazarLote(dto: DecidirQADto) {
