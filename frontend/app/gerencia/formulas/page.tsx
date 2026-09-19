@@ -92,6 +92,16 @@ function normalizarPasos(pasos: PasoElaboracion[] | string[] | null | undefined)
   });
 }
 
+// La fórmula se dosifica en gramos por cada kilo de lote (1000 g).
+// El backend/BD sigue trabajando en porcentaje: la conversión se hace solo al mostrar y al guardar.
+function porcentajeAGramos(porcentaje: number): number {
+  return parseFloat(((Number(porcentaje) || 0) * 10).toFixed(3));
+}
+
+function gramosAPorcentaje(gramos: number): number {
+  return parseFloat(((Number(gramos) || 0) / 10).toFixed(4));
+}
+
 export default function GerenciaFormulasPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -163,6 +173,8 @@ export default function GerenciaFormulasPage() {
   );
   const diferencia100 = 100 - totalPorcentajeCrear;
   const es100Exacto = Math.abs(diferencia100) <= 0.01;
+  const totalGramosCrear = porcentajeAGramos(totalPorcentajeCrear);
+  const diferenciaGramos = porcentajeAGramos(diferencia100);
 
   const costoEstimadoPorKg = crearIngredientes.reduce((sum, ing) => {
     const ins = insumosList.find((i) => i.id === ing.insumoId);
@@ -280,7 +292,7 @@ export default function GerenciaFormulasPage() {
     }
     if (!es100Exacto) {
       setCrearError(
-        `La suma de porcentajes debe ser exactamente 100%. Actual: ${totalPorcentajeCrear.toFixed(2)}%.`
+        `La suma debe ser exactamente 1000 g por kilo. Actual: ${totalGramosCrear.toFixed(2)} g.`
       );
       return;
     }
@@ -288,7 +300,7 @@ export default function GerenciaFormulasPage() {
       (i) => !i.componente.trim() || Number(i.porcentaje) <= 0
     );
     if (invalido) {
-      setCrearError('Todos los insumos deben tener nombre y un porcentaje mayor a 0%.');
+      setCrearError('Todos los insumos deben tener nombre y gramos mayores a 0.');
       return;
     }
 
@@ -606,7 +618,7 @@ export default function GerenciaFormulasPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className={`block text-[11px] font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                        Componentes Químicos e Insumos (%):
+                        Componentes Químicos e Insumos (g por kilo):
                       </label>
                       <button
                         type="button"
@@ -640,19 +652,21 @@ export default function GerenciaFormulasPage() {
                           <div className="flex items-center gap-1 w-28">
                             <input
                               type="number"
-                              step="0.001"
+                              step="0.01"
+                              min="0.01"
+                              max="1000"
                               required
-                              value={ing.porcentaje}
+                              value={porcentajeAGramos(ing.porcentaje)}
                               onChange={(e) => {
                                 const updated = [...editIngredientes];
-                                updated[idx].porcentaje = parseFloat(e.target.value) || 0;
+                                updated[idx].porcentaje = gramosAPorcentaje(parseFloat(e.target.value)) || 0;
                                 setEditIngredientes(updated);
                               }}
                               className={`w-20 rounded-lg border px-2 py-1 text-xs text-right font-bold focus:outline-none ${
                                 isDark ? 'border-slate-700 bg-slate-900 text-amber-300' : 'border-slate-300 bg-white text-amber-600'
                               }`}
                             />
-                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>%</span>
+                            <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>g</span>
                           </div>
                           <button
                             type="button"
@@ -809,7 +823,7 @@ export default function GerenciaFormulasPage() {
                     Nueva Fórmula Maestra
                   </h3>
                   <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Define la dosificación porcentual exacta (100%), densidad y pasos de reactor.
+                    Define la dosificación en gramos por kilo (1000 g), densidad y pasos de reactor.
                   </p>
                 </div>
               </div>
@@ -900,10 +914,10 @@ export default function GerenciaFormulasPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <p className={`text-[10px] font-black uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                      2. Composición de Materia Prima & Dosificación (%)
+                      2. Composición de Materia Prima & Dosificación (g por kilo)
                     </p>
                     <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      La suma de porcentajes de masa debe totalizar exactamente 100.00%.
+                      La suma de gramos por kilo debe totalizar exactamente 1000 g.
                     </p>
                   </div>
                   <button
@@ -916,27 +930,27 @@ export default function GerenciaFormulasPage() {
                   </button>
                 </div>
 
-                {/* Barra y Monitor de Balance 100% */}
+                {/* Barra y Monitor de Balance 1000 g */}
                 <div className={`p-3 rounded-xl border ${isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'}`}>
                   <div className="flex items-center justify-between text-xs font-bold mb-1.5">
                     <div className="flex items-center gap-1.5">
                       <Scale className="w-4 h-4 text-amber-500" />
                       <span>Balance Total de Fórmula:</span>
                       <span className={`font-mono font-black ${es100Exacto ? 'text-emerald-400' : totalPorcentajeCrear > 100 ? 'text-rose-400' : 'text-amber-400'}`}>
-                        {totalPorcentajeCrear.toFixed(2)}%
+                        {totalGramosCrear.toFixed(2)} g
                       </span>
-                      <span className="text-slate-500 font-normal">/ 100.00%</span>
+                      <span className="text-slate-500 font-normal">/ 1000 g</span>
                     </div>
 
                     {es100Exacto ? (
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        Exacto 100%
+                        Exacto 1000 g
                       </span>
                     ) : diferencia100 > 0 ? (
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                          Faltan {diferencia100.toFixed(2)}%
+                          Faltan {diferenciaGramos.toFixed(2)} g
                         </span>
                         <button
                           type="button"
@@ -950,7 +964,7 @@ export default function GerenciaFormulasPage() {
                       </div>
                     ) : (
                       <span className="text-[11px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg">
-                        Excede por {Math.abs(diferencia100).toFixed(2)}%
+                        Excede por {Math.abs(diferenciaGramos).toFixed(2)} g
                       </span>
                     )}
                   </div>
@@ -1028,21 +1042,21 @@ export default function GerenciaFormulasPage() {
                           <div className="flex items-center gap-1.5">
                             <input
                               type="number"
-                              step="0.001"
-                              min="0.001"
-                              max="100"
+                              step="0.01"
+                              min="0.01"
+                              max="1000"
                               required
-                              value={ing.porcentaje}
+                              value={porcentajeAGramos(ing.porcentaje)}
                               onChange={(e) => {
                                 const updated = [...crearIngredientes];
-                                updated[idx].porcentaje = parseFloat(e.target.value) || 0;
+                                updated[idx].porcentaje = gramosAPorcentaje(parseFloat(e.target.value)) || 0;
                                 setCrearIngredientes(updated);
                               }}
                               className={`w-24 rounded-lg border px-2.5 py-1.5 text-xs text-right font-mono font-bold focus:outline-none ${
                                 isDark ? 'border-slate-700 bg-slate-900 text-amber-300' : 'border-slate-300 bg-white text-amber-600'
                               }`}
                             />
-                            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>%</span>
+                            <span className={`text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>g</span>
                           </div>
                           <div className="w-24 text-right">
                             <span className="text-[10px] font-mono text-slate-500">

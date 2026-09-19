@@ -36,6 +36,16 @@ import {
 import { CommercialOrderForm } from '@/components/pedidos/CommercialOrderForm';
 import { ModalSolicitarPermiso } from '@/components/modals/ModalSolicitarPermiso';
 
+// La fórmula se dosifica en gramos por cada kilo de lote (1000 g).
+// El backend/BD sigue trabajando en porcentaje: la conversión se hace solo al mostrar y al guardar.
+function porcentajeAGramos(porcentaje: number): number {
+  return parseFloat(((Number(porcentaje) || 0) * 10).toFixed(3));
+}
+
+function gramosAPorcentaje(gramos: number): number {
+  return parseFloat(((Number(gramos) || 0) / 10).toFixed(4));
+}
+
 interface ClienteAPI {
   id: string;
   razonSocial: string;
@@ -340,7 +350,7 @@ export default function FormulasPage() {
                 componente: d.insumo?.nombre || d.nombreComponente || 'Componente Químico',
                 tipo: 'BASE',
                 porcentaje: Number(d.porcentaje),
-                pesoTeorico: Number(d.porcentaje),
+                pesoTeorico: Number(d.porcentaje) * 10,
                 unidad: d.insumo?.unidadMedidaVisual || d.insumo?.unidadMedida || 'KG',
               })),
         })) || [],
@@ -349,7 +359,7 @@ export default function FormulasPage() {
           componente: d.insumo?.nombre || d.nombreComponente || 'Componente Químico',
           tipo: 'BASE',
           porcentaje: Number(d.porcentaje),
-          pesoTeorico: Number(d.porcentaje),
+          pesoTeorico: Number(d.porcentaje) * 10,
           stockStatus: 'OK',
           unidad: d.insumo?.unidadMedidaVisual || d.insumo?.unidadMedida || 'KG',
         })),
@@ -503,7 +513,7 @@ export default function FormulasPage() {
                 {formulaSeleccionada.nombreProducto}
               </h2>
               <p className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                {formulaSeleccionada.codigoFM} • Base Standard 100% Química
+                {formulaSeleccionada.codigoFM} • Base Standard 1000 g
               </p>
             </div>
 
@@ -673,7 +683,7 @@ export default function FormulasPage() {
                     </span>
                   </div>
                   <span className={`text-xs font-mono font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
-                    Composición Total: {ingredientesVisualizar.reduce((acc: number, i: any) => acc + Number(i.porcentaje), 0).toFixed(2)}%
+                    Composición Total: {(ingredientesVisualizar.reduce((acc: number, i: any) => acc + Number(i.porcentaje), 0) * 10).toFixed(2)} g / 1000 g
                   </span>
                 </div>
 
@@ -684,8 +694,8 @@ export default function FormulasPage() {
                         <th className="py-2.5 px-3">SKU</th>
                         <th className="py-2.5 px-3">COMPONENTE QUÍMICO</th>
                         <th className="py-2.5 px-3">TIPO</th>
-                        <th className="py-2.5 px-3 text-right">PROPORCIÓN (%)</th>
-                        <th className="py-2.5 px-3 text-right">PESO TEÓRICO (KG)</th>
+                        <th className="py-2.5 px-3 text-right">DOSIS (G/KG)</th>
+                        <th className="py-2.5 px-3 text-right">PESO TEÓRICO (G)</th>
                         <th className="py-2.5 px-3 text-center">ESTADO</th>
                       </tr>
                     </thead>
@@ -720,10 +730,10 @@ export default function FormulasPage() {
                             )}
                           </td>
                           <td className={`py-3 px-3 text-right font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                            {Number(item.porcentaje).toFixed(2)}%
+                            {(Number(item.porcentaje) * 10).toFixed(2)} g
                           </td>
                           <td className={`py-3 px-3 text-right font-black ${isDark ? 'text-cyan-400' : 'text-teal-700'}`}>
-                            {Number(item.pesoTeorico || (Number(item.porcentaje) * 10)).toFixed(3)} KG
+                            {Number(item.pesoTeorico || (Number(item.porcentaje) * 10)).toFixed(2)} g
                           </td>
                           <td className="py-3 px-3 text-center">
                             <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block shadow-sm shadow-emerald-500/50" />
@@ -975,7 +985,7 @@ export default function FormulasPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className={`block text-[11px] font-bold uppercase ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                    Componentes Químicos e Insumos (%):
+                    Componentes Químicos e Insumos (g por kilo):
                   </label>
                   <button
                     type="button"
@@ -1014,19 +1024,21 @@ export default function FormulasPage() {
                       <div className="flex items-center gap-1 w-28">
                         <input
                           type="number"
-                          step="0.001"
+                          step="0.01"
+                          min="0.01"
+                          max="1000"
                           required
-                          value={ing.porcentaje}
+                          value={porcentajeAGramos(ing.porcentaje)}
                           onChange={(e) => {
                             const updated = [...editIngredientes];
-                            updated[idx].porcentaje = parseFloat(e.target.value) || 0;
+                            updated[idx].porcentaje = gramosAPorcentaje(parseFloat(e.target.value)) || 0;
                             setEditIngredientes(updated);
                           }}
                           className={`w-20 rounded-lg border px-2 py-1 text-xs text-right font-bold focus:outline-none ${
                             isDark ? 'border-slate-700 bg-slate-900 text-amber-300' : 'border-slate-300 bg-white text-amber-600'
                           }`}
                         />
-                        <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>%</span>
+                        <span className={`text-[11px] font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>g</span>
                       </div>
                       <button
                         type="button"
