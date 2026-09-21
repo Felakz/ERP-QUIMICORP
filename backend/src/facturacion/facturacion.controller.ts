@@ -28,6 +28,16 @@ export class FacturacionController {
     return this.service.rentabilidad(rango, desde, hasta);
   }
 
+  @Get('rentabilidad/por-pedido')
+  async rentabilidadPorPedido(
+    @Query('rango') rango?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+    @Query('ruc') ruc?: string,
+  ) {
+    return this.service.rentabilidadPorPedido(rango, desde, hasta, ruc);
+  }
+
   @Get('costos-operativos/:periodo')
   async costoOperativo(@Param('periodo') periodo: string) {
     return this.service.obtenerCostoOperativo(periodo);

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { TrendingUp, Wallet, Factory, PiggyBank, Download, RefreshCw, Calendar, Scale, DollarSign, X } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
@@ -18,6 +19,26 @@ interface RentabilidadData {
   desglose: { formula: string; facturado: number; teorico: number; real: number; desvio: number; cantidad: number }[];
 }
 
+interface VentaRentabilidad {
+  pedidoId: string;
+  codigoOrden: string;
+  fecha: string;
+  estado: string;
+  clienteRuc: string;
+  clienteNombre: string;
+  productoNombre: string;
+  cantidadSolicitada: number;
+  facturado: number;
+  costo: number;
+  utilidad: number;
+  margen: number;
+}
+
+interface VentasRentabilidadData {
+  ventas: VentaRentabilidad[];
+  totales: { facturado: number; costo: number; cantidad: number; ventas: number; utilidad: number; margen: number };
+}
+
 const fmt = (n: number, currency: string, igv: boolean, tc: number) => {
   let v = n;
   if (igv) v = v * 1.18;
@@ -28,6 +49,7 @@ const fmt = (n: number, currency: string, igv: boolean, tc: number) => {
 
 export default function FacturacionPage() {
   const { theme } = useTheme();
+  const router = useRouter();
   const isDark = theme === 'dark';
   const cardBg = isDark ? 'bg-[#0D1421] border-[#1A2232]' : 'bg-white border-slate-200';
   const textTitle = isDark ? 'text-slate-300' : 'text-slate-700';
@@ -46,6 +68,10 @@ export default function FacturacionPage() {
   const [sortMargen, setSortMargen] = useState<'desc' | 'asc'>('desc');
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  const [ventasData, setVentasData] = useState<VentasRentabilidadData | null>(null);
+  const [searchVentas, setSearchVentas] = useState('');
+  const [pageVentas, setPageVentas] = useState(1);
+  const pageVentasSize = 10;
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -55,8 +81,25 @@ export default function FacturacionPage() {
       if (fechaHasta) url += `&hasta=${fechaHasta}`;
       const res = await apiFetch<RentabilidadData>(url);
       if (res.data) setData(res.data);
+      const resVentas = await apiFetch<VentasRentabilidadData>(url.replace('/rentabilidad?', '/rentabilidad/por-pedido?'));
+      if (resVentas.data) setVentasData(resVentas.data);
     } catch { setData(null); } finally { setLoading(false); }
   }, [rango, fechaDesde, fechaHasta]);
+
+  const irAFichaCliente = async (ruc: string) => {
+    if (!ruc) return;
+    try {
+      const res = await apiFetch<{ id: string; ruc: string }[]>(`/clientes?ruc=${encodeURIComponent(ruc)}`);
+      const match = Array.isArray(res.data) ? res.data.find((c) => c.ruc === ruc) : undefined;
+      if (match?.id) {
+        router.push(`/administracion/clientes/${match.id}`);
+      } else {
+        alert(`El RUC ${ruc} no está registrado en la cartera de clientes.`);
+      }
+    } catch {
+      alert('No se pudo abrir la ficha del cliente.');
+    }
+  };
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -272,7 +315,7 @@ export default function FacturacionPage() {
                 const pag = filtrada.slice((page - 1) * pageSize, page * pageSize);
                 return pag.map(r => (
                 <tr key={r.ruc} className={`border-t ${isDark ? 'border-[#131A29]' : 'border-slate-100'}`}>
-                  <td className="px-3 py-2.5"><div className="font-bold text-[12px] text-slate-100">{r.cliente}</div><div className="text-[10px] font-mono text-slate-500">{r.ruc}</div></td>
+                  <td className="px-3 py-2.5"><button type="button" onClick={() => irAFichaCliente(r.ruc)} className="text-left hover:underline cursor-pointer" title="Ver ficha, pedidos y comprobantes del cliente"><div className="font-bold text-[12px] text-sky-400">{r.cliente}</div><div className="text-[10px] font-mono text-slate-500">{r.ruc}</div></button></td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-black text-slate-100">{fmt(r.facturado, currency, incluyeIgv, tc)}</td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-bold text-amber-400">{fmt(r.invertido, currency, incluyeIgv, tc)}</td>
                   <td className="px-3 py-2.5 text-right"><span className={`px-2 py-1 rounded-full text-[11px] font-black ${r.margen >= 30 ? 'bg-emerald-500/20 text-emerald-400' : r.margen >= 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{r.margen.toFixed(1)}%</span><div className="text-[10px] text-slate-500">{fmt(r.utilidad, currency, incluyeIgv, tc)}</div></td>
@@ -292,6 +335,67 @@ export default function FacturacionPage() {
               <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="px-2 py-1 rounded border disabled:opacity-40">‹</button>
               <span>{page} / {totalPages}</span>
               <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="px-2 py-1 rounded border disabled:opacity-40">›</button>
+            </div>
+          </div>
+          ) : null;
+        })()}
+      </div>
+
+      <div className={`rounded-2xl border p-4 ${cardBg}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><p className={`text-[11px] font-black uppercase ${textValue}`}>Rentabilidad por Venta</p><p className={`text-[10px] ${textMuted}`}>Cada pedido con su facturado, costo real, utilidad y margen — clic en el cliente para ver su ficha</p></div>
+          <div className="flex items-center gap-2">
+            {ventasData && <span className="text-[10px] font-bold text-slate-400">{ventasData.totales.ventas} ventas · Margen {ventasData.totales.margen.toFixed(1)}%</span>}
+            <input value={searchVentas} onChange={e => { setSearchVentas(e.target.value); setPageVentas(1); }} placeholder="Buscar orden/cliente/producto..." className={`px-3 py-1.5 rounded-xl border text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-white border-slate-200'}`} />
+          </div>
+        </div>
+        <div className="overflow-x-auto mt-2">
+          <table className="w-full min-w-[1000px]">
+            <thead><tr className={`text-[9px] uppercase ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+              <th className="text-left px-3 py-2.5 font-black">Fecha</th>
+              <th className="text-left px-3 py-2.5 font-black">Orden</th>
+              <th className="text-left px-3 py-2.5 font-black">Cliente</th>
+              <th className="text-left px-3 py-2.5 font-black">Producto</th>
+              <th className="text-right px-3 py-2.5 font-black">Cant.</th>
+              <th className="text-right px-3 py-2.5 font-black">Facturado</th>
+              <th className="text-right px-3 py-2.5 font-black">Costo Real</th>
+              <th className="text-right px-3 py-2.5 font-black">Utilidad</th>
+              <th className="text-right px-3 py-2.5 font-black">Margen</th>
+            </tr></thead>
+            <tbody>
+              {(() => {
+                const q = searchVentas.toLowerCase().trim();
+                const filtradas = (ventasData?.ventas || []).filter(v => !q || v.codigoOrden.toLowerCase().includes(q) || v.clienteNombre.toLowerCase().includes(q) || v.clienteRuc.includes(q) || (v.productoNombre || '').toLowerCase().includes(q));
+                const totalPages = Math.max(1, Math.ceil(filtradas.length / pageVentasSize));
+                const pag = filtradas.slice((pageVentas - 1) * pageVentasSize, pageVentas * pageVentasSize);
+                if (pag.length === 0) return <tr><td colSpan={9} className="px-3 py-4 text-center text-[11px] text-slate-500">Sin ventas en el período.</td></tr>;
+                return pag.map(v => (
+                <tr key={v.pedidoId} className={`border-t ${isDark ? 'border-[#131A29]' : 'border-slate-100'}`}>
+                  <td className="px-3 py-2.5 text-[11px] font-mono text-slate-400">{new Date(v.fecha).toLocaleDateString('es-PE')}</td>
+                  <td className="px-3 py-2.5 text-[11px] font-bold font-mono text-slate-200">{v.codigoOrden}</td>
+                  <td className="px-3 py-2.5"><button type="button" onClick={() => irAFichaCliente(v.clienteRuc)} className="text-left hover:underline cursor-pointer" title="Ver ficha del cliente"><div className="font-bold text-[12px] text-sky-400">{v.clienteNombre}</div><div className="text-[10px] font-mono text-slate-500">{v.clienteRuc}</div></button></td>
+                  <td className="px-3 py-2.5 text-[11px] text-slate-300">{v.productoNombre}</td>
+                  <td className="px-3 py-2.5 text-right text-[11px] text-slate-400">{v.cantidadSolicitada.toLocaleString('es-PE')}</td>
+                  <td className="px-3 py-2.5 text-right text-[12px] font-black text-slate-100">{fmt(v.facturado, currency, incluyeIgv, tc)}</td>
+                  <td className="px-3 py-2.5 text-right text-[12px] font-bold text-amber-400">{fmt(v.costo, currency, incluyeIgv, tc)}</td>
+                  <td className="px-3 py-2.5 text-right text-[12px] font-bold text-emerald-400">{fmt(v.utilidad, currency, incluyeIgv, tc)}</td>
+                  <td className="px-3 py-2.5 text-right"><span className={`px-2 py-1 rounded-full text-[11px] font-black ${v.margen >= 30 ? 'bg-emerald-500/20 text-emerald-400' : v.margen >= 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{v.margen.toFixed(1)}%</span></td>
+                </tr>
+              )); })()}
+            </tbody>
+          </table>
+        </div>
+        {(() => {
+          const q = searchVentas.toLowerCase().trim();
+          const filtradas = (ventasData?.ventas || []).filter(v => !q || v.codigoOrden.toLowerCase().includes(q) || v.clienteNombre.toLowerCase().includes(q) || v.clienteRuc.includes(q) || (v.productoNombre || '').toLowerCase().includes(q));
+          const totalPages = Math.max(1, Math.ceil(filtradas.length / pageVentasSize));
+          return filtradas.length > pageVentasSize ? (
+          <div className={`flex items-center justify-between px-4 py-2 border-t text-xs ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200'}`}>
+            <span>{filtradas.length} ventas</span>
+            <div className="flex items-center gap-1">
+              <button disabled={pageVentas <= 1} onClick={() => setPageVentas(p => Math.max(1, p - 1))} className="px-2 py-1 rounded border disabled:opacity-40">‹</button>
+              <span>{pageVentas} / {totalPages}</span>
+              <button disabled={pageVentas >= totalPages} onClick={() => setPageVentas(p => Math.min(totalPages, p + 1))} className="px-2 py-1 rounded border disabled:opacity-40">›</button>
             </div>
           </div>
           ) : null;

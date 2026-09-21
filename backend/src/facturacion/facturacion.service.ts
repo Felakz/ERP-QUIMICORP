@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CostoOperativoPeriodoDto } from './dto/costo-operativo.dto';
 
@@ -10,6 +11,14 @@ interface CostoOperativoCalculado {
   energiaLote: number;
   usoLocalLote: number;
 }
+
+type PedidoConCosto = Prisma.PedidoComercialGetPayload<{
+  include: {
+    formula: { include: { detalles: { include: { insumo: true } } } };
+    aditivos: { include: { insumo: true } };
+    adicionales: { include: { insumo: true } };
+  };
+}>;
 
 @Injectable()
 export class FacturacionService {
@@ -279,8 +288,8 @@ export class FacturacionService {
     };
   }
 
-  /** Rentabilidad & Margen: Facturado vs Cobrado vs Invertido (COGS real) vs Utilidad. */
-  async rentabilidad(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
+  /** Rango de fechas compartido por los reportes de rentabilidad. */
+  private rangoFechas(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
     const start = (() => {
       const now = new Date();
       if (startDateStr) return new Date(`${startDateStr}T00:00:00`);
@@ -295,6 +304,34 @@ export class FacturacionService {
       if (dateRange === 'MES_ANTERIOR') return new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
       return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     })();
+    return { start, end };
+  }
+
+  /** Costo total real de un pedido: fórmula + indirectos + aditivos + adicionales. */
+  private costoTotalPedido(p: PedidoConCosto, costosPorPeriodo: Map<string, CostoOperativoCalculado>): number {
+    let total = 0;
+    if (p.formula?.detalles?.length) {
+      const costoUnit = p.formula.detalles.reduce(
+        (acc, d) => acc + Number(d.insumo?.costoUnitario || 0) * (Number(d.porcentaje || 0) / 100),
+        0,
+      );
+      const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
+      total += (costoUnit + costoIndirecto) * Number(p.cantidadSolicitada || 0);
+    }
+    total += p.aditivos.reduce(
+      (acc, aditivo) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
+      0,
+    );
+    total += p.adicionales.reduce(
+      (acc, adicional) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0),
+      0,
+    );
+    return total;
+  }
+
+  /** Rentabilidad & Margen: Facturado vs Cobrado vs Invertido (COGS real) vs Utilidad. */
+  async rentabilidad(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
+    const { start, end } = this.rangoFechas(dateRange, startDateStr, endDateStr);
     const whereDate = { gte: start, lte: end };
     const [cuentas, pagos, pedidos, ordenesCompra, costosOperativos] = await Promise.all([
       this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: whereDate }, select: { montoTotal: true, pedidoId: true, ordenProd: true } }),
@@ -330,22 +367,7 @@ export class FacturacionService {
     const cobrado = Number(pagos._sum.montoAbonado || 0);
     let invertido = 0;
     for (const p of pedidos) {
-      if (p.formula?.detalles?.length) {
-        const costoUnit = p.formula.detalles.reduce((acc: number, d: any) => acc + Number(d.insumo?.costoUnitario || 0) * (Number(d.porcentaje || 0) / 100), 0);
-        const costoAditivos = p.aditivos.reduce(
-          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-          0,
-        );
-        const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
-        const costoAdicionales = p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
-        invertido += (costoUnit + costoIndirecto) * Number(p.cantidadSolicitada || 0) + costoAditivos + costoAdicionales;
-      } else if (p.aditivos.length) {
-        invertido += p.aditivos.reduce(
-          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-          0,
-        );
-        invertido += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
-      }
+      invertido += this.costoTotalPedido(p, costosPorPeriodo);
     }
     const egresos = ordenesCompra.reduce((total, orden) => total + Number(orden.totalPEN), 0);
     const utilidad = facturado - invertido;
@@ -378,22 +400,7 @@ export class FacturacionService {
         const mpeds = allPedidos.filter((p: any) => new Date(p.createdAt).getMonth() === m && new Date(p.createdAt).getFullYear() === y);
       let inv = 0;
       for (const p of mpeds) {
-        if (p.formula?.detalles?.length) {
-          const cu = p.formula.detalles.reduce((acc: number, det: any) => acc + Number(det.insumo?.costoUnitario || 0) * (Number(det.porcentaje || 0) / 100), 0);
-          const costoAditivos = p.aditivos.reduce(
-            (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-            0,
-          );
-          const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
-          inv += (cu + costoIndirecto) * Number(p.cantidadSolicitada || 0) + costoAditivos;
-          inv += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
-        } else if (p.aditivos.length) {
-          inv += p.aditivos.reduce(
-            (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-            0,
-          );
-          inv += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
-        }
+        inv += this.costoTotalPedido(p, costosPorPeriodo);
       }
       const egr = allOrdenesCompra
         .filter((orden) => new Date(orden.updatedAt).getMonth() === m && new Date(orden.updatedAt).getFullYear() === y)
@@ -406,18 +413,10 @@ export class FacturacionService {
     const porCliente = await this.prisma.cuentaCobrar.groupBy({ by: ['clienteRuc', 'clienteNombre'], where: { fechaEmision: whereDate }, _sum: { montoTotal: true }, _count: true });
     const costosPorCliente = new Map<string, number>();
     for (const pedido of pedidos) {
-      const costoUnitario = pedido.formula?.detalles?.reduce(
-        (total: number, detalle: any) => total + Number(detalle.insumo?.costoUnitario || 0) * (Number(detalle.porcentaje || 0) / 100),
-        0,
-      ) || 0;
-      const costoIndirecto = this.costoIndirectoUnitario(new Date(pedido.createdAt), costosPorPeriodo);
-      const costoPedido = (costoUnitario + costoIndirecto) * Number(pedido.cantidadSolicitada || 0);
-      const costoAditivos = pedido.aditivos.reduce(
-        (total: number, aditivo: any) => total + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-        0,
+      costosPorCliente.set(
+        pedido.clienteRuc,
+        (costosPorCliente.get(pedido.clienteRuc) || 0) + this.costoTotalPedido(pedido, costosPorPeriodo),
       );
-      const costoAdicionales = pedido.adicionales.reduce((total: number, adicional: any) => total + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
-      costosPorCliente.set(pedido.clienteRuc, (costosPorCliente.get(pedido.clienteRuc) || 0) + costoPedido + costoAditivos + costoAdicionales);
     }
     const tabla = porCliente.map((g: any) => {
       const fact = Number(g._sum.montoTotal || 0);
@@ -431,22 +430,7 @@ export class FacturacionService {
       const key = p.productoNombre || p.formula?.nombreProducto || 'SIN FORMULA';
       const cur = porFormula.get(key) || { formula: key, facturado: 0, teorico: 0, cantidad: 0 };
       cur.facturado += Number(p.montoTotal || 0);
-      if (p.formula?.detalles?.length) {
-        const cu = p.formula.detalles.reduce((acc: number, det: any) => acc + Number(det.insumo?.costoUnitario || 0) * (Number(det.porcentaje || 0) / 100), 0);
-        const costoAditivos = p.aditivos.reduce(
-          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-          0,
-        );
-        const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
-        cur.teorico += (cu + costoIndirecto) * Number(p.cantidadSolicitada || 0) + costoAditivos;
-        cur.teorico += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
-      } else if (p.aditivos.length) {
-        cur.teorico += p.aditivos.reduce(
-          (acc: number, aditivo: any) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-          0,
-        );
-        cur.teorico += p.adicionales.reduce((acc: number, adicional: any) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0), 0);
-      }
+      cur.teorico += this.costoTotalPedido(p, costosPorPeriodo);
       cur.cantidad += Number(p.cantidadSolicitada || 0);
       porFormula.set(key, cur);
     }
@@ -456,6 +440,90 @@ export class FacturacionService {
       return { formula: v.formula, facturado: v.facturado, teorico: v.teorico, real, desvio: Number(desvio.toFixed(1)), cantidad: v.cantidad };
     }).sort((a, b) => b.facturado - a.facturado).slice(0, 8);
     return { facturado, cobrado, invertido, egresos, utilidad, margen: Number(margen.toFixed(1)), serie, tabla, desglose };
+  }
+
+  /** Rentabilidad por venta: cada pedido con su facturado, costo real, utilidad y margen. */
+  async rentabilidadPorPedido(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string, ruc?: string) {
+    const { start, end } = this.rangoFechas(dateRange, startDateStr, endDateStr);
+    const whereDate = { gte: start, lte: end };
+    const [pedidos, cuentas, costosOperativos] = await Promise.all([
+      this.prisma.pedidoComercial.findMany({
+        where: {
+          createdAt: whereDate,
+          estado: { not: 'RECHAZADO' },
+          ...(ruc && ruc.trim() ? { clienteRuc: ruc.trim() } : {}),
+        },
+        include: {
+          formula: { include: { detalles: { include: { insumo: true } } } },
+          aditivos: { include: { insumo: true } },
+          adicionales: { include: { insumo: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.cuentaCobrar.findMany({
+        select: { pedidoId: true, ordenProd: true, montoTotal: true },
+      }),
+      this.prisma.costoOperativoPeriodo.findMany(),
+    ]);
+    const costosPorPeriodo = new Map<string, CostoOperativoCalculado>(
+      costosOperativos.map((costo) => [
+        costo.periodo,
+        {
+          cantidadBase: Number(costo.cantidadBase),
+          manoObraLote: Number(costo.manoObraLote),
+          supervisionLote: Number(costo.supervisionLote),
+          depreciacionLote: Number(costo.depreciacionLote),
+          energiaLote: Number(costo.energiaLote),
+          usoLocalLote: Number(costo.usoLocalLote),
+        },
+      ]),
+    );
+    // Vínculo comprobante→pedido: pedidoId (nuevos) u ordenProd=codigoOrden (legacy).
+    const facturadoPorPedido = new Map<string, number>();
+    const facturadoPorOrden = new Map<string, number>();
+    for (const c of cuentas) {
+      const monto = Number(c.montoTotal || 0);
+      if (c.pedidoId) facturadoPorPedido.set(c.pedidoId, (facturadoPorPedido.get(c.pedidoId) || 0) + monto);
+      if (c.ordenProd) facturadoPorOrden.set(c.ordenProd, (facturadoPorOrden.get(c.ordenProd) || 0) + monto);
+    }
+    const ventas = pedidos.map((p) => {
+      const costo = this.costoTotalPedido(p, costosPorPeriodo);
+      const facturado = facturadoPorPedido.get(p.id)
+        ?? (p.codigoOrden ? facturadoPorOrden.get(p.codigoOrden) ?? 0 : 0);
+      const utilidad = facturado - costo;
+      return {
+        pedidoId: p.id,
+        codigoOrden: p.codigoOrden,
+        fecha: p.createdAt,
+        estado: p.estado,
+        clienteRuc: p.clienteRuc,
+        clienteNombre: p.clienteNombre,
+        productoNombre: p.productoNombre,
+        cantidadSolicitada: Number(p.cantidadSolicitada || 0),
+        facturado,
+        costo,
+        utilidad,
+        margen: facturado > 0 ? Number(((utilidad / facturado) * 100).toFixed(1)) : 0,
+      };
+    });
+    const totales = ventas.reduce(
+      (acc, v) => ({
+        facturado: acc.facturado + v.facturado,
+        costo: acc.costo + v.costo,
+        cantidad: acc.cantidad + v.cantidadSolicitada,
+        ventas: acc.ventas + 1,
+      }),
+      { facturado: 0, costo: 0, cantidad: 0, ventas: 0 },
+    );
+    const utilidadTotal = totales.facturado - totales.costo;
+    return {
+      ventas,
+      totales: {
+        ...totales,
+        utilidad: utilidadTotal,
+        margen: totales.facturado > 0 ? Number(((utilidadTotal / totales.facturado) * 100).toFixed(1)) : 0,
+      },
+    };
   }
 
   private costoIndirectoUnitario(
