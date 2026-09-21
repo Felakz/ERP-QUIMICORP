@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 
 @Injectable()
@@ -514,47 +514,143 @@ export class ClientesService {
     contactos?: { nombre: string; cargo?: string; telefono?: string; esPrincipal?: boolean }[];
   }) {
     const db = this.prisma;
+    const cleanRuc = dto.ruc?.trim();
 
-    await db.cliente.update({
-      where: { id },
-      data: {
-        razonSocial: dto.razonSocial,
-        ruc: dto.ruc,
-        telefono: dto.telefono ?? undefined,
-        direccion: dto.direccion ?? undefined,
-        contacto: dto.contacto,
-        metodoEnvio: dto.metodoEnvio,
-        condicionPago: dto.condicionPago,
-      },
-    });
-
-    if (dto.contactos || dto.contacto !== undefined) {
-      const contactosData =
-        dto.contactos && dto.contactos.length > 0
-          ? dto.contactos
-          : dto.contacto
-            ? [{ nombre: dto.contacto, cargo: 'Contacto Principal', telefono: dto.telefono, esPrincipal: true }]
-            : [];
-
-      await db.contactoRepresentante.deleteMany({ where: { clienteId: id } });
-      if (contactosData.length > 0) {
-        await db.contactoRepresentante.createMany({
-          data: contactosData.map((c) => ({
-            clienteId: id,
-            nombre: c.nombre,
-            cargo: c.cargo || null,
-            telefono: c.telefono || null,
-            esPrincipal: c.esPrincipal ?? false,
-          })),
+    try {
+      // 1. Si el RUC ingresado ya le pertenece a OTRO cliente registrado (ej. cliente canónico previo),
+      // consolidar automáticamente ambos registros para no duplicar ni generar error de clave única.
+      if (cleanRuc) {
+        const duplicateClient = await db.cliente.findUnique({
+          where: { ruc: cleanRuc },
         });
-      }
-    }
 
-    return db.cliente.findUnique({
-      where: { id },
-      include: {
-        contactos: { orderBy: { esPrincipal: 'desc' } },
-      },
-    });
+        if (duplicateClient && duplicateClient.id !== id) {
+          return await db.$transaction(async (tx: any) => {
+            // Reasignar pedidos comerciales
+            await tx.pedidoComercial.updateMany({
+              where: { clienteId: id },
+              data: {
+                clienteId: duplicateClient.id,
+                clienteRuc: cleanRuc,
+                clienteNombre: dto.razonSocial?.trim() || duplicateClient.razonSocial,
+              },
+            });
+
+            // Reasignar cuentas por cobrar
+            await tx.cuentaCobrar.updateMany({
+              where: { clienteId: id },
+              data: {
+                clienteId: duplicateClient.id,
+                clienteRuc: cleanRuc,
+                clienteNombre: dto.razonSocial?.trim() || duplicateClient.razonSocial,
+              },
+            });
+
+            // Reasignar variantes de fórmula
+            await tx.formulaVariant.updateMany({
+              where: { clienteId: id },
+              data: {
+                clienteId: duplicateClient.id,
+              },
+            });
+
+            // Actualizar datos maestros en el cliente canónico
+            await tx.cliente.update({
+              where: { id: duplicateClient.id },
+              data: {
+                razonSocial: dto.razonSocial?.trim() || duplicateClient.razonSocial,
+                telefono: dto.telefono?.trim() ?? duplicateClient.telefono,
+                direccion: dto.direccion?.trim() ?? duplicateClient.direccion,
+                contacto: dto.contacto?.trim() ?? duplicateClient.contacto,
+                metodoEnvio: dto.metodoEnvio?.trim() ?? duplicateClient.metodoEnvio,
+                condicionPago: dto.condicionPago ?? duplicateClient.condicionPago,
+              },
+            });
+
+            // Consolidar contactos en el cliente canónico
+            if (dto.contactos || dto.contacto !== undefined) {
+              const contactosData =
+                dto.contactos && dto.contactos.length > 0
+                  ? dto.contactos
+                  : dto.contacto
+                    ? [{ nombre: dto.contacto, cargo: 'Contacto Principal', telefono: dto.telefono, esPrincipal: true }]
+                    : [];
+
+              await tx.contactoRepresentante.deleteMany({ where: { clienteId: duplicateClient.id } });
+              if (contactosData.length > 0) {
+                await tx.contactoRepresentante.createMany({
+                  data: contactosData.map((c: any) => ({
+                    clienteId: duplicateClient.id,
+                    nombre: c.nombre.trim(),
+                    cargo: c.cargo?.trim() || null,
+                    telefono: c.telefono?.trim() || null,
+                    esPrincipal: c.esPrincipal ?? false,
+                  })),
+                });
+              }
+            }
+
+            // Eliminar el registro duplicado / temporal
+            await tx.contactoRepresentante.deleteMany({ where: { clienteId: id } });
+            await tx.cliente.delete({ where: { id } });
+
+            return tx.cliente.findUnique({
+              where: { id: duplicateClient.id },
+              include: {
+                contactos: { orderBy: { esPrincipal: 'desc' } },
+              },
+            });
+          });
+        }
+      }
+
+      // 2. Actualización estándar sin conflicto de RUC
+      await db.cliente.update({
+        where: { id },
+        data: {
+          razonSocial: dto.razonSocial?.trim(),
+          ruc: cleanRuc,
+          telefono: dto.telefono?.trim() ?? undefined,
+          direccion: dto.direccion?.trim() ?? undefined,
+          contacto: dto.contacto?.trim(),
+          metodoEnvio: dto.metodoEnvio?.trim(),
+          condicionPago: dto.condicionPago,
+        },
+      });
+
+      if (dto.contactos || dto.contacto !== undefined) {
+        const contactosData =
+          dto.contactos && dto.contactos.length > 0
+            ? dto.contactos
+            : dto.contacto
+              ? [{ nombre: dto.contacto, cargo: 'Contacto Principal', telefono: dto.telefono, esPrincipal: true }]
+              : [];
+
+        await db.contactoRepresentante.deleteMany({ where: { clienteId: id } });
+        if (contactosData.length > 0) {
+          await db.contactoRepresentante.createMany({
+            data: contactosData.map((c) => ({
+              clienteId: id,
+              nombre: c.nombre.trim(),
+              cargo: c.cargo?.trim() || null,
+              telefono: c.telefono?.trim() || null,
+              esPrincipal: c.esPrincipal ?? false,
+            })),
+          });
+        }
+      }
+
+      return db.cliente.findUnique({
+        where: { id },
+        include: {
+          contactos: { orderBy: { esPrincipal: 'desc' } },
+        },
+      });
+    } catch (err: any) {
+      if (err.code === 'P2002') {
+        throw new BadRequestException(`El RUC ${cleanRuc || ''} ya está registrado para otro cliente.`);
+      }
+      throw new BadRequestException(err.message || 'Error al actualizar el cliente.');
+    }
   }
 }

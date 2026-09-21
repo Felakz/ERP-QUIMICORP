@@ -44,10 +44,11 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
 
-  const fetchClientDetail = async () => {
+  const fetchClientDetail = async (targetId?: string) => {
+    const idToFetch = targetId || currentClient?.id || cliente.id;
     setLoadingDetail(true);
     try {
-      const { data, ok } = await apiFetch<ClientExtended>(`/clientes/${cliente.id}`);
+      const { data, ok } = await apiFetch<ClientExtended>(`/clientes/${idToFetch}`);
       if (ok && data) {
         setCurrentClient(data);
       }
@@ -232,7 +233,12 @@ export const ClientDetailView: React.FC<ClientDetailViewProps> = ({
       <EditarClienteModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        onSaved={() => fetchClientDetail()}
+        onSaved={(nuevoCliente) => {
+          if (nuevoCliente) {
+            setCurrentClient(nuevoCliente as any);
+          }
+          fetchClientDetail(nuevoCliente?.id || cliente.id);
+        }}
         cliente={activeCliente}
       />
     </div>
