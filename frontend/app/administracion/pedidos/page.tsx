@@ -64,6 +64,7 @@ interface PedidoEmitido {
   aromaText?: string | null;
   colorText?: string | null;
   aditivos?: any[];
+  adicionales?: any[];
   notasAdmin?: string | null;
   observacionesClean?: string | null;
   itemsList?: any[];
@@ -1059,8 +1060,17 @@ export default function AdministracionPedidosComercialesPage() {
                       </td>
 
 
-                      {/* Personalización */}
+                      {/* Personalización + Adicionales */}
                       <td className="py-3 px-3">
+                        {(p.adicionales && p.adicionales.length > 0) && (
+                          <div className="flex flex-wrap gap-1 mb-1">
+                            {p.adicionales.map((ad: any, idx: number) => (
+                              <span key={idx} className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${isDark ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-sky-50 text-sky-800 border-sky-200'}`} title={`${ad.descripcion} x${ad.cantidad} ${ad.unidadMedida} — S/ ${Number(ad.precioUnitarioVenta || 0).toFixed(2)}`}>
+                                📦 {ad.categoria === 'BALDES_HERRAMIENTAS' ? 'BALDE' : 'ENVASE'} {ad.descripcion} ×{ad.cantidad}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {p.aditivos && p.aditivos.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {p.aditivos.map((ad: any, adIdx: number) => (

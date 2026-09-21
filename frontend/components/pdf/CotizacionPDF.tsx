@@ -106,10 +106,10 @@ export function CotizacionPDF({ isOpen, onClose, data }: CotizacionPDFProps) {
         },
       ];
 
-  // Cálculo de Subtotal e IGV
-  const subtotalCalc = itemList.reduce((acc, it) => acc + (Number(it.importeTotal) || (it.cantidad * it.precioUnitario)), 0);
-  const igvCalc = subtotalCalc * 0.18;
-  const totalCalc = subtotalCalc + igvCalc;
+  // Cálculo con IGV incluido en el precio (total = suma de importes)
+  const totalCalc = itemList.reduce((acc, it) => acc + (Number(it.importeTotal) || (it.cantidad * it.precioUnitario)), 0);
+  const subtotalCalc = totalCalc / 1.18;
+  const igvCalc = totalCalc - subtotalCalc;
 
   // ── FUNCIÓN DE IMPRESIÓN AISLADA (Evita hojas en blanco y desbordes) ──
   const handlePrint = () => {
