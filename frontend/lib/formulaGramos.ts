@@ -20,11 +20,15 @@ export function gramosAPorcentaje(gramos: number): number {
 
 // Escala un arreglo de porcentajes para que sume exactamente 100,
 // corrigiendo el residuo de redondeo en el componente mayoritario.
+// Respeta el mínimo del backend (@Min(0.001)) para componentes con dosis positiva.
 export function normalizarPorcentajesExacto(porcentajes: number[]): number[] {
   const total = porcentajes.reduce((acc, p) => acc + (Number(p) || 0), 0);
   if (total <= 0) return porcentajes.map(() => 0);
   const factor = 100 / total;
-  const redondeados = porcentajes.map((p) => parseFloat(((Number(p) || 0) * factor).toFixed(4)));
+  const redondeados = porcentajes.map((p) => {
+    const v = parseFloat(((Number(p) || 0) * factor).toFixed(4));
+    return Number(p) > 0 && v < 0.001 ? 0.001 : v;
+  });
   const suma = redondeados.reduce((acc, p) => acc + p, 0);
   const residuo = parseFloat((100 - suma).toFixed(4));
   if (Math.abs(residuo) > 0.00001) {

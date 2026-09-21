@@ -36,7 +36,6 @@ import {
 import { CommercialOrderForm } from '@/components/pedidos/CommercialOrderForm';
 import { ModalSolicitarPermiso } from '@/components/modals/ModalSolicitarPermiso';
 import {
-  TOLERANCIA_MERMA_GRAMOS,
   gramosAPorcentaje,
   normalizarPorcentajesExacto,
   porcentajeAGramos,
@@ -294,8 +293,8 @@ export default function FormulasPage() {
       setEditGuardando(true);
       const porcentajesBase = editIngredientes.map((i) => Number(i.porcentaje) || 0);
       const totalBase = porcentajesBase.reduce((acc, p) => acc + p, 0);
-      if (Math.abs(porcentajeAGramos(100 - totalBase)) > TOLERANCIA_MERMA_GRAMOS) {
-        alert(`❌ La suma debe ser 1000 g por kilo (tolerancia ±${TOLERANCIA_MERMA_GRAMOS} g por merma). Actual: ${porcentajeAGramos(totalBase).toFixed(2)} g.`);
+      if (totalBase <= 0) {
+        alert('❌ Ingresa gramos mayores a 0 en los insumos.');
         setEditGuardando(false);
         return;
       }

@@ -23,7 +23,6 @@ import {
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
 import {
-  TOLERANCIA_MERMA_GRAMOS,
   gramosAPorcentaje,
   normalizarPorcentajesExacto,
   porcentajeAGramos,
@@ -179,7 +178,6 @@ export default function GerenciaFormulasPage() {
   const es100Exacto = Math.abs(diferencia100) <= 0.01;
   const totalGramosCrear = porcentajeAGramos(totalPorcentajeCrear);
   const diferenciaGramos = porcentajeAGramos(diferencia100);
-  const dentroDeTolerancia = !es100Exacto && Math.abs(diferenciaGramos) <= TOLERANCIA_MERMA_GRAMOS;
 
   const costoEstimadoPorKg = crearIngredientes.reduce((sum, ing) => {
     const ins = insumosList.find((i) => i.id === ing.insumoId);
@@ -303,10 +301,8 @@ export default function GerenciaFormulasPage() {
       );
       return;
     }
-    if (!es100Exacto && Math.abs(diferenciaGramos) > TOLERANCIA_MERMA_GRAMOS) {
-      setCrearError(
-        `La suma debe ser 1000 g por kilo (tolerancia ±${TOLERANCIA_MERMA_GRAMOS} g por merma). Actual: ${totalGramosCrear.toFixed(2)} g.`
-      );
+    if (!es100Exacto && totalGramosCrear <= 0) {
+      setCrearError('Ingresa gramos mayores a 0 en los insumos.');
       return;
     }
     const idxInvalido = crearIngredientes.findIndex(
@@ -416,10 +412,8 @@ export default function GerenciaFormulasPage() {
     if (!selectedId) return;
     const porcentajesBase = editIngredientes.map((i) => Number(i.porcentaje) || 0);
     const totalBase = porcentajesBase.reduce((acc, p) => acc + p, 0);
-    if (Math.abs(porcentajeAGramos(100 - totalBase)) > TOLERANCIA_MERMA_GRAMOS) {
-      setErrorMsg(
-        `La suma debe ser 1000 g por kilo (tolerancia ±${TOLERANCIA_MERMA_GRAMOS} g por merma). Actual: ${porcentajeAGramos(totalBase).toFixed(2)} g.`
-      );
+    if (totalBase <= 0) {
+      setErrorMsg('Ingresa gramos mayores a 0 en los insumos.');
       return;
     }
     const porcentajesFinales = normalizarPorcentajesExacto(porcentajesBase);
@@ -944,7 +938,7 @@ export default function GerenciaFormulasPage() {
                       2. Composición de Materia Prima & Dosificación (g por kilo)
                     </p>
                     <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      La suma de gramos por kilo debe totalizar 1000 g (tolerancia ±10 g por merma, se normaliza al registrar).
+                      La suma de gramos por kilo se normaliza a 1000 g exactos al registrar.
                     </p>
                   </div>
                   <button
@@ -977,7 +971,7 @@ export default function GerenciaFormulasPage() {
                     ) : diferencia100 > 0 ? (
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                          Faltan {diferenciaGramos.toFixed(2)} g{dentroDeTolerancia ? ' · se ajusta por merma' : ''}
+                          Faltan {diferenciaGramos.toFixed(2)} g · se normaliza al registrar
                         </span>
                         <button
                           type="button"
@@ -989,13 +983,9 @@ export default function GerenciaFormulasPage() {
                           <span>Balancear con Agua</span>
                         </button>
                       </div>
-                    ) : dentroDeTolerancia ? (
-                      <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
-                        Excede por {Math.abs(diferenciaGramos).toFixed(2)} g · se ajusta por merma
-                      </span>
                     ) : (
-                      <span className="text-[11px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-lg">
-                        Excede por {Math.abs(diferenciaGramos).toFixed(2)} g
+                      <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                        Excede por {Math.abs(diferenciaGramos).toFixed(2)} g · se normaliza al registrar
                       </span>
                     )}
                   </div>
