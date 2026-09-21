@@ -7,13 +7,36 @@ import { CrearFormulaDto } from './dto/crear-formula.dto';
 export class FormulasService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async crear(dto: CrearFormulaDto) {
-    const sumaPorcentajes = dto.detalles.reduce((acc, d) => acc + (Number(d.porcentaje) || 0), 0);
-    if (Math.abs(sumaPorcentajes - 100) > 0.01) {
-      throw new BadRequestException(
-        `La suma de porcentajes debe ser exactamente 100%. Actual: ${sumaPorcentajes.toFixed(2)}%.`,
-      );
+  /**
+   * Normaliza cualquier dosificación total (mayor a 0) a exactamente 100%,
+   * preservando las proporciones y corrigiendo el residuo en el componente mayoritario.
+   * Así el registro nunca se bloquea por merma o redondeo.
+   */
+  private normalizarPorcentajes(valores: number[]): number[] {
+    const total = valores.reduce((acc, v) => acc + (Number(v) || 0), 0);
+    if (total <= 0) {
+      throw new BadRequestException('La dosificación total debe ser mayor a 0.');
     }
+    if (Math.abs(total - 100) <= 0.01) return valores.map((v) => Number(v) || 0);
+    const factor = 100 / total;
+    const escalados = valores.map((v) => {
+      const e = Number((((Number(v) || 0) * factor) as number).toFixed(4));
+      return (Number(v) || 0) > 0 && e < 0.001 ? 0.001 : e;
+    });
+    const suma = escalados.reduce((acc, v) => acc + v, 0);
+    const residuo = Number((100 - suma).toFixed(4));
+    if (Math.abs(residuo) > 0.00001) {
+      let idx = 0;
+      escalados.forEach((v, i) => {
+        if (v > escalados[idx]) idx = i;
+      });
+      escalados[idx] = Number((escalados[idx] + residuo).toFixed(4));
+    }
+    return escalados;
+  }
+
+  async crear(dto: CrearFormulaDto) {
+    const porcentajes = this.normalizarPorcentajes(dto.detalles.map((d) => Number(d.porcentaje) || 0));
 
     const cod = dto.codigoFormula.trim().toUpperCase();
     const existente = await this.prisma.formulaMaster.findUnique({
@@ -31,8 +54,8 @@ export class FormulasService {
         estado: dto.estado || EstadoFormula.ACTIVA,
         pasosElaboracion: dto.pasosElaboracion || null,
         detalles: {
-          create: dto.detalles.map((d) => {
-            const porc = Number(d.porcentaje) || 0;
+          create: dto.detalles.map((d, idx) => {
+            const porc = porcentajes[idx];
             return {
               insumoId: d.insumoId || null,
               nombreComponente: d.nombreComponente || null,
@@ -234,12 +257,12 @@ export class FormulasService {
       const formula = await tx.formulaMaster.findUnique({ where: { id } });
       if (!formula) throw new BadRequestException('Fórmula no encontrada.');
 
-      // Validar suma de porcentajes = 100% al actualizar (paridad con la creación).
+      // Los detalles se normalizan a 100% exacto (acepta cualquier total mayor a 0).
+      let porcentajesNormalizados: number[] | null = null;
       if (Array.isArray(dto.detalles) && dto.detalles.length > 0) {
-        const suma = dto.detalles.reduce((acc: number, d: any) => acc + (parseFloat(d.porcentaje) || 0), 0);
-        if (Math.abs(suma - 100) > 0.01) {
-          throw new BadRequestException('La suma de porcentajes de los componentes debe ser 100%.');
-        }
+        porcentajesNormalizados = this.normalizarPorcentajes(
+          dto.detalles.map((d: any) => Number(d.porcentaje) || 0),
+        );
       }
 
       await tx.formulaMaster.update({
@@ -253,8 +276,9 @@ export class FormulasService {
 
       if (Array.isArray(dto.detalles)) {
         await tx.formulaDetalle.deleteMany({ where: { formulaId: id } });
-        for (const item of dto.detalles) {
-          const porc = parseFloat(item.porcentaje) || 0;
+        for (let idx = 0; idx < dto.detalles.length; idx++) {
+          const item = dto.detalles[idx];
+          const porc = porcentajesNormalizados ? porcentajesNormalizados[idx] : parseFloat(item.porcentaje) || 0;
           await tx.formulaDetalle.create({
             data: {
               formulaId: id,
