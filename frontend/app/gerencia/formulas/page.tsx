@@ -178,6 +178,7 @@ export default function GerenciaFormulasPage() {
   const es100Exacto = Math.abs(diferencia100) <= 0.01;
   const totalGramosCrear = porcentajeAGramos(totalPorcentajeCrear);
   const diferenciaGramos = porcentajeAGramos(diferencia100);
+  const puedeRegistrarCrear = totalGramosCrear > 0;
 
   const costoEstimadoPorKg = crearIngredientes.reduce((sum, ing) => {
     const ins = insumosList.find((i) => i.id === ing.insumoId);
@@ -1257,9 +1258,9 @@ export default function GerenciaFormulasPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={crearGuardando || !es100Exacto}
+                  disabled={crearGuardando || !puedeRegistrarCrear}
                   className={`px-6 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all active:scale-95 shadow-lg ${
-                    es100Exacto
+                    puedeRegistrarCrear
                       ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/25 cursor-pointer'
                       : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
                   }`}
