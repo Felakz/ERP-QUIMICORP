@@ -165,6 +165,12 @@ export default function GerenciaFormulasPage() {
     fetchInsumos();
   }, []);
 
+  useEffect(() => {
+    if (crearError && modalCrearOpen) {
+      document.getElementById('crear-formula-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [crearError, modalCrearOpen]);
+
   const totalPorcentajeCrear = crearIngredientes.reduce(
     (sum, item) => sum + (Number(item.porcentaje) || 0),
     0
@@ -289,17 +295,25 @@ export default function GerenciaFormulasPage() {
       setCrearError('Debe ingresar al menos un insumo componente.');
       return;
     }
+    const codigoLimpio = crearCodigo.trim().toUpperCase();
+    const codigoDuplicado = formulas.find((f) => f.codigoFormula?.toUpperCase() === codigoLimpio);
+    if (codigoDuplicado) {
+      setCrearError(
+        `El código ${codigoLimpio} ya está registrado (lo usa "${codigoDuplicado.nombreProducto}"). Cambia el código para continuar.`
+      );
+      return;
+    }
     if (!es100Exacto && Math.abs(diferenciaGramos) > TOLERANCIA_MERMA_GRAMOS) {
       setCrearError(
         `La suma debe ser 1000 g por kilo (tolerancia ±${TOLERANCIA_MERMA_GRAMOS} g por merma). Actual: ${totalGramosCrear.toFixed(2)} g.`
       );
       return;
     }
-    const invalido = crearIngredientes.some(
+    const idxInvalido = crearIngredientes.findIndex(
       (i) => !i.componente.trim() || Number(i.porcentaje) <= 0
     );
-    if (invalido) {
-      setCrearError('Todos los insumos deben tener nombre y gramos mayores a 0.');
+    if (idxInvalido >= 0) {
+      setCrearError(`Revisa la línea ${idxInvalido + 1} de insumos: le falta el nombre o los gramos son 0.`);
       return;
     }
 
@@ -315,7 +329,7 @@ export default function GerenciaFormulasPage() {
         : normalizarPorcentajesExacto(crearIngredientes.map((i) => Number(i.porcentaje)));
 
       const payload = {
-        codigoFormula: crearCodigo.trim().toUpperCase(),
+        codigoFormula: codigoLimpio,
         nombreProducto: crearNombre.trim().toUpperCase(),
         densidadTeorica: parseFloat(crearDensidad) || 1.0,
         detalles: crearIngredientes.map((i, idx) => ({
@@ -852,7 +866,7 @@ export default function GerenciaFormulasPage() {
             </div>
 
             {crearError && (
-              <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
+              <div id="crear-formula-error" className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
                 isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
               }`}>
                 <AlertTriangle className="w-4 h-4 shrink-0" />
