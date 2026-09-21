@@ -245,7 +245,11 @@ export default function AdministracionPedidosComercialesPage() {
           producto: p.productoNombre,
           cantidad: Number(p.cantidadSolicitada) || 0,
           unidad: p.unidadMedida || 'KG',
-          precioUnitario: p.cantidadSolicitada && Number(p.cantidadSolicitada) > 0 ? Number(p.montoTotal) / Number(p.cantidadSolicitada) : 0,
+          precioUnitario: p.itemsList?.[0]?.precioUnitario
+            ? Number(p.itemsList[0].precioUnitario)
+            : p.cantidadSolicitada && Number(p.cantidadSolicitada) > 0
+            ? (Number(p.montoTotal) - (Array.isArray(p.adicionales) ? p.adicionales.reduce((s: number, a: any) => s + (Number(a.subtotal) || (Number(a.cantidad) * Number(a.precioUnitarioVenta)) || 0), 0) : 0)) / Number(p.cantidadSolicitada)
+            : 0,
           montoTotal: Number(p.montoTotal) || 0,
           prioridad: p.prioridad || 'NORMAL',
           condicionPago: p.condicionPago || 'Crédito 30 días',
@@ -257,6 +261,11 @@ export default function AdministracionPedidosComercialesPage() {
           aromaText: p.aromaText || p.aroma,
           colorText: p.colorText || p.color,
           aditivos: p.aditivos || [],
+          adicionales: (p.adicionales && p.adicionales.length > 0)
+            ? p.adicionales
+            : (p.itemsList && Array.isArray(p.itemsList))
+            ? p.itemsList.flatMap((it: any) => it.adicionales || [])
+            : [],
           notasAdmin: p.notasAdmin,
           itemsList: p.itemsList,
           observacionesClean: p.observacionesClean,
@@ -362,38 +371,77 @@ export default function AdministracionPedidosComercialesPage() {
   const handleOpenPdfForOrder = (p: PedidoEmitido) => {
     const isCot = p.docType === 'COT' || p.codigoOrden.startsWith('COT');
     
-    let itemsParsed: any[] = [];
+    let baseItems: any[] = [];
+    let adicionalesFromItems: any[] = [];
+
     if (p.itemsList && Array.isArray(p.itemsList) && p.itemsList.length > 0) {
-      itemsParsed = p.itemsList.map((it: any, idx: number) => ({
+      baseItems = p.itemsList.map((it: any, idx: number) => ({
         id: it.id || String(idx + 1),
         codigo: it.codigoFM || it.codigo || 'FM-0001',
         descripcion: it.productoNombre || it.descripcion,
         variante: it.varianteId || it.variante,
         aroma: it.aroma,
         color: it.color,
-        cantidad: Number(it.cantidad) || 100,
+        cantidad: Number(it.cantidad) || 1,
         unidad: it.unidadMedida || it.unidad || 'KG',
-        precioUnitario: Number(it.precioUnitario) || 34.5,
-        importeTotal: (Number(it.cantidad) || 100) * (Number(it.precioUnitario) || 34.5),
+        precioUnitario: Number(it.precioUnitario) || 0,
+        importeTotal: (Number(it.cantidad) || 1) * (Number(it.precioUnitario) || 0),
       }));
+      adicionalesFromItems = p.itemsList.flatMap((it: any) => it.adicionales || []);
     } else if (p.notasAdmin) {
       try {
         const parsed = JSON.parse(p.notasAdmin);
         if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-          itemsParsed = parsed.items.map((it: any, idx: number) => ({
+          baseItems = parsed.items.map((it: any, idx: number) => ({
             id: it.id || String(idx + 1),
             codigo: it.codigoFM || it.codigo || 'FM-0001',
             descripcion: it.productoNombre || it.descripcion,
             variante: it.varianteId || it.variante,
             aroma: it.aroma,
             color: it.color,
-            cantidad: Number(it.cantidad) || 100,
+            cantidad: Number(it.cantidad) || 1,
             unidad: it.unidadMedida || it.unidad || 'KG',
-            precioUnitario: Number(it.precioUnitario) || 34.5,
-            importeTotal: (Number(it.cantidad) || 100) * (Number(it.precioUnitario) || 34.5),
+            precioUnitario: Number(it.precioUnitario) || 0,
+            importeTotal: (Number(it.cantidad) || 1) * (Number(it.precioUnitario) || 0),
           }));
+          adicionalesFromItems = parsed.items.flatMap((it: any) => it.adicionales || []);
         }
       } catch {}
+    }
+
+    // Consolidar adicionales (prioriza p.adicionales, y si está vacío usa adicionales del JSON)
+    const adicionalesFuente = (p.adicionales && p.adicionales.length > 0)
+      ? p.adicionales
+      : adicionalesFromItems;
+
+    const adicionalesParsed = adicionalesFuente.map((ad: any, idx: number) => ({
+      id: `ad-${ad.id || idx}-${ad.descripcion}`,
+      codigo: 'ADICIONAL',
+      descripcion: `${ad.categoria === 'ENVASES' ? 'Envase' : 'Balde / herramienta'} - ${ad.descripcion}`,
+      cantidad: Number(ad.cantidad) || 1,
+      unidad: ad.unidadMedida || 'UN',
+      precioUnitario: Number(ad.precioUnitarioVenta) || 0,
+      importeTotal: (Number(ad.cantidad) || 1) * (Number(ad.precioUnitarioVenta) || 0),
+    }));
+
+    let itemsParsed: any[] = [];
+    if (baseItems.length > 0) {
+      itemsParsed = [...baseItems, ...adicionalesParsed];
+    } else if (p.producto || adicionalesParsed.length > 0) {
+      itemsParsed = [
+        ...(p.producto ? [{
+          id: '1',
+          codigo: p.codigoRefAdmin || 'FM-0001',
+          descripcion: p.producto,
+          aroma: p.aroma,
+          color: p.color,
+          cantidad: p.cantidad,
+          unidad: p.unidad,
+          precioUnitario: p.precioUnitario,
+          importeTotal: p.cantidad * p.precioUnitario,
+        }] : []),
+        ...adicionalesParsed,
+      ];
     }
 
     const cotData: CotizacionData = {

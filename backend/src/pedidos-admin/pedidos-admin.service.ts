@@ -346,6 +346,7 @@ export class PedidosAdminService {
             insumo: true,
           },
         },
+        adicionales: true,
         ordenesProduccion: {
           orderBy: { createdAt: 'desc' },
           select: {
