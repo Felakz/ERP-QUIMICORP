@@ -111,11 +111,19 @@ export default function GerenciaFormulasPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [editandoVariante, setEditandoVariante] = useState<VarianteAPI | null>(null);
 
+  const [editCodigo, setEditCodigo] = useState<string>('');
   const [editNombre, setEditNombre] = useState<string>('');
+  const [editEstado, setEditEstado] = useState<string>('ACTIVA');
   const [editIngredientes, setEditIngredientes] = useState<Array<{ componente: string; porcentaje: number }>>([]);
   const [editPasos, setEditPasos] = useState<PasoElaboracion[]>([]);
   const [editGuardando, setEditGuardando] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
+
+  // Estados para Eliminación
+  const [formulaToDelete, setFormulaToDelete] = useState<FormulaAPI | null>(null);
+  const [deleting, setDeleting] = useState<boolean>(false);
+  const [deleteError, setDeleteError] = useState<string>('');
+  const [toastSuccess, setToastSuccess] = useState<string>('');
 
   // Estados para Nueva Fórmula
   const [modalCrearOpen, setModalCrearOpen] = useState<boolean>(false);
@@ -356,9 +364,35 @@ export default function GerenciaFormulasPage() {
   };
 
 
+  const handleConfirmDelete = async () => {
+    if (!formulaToDelete) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await apiFetch<{ ok: boolean; mensaje: string }>(`/formulas/${formulaToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        const msg = res.data?.mensaje || `Fórmula ${formulaToDelete.codigoFormula} eliminada correctamente.`;
+        setToastSuccess(msg);
+        setTimeout(() => setToastSuccess(''), 5000);
+        setFormulaToDelete(null);
+        await fetchFormulas();
+      } else {
+        setDeleteError(res.error || 'No se pudo eliminar la fórmula.');
+      }
+    } catch {
+      setDeleteError('Error de conexión al intentar eliminar la fórmula.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const openEdit = (f: FormulaAPI) => {
     setErrorMsg('');
-    setEditNombre(f.nombreProducto);
+    setEditCodigo(f.codigoFormula || '');
+    setEditNombre(f.nombreProducto || '');
+    setEditEstado(f.estado || 'ACTIVA');
     setEditIngredientes(
       (f.detalles || []).map((d) => ({
         componente: d.nombreComponente || d.insumo?.nombre || '',
@@ -419,7 +453,9 @@ export default function GerenciaFormulasPage() {
     }
     const porcentajesFinales = normalizarPorcentajesExacto(porcentajesBase);
     const payload = {
-      nombreProducto: editNombre,
+      codigoFormula: editCodigo ? editCodigo.trim().toUpperCase() : undefined,
+      nombreProducto: editNombre ? editNombre.trim().toUpperCase() : undefined,
+      estado: editEstado,
       detalles: editIngredientes.map((i, idx) => ({
         nombreComponente: i.componente,
         porcentaje: porcentajesFinales[idx],
@@ -576,13 +612,31 @@ export default function GerenciaFormulasPage() {
                   </div>
                 )}
 
-                <button
-                  onClick={() => openEdit(f)}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/20 transition-all active:scale-95"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Editar Fórmula Maestra y Pasos
-                </button>
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(f)}
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar Fórmula Maestra y Pasos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormulaToDelete(f);
+                      setDeleteError('');
+                    }}
+                    title="Eliminar Fórmula"
+                    className={`p-2 rounded-xl border transition-all active:scale-95 cursor-pointer shrink-0 ${
+                      isDark
+                        ? 'border-rose-900/40 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:border-rose-700/60'
+                        : 'border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:border-rose-300'
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -624,6 +678,36 @@ export default function GerenciaFormulasPage() {
             <form onSubmit={handleSubmit} className="space-y-4 font-mono text-xs">
               {!editandoVariante && (
                 <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={`block text-[11px] font-bold uppercase mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Código de Fórmula *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editCodigo}
+                        onChange={(e) => setEditCodigo(e.target.value.toUpperCase())}
+                        placeholder="FM-001"
+                        className={`w-full rounded-xl border p-2.5 text-xs font-mono font-bold focus:border-amber-500 focus:outline-none ${inputBg}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-[11px] font-bold uppercase mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Estado de la Fórmula
+                      </label>
+                      <select
+                        value={editEstado}
+                        onChange={(e) => setEditEstado(e.target.value)}
+                        className={`w-full rounded-xl border p-2.5 text-xs font-bold focus:border-amber-500 focus:outline-none ${inputBg}`}
+                      >
+                        <option value="ACTIVA">ACTIVA (En uso)</option>
+                        <option value="INACTIVA">INACTIVA (Desactivada)</option>
+                        <option value="EN_REVISION">EN REVISIÓN</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div>
                     <label className={`block text-[11px] font-bold uppercase mb-1 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                       Nombre del Producto / Fórmula *
@@ -633,7 +717,7 @@ export default function GerenciaFormulasPage() {
                       required
                       value={editNombre}
                       onChange={(e) => setEditNombre(e.target.value)}
-                      className={`w-full rounded-xl border p-2.5 text-xs focus:border-amber-500 focus:outline-none ${inputBg}`}
+                      className={`w-full rounded-xl border p-2.5 text-xs font-bold focus:border-amber-500 focus:outline-none ${inputBg}`}
                     />
                   </div>
 
@@ -806,24 +890,45 @@ export default function GerenciaFormulasPage() {
                 </div>
               </div>
 
-              <div className={`flex justify-end gap-2.5 pt-3 border-t ${isDark ? 'border-slate-800/60' : 'border-slate-200'}`}>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
-                    isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={editGuardando}
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/30 flex items-center gap-2 transition-all active:scale-95"
-                >
-                  <Pencil className="w-4 h-4" />
-                  <span>{editGuardando ? 'Guardando...' : 'Guardar Pasos'}</span>
-                </button>
+              <div className={`flex items-center justify-between gap-2 pt-3 border-t ${isDark ? 'border-slate-800/60' : 'border-slate-200'}`}>
+                {!editandoVariante && selectedId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const f = formulas.find((item) => item.id === selectedId);
+                      if (f) {
+                        setModalOpen(false);
+                        setFormulaToDelete(f);
+                        setDeleteError('');
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar Fórmula</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                      isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editGuardando}
+                    className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-lg shadow-amber-500/30 flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    <span>{editGuardando ? 'Guardando...' : 'Guardar Cambios'}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1271,6 +1376,78 @@ export default function GerenciaFormulasPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMAR ELIMINACIÓN DE FÓRMULA */}
+      {formulaToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-md rounded-2xl border p-6 space-y-4 shadow-2xl ${cardBg} my-8`}>
+            <div className="flex items-start gap-3">
+              <div className="p-3 rounded-xl bg-rose-500/15 text-rose-500 border border-rose-500/30 shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <h3 className={`text-base font-black ${textValue}`}>
+                  ¿Eliminar Fórmula?
+                </h3>
+                <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Estás a punto de eliminar de forma permanente la fórmula:
+                </p>
+                <div className={`p-2.5 rounded-xl border text-xs font-mono font-bold ${
+                  isDark ? 'border-slate-800 bg-[#0B0F17] text-amber-400' : 'border-slate-200 bg-slate-50 text-amber-700'
+                }`}>
+                  <span className="block">{formulaToDelete.codigoFormula}</span>
+                  <span className={`text-[11px] font-sans ${textValue}`}>{formulaToDelete.nombreProducto}</span>
+                </div>
+                <p className={`text-[11px] font-medium ${isDark ? 'text-amber-400/90' : 'text-amber-600'}`}>
+                  ⚠️ Solo se pueden eliminar fórmulas sin historial de producción ni pedidos comerciales.
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className={`flex items-start gap-2 rounded-xl border p-3 text-xs font-semibold ${
+                isDark ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-700'
+              }`}>
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="flex-1">{deleteError}</span>
+              </div>
+            )}
+
+            <div className={`flex items-center justify-end gap-2.5 pt-3 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => {
+                  setFormulaToDelete(null);
+                  setDeleteError('');
+                }}
+                className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                  isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30 flex items-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{deleting ? 'Eliminando...' : 'Sí, Eliminar Fórmula'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST DE NOTIFICACIÓN ÉXITO */}
+      {toastSuccess && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black text-xs shadow-2xl shadow-emerald-500/40 border border-emerald-400">
+          <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+          <span>{toastSuccess}</span>
         </div>
       )}
     </div>

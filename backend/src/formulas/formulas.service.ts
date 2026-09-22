@@ -265,10 +265,20 @@ export class FormulasService {
         );
       }
 
+      if (dto.codigoFormula && dto.codigoFormula.trim().toUpperCase() !== formula.codigoFormula) {
+        const nuevoCodigo = dto.codigoFormula.trim().toUpperCase();
+        const existeCod = await tx.formulaMaster.findUnique({ where: { codigoFormula: nuevoCodigo } });
+        if (existeCod && existeCod.id !== id) {
+          throw new BadRequestException(`El código de fórmula "${nuevoCodigo}" ya está en uso.`);
+        }
+      }
+
       await tx.formulaMaster.update({
         where: { id },
         data: {
-          nombreProducto: dto.nombreProducto || formula.nombreProducto,
+          codigoFormula: dto.codigoFormula ? dto.codigoFormula.trim().toUpperCase() : formula.codigoFormula,
+          nombreProducto: dto.nombreProducto ? dto.nombreProducto.trim().toUpperCase() : formula.nombreProducto,
+          estado: dto.estado || formula.estado,
           densidadTeorica: dto.densidadTeorica ? parseFloat(dto.densidadTeorica) : formula.densidadTeorica,
           pasosElaboracion: dto.pasosElaboracion !== undefined ? dto.pasosElaboracion : formula.pasosElaboracion,
         },
@@ -298,6 +308,37 @@ export class FormulasService {
           variants: { include: { cliente: true } },
         },
       });
+    });
+  }
+
+  async eliminar(id: string) {
+    const formula = await this.prisma.formulaMaster.findUnique({
+      where: { id },
+      include: {
+        ordenesProduccion: { select: { id: true, codigoLote: true } },
+        pedidosComerciales: { select: { id: true, codigoOrden: true } },
+      },
+    });
+
+    if (!formula) {
+      throw new BadRequestException('Fórmula no encontrada.');
+    }
+
+    if (formula.ordenesProduccion.length > 0 || formula.pedidosComerciales.length > 0) {
+      throw new BadRequestException(
+        `No se puede eliminar la fórmula "${formula.codigoFormula}" porque tiene historial en planta (${formula.ordenesProduccion.length} orden(es) de producción y ${formula.pedidosComerciales.length} pedido(s) asociados). Para desactivarla, cambia su estado a INACTIVA.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.formulaVariant.deleteMany({ where: { formulaId: id } });
+      await tx.formulaDetalle.deleteMany({ where: { formulaId: id } });
+      await tx.formulaMaster.delete({ where: { id } });
+
+      return {
+        ok: true,
+        mensaje: `Fórmula "${formula.codigoFormula} - ${formula.nombreProducto}" eliminada correctamente.`,
+      };
     });
   }
 

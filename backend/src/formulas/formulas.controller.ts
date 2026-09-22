@@ -97,4 +97,10 @@ export class FormulasController {
   ) {
     return this.formulasService.actualizarVariante(variantId, dto);
   }
+
+  @Delete(':id')
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO)
+  eliminar(@Param('id', ParseUUIDPipe) id: string) {
+    return this.formulasService.eliminar(id);
+  }
 }
