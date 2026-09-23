@@ -23,9 +23,12 @@ import {
   FileSpreadsheet,
   ChevronDown,
   Check,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useTheme } from '@/lib/ThemeContext';
+import { useAuth } from '@/lib/AuthContext';
 import { apiFetch } from '@/lib/apiClient';
 
 export type EstadoOrdenCompra = 'TODAS' | 'PENDIENTE' | 'EN_TRANSITO' | 'RECIBIDO' | 'ANULADA';
@@ -42,6 +45,7 @@ interface OrdenCompraItem {
   id: string;
   codigoOC: string;
   proveedor: string;
+  proveedorId?: string;
   ruc: string;
   fechaEmision: string;
   fechaEntregaEstimada: string;
@@ -52,6 +56,8 @@ interface OrdenCompraItem {
   condicionPago: string;
   comprador: string;
   observaciones?: string;
+  edicionesCount?: number;
+  maxEdicionesAsistente?: number;
 }
 
 interface BackendOrdenCompraItem {
@@ -67,6 +73,7 @@ interface BackendOrdenCompraItem {
 interface BackendOrdenCompra {
   id: string;
   codigoOC: string;
+  proveedorId?: string;
   proveedorNombre: string;
   ruc: string;
   fechaEmision: string;
@@ -77,6 +84,8 @@ interface BackendOrdenCompra {
   condicionPago: string;
   comprador: string;
   observaciones?: string;
+  edicionesCount?: number;
+  maxEdicionesAsistente?: number;
   items: BackendOrdenCompraItem[];
 }
 
@@ -102,6 +111,7 @@ const mapOrdenCompra = (orden: BackendOrdenCompra): OrdenCompraItem => ({
   id: orden.id,
   codigoOC: orden.codigoOC,
   proveedor: orden.proveedorNombre,
+  proveedorId: orden.proveedorId,
   ruc: orden.ruc,
   fechaEmision: new Date(orden.fechaEmision).toISOString().split('T')[0],
   fechaEntregaEstimada: new Date(orden.fechaEntregaEstimada).toISOString().split('T')[0],
@@ -111,7 +121,9 @@ const mapOrdenCompra = (orden: BackendOrdenCompra): OrdenCompraItem => ({
   condicionPago: orden.condicionPago,
   comprador: orden.comprador,
   observaciones: orden.observaciones,
-  items: orden.items.map((item) => ({
+  edicionesCount: Number(orden.edicionesCount || 0),
+  maxEdicionesAsistente: Number(orden.maxEdicionesAsistente || 2),
+  items: (orden.items || []).map((item) => ({
     insumo: item.insumoNombre,
     cantidad: Number(item.cantidad),
     unidadMedida: item.unidadMedida,
@@ -123,6 +135,11 @@ const mapOrdenCompra = (orden: BackendOrdenCompra): OrdenCompraItem => ({
 export default function AdministracionOrdenesPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const { user } = useAuth();
+  const esAdminOGerencia =
+    user?.role === 'GERENCIA' ||
+    user?.role === 'ADMINISTRACION' ||
+    user?.role === 'GERENTE_ADMINISTRATIVO';
 
   const [ordenes, setOrdenes] = useState<OrdenCompraItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,6 +185,34 @@ export default function AdministracionOrdenesPage() {
   const [nuevoPrecioStr, setNuevoPrecioStr] = useState<string>('5.00');
   const [nuevaCondicion, setNuevaCondicion] = useState('Crédito 30 días');
   const [nuevasObs, setNuevasObs] = useState('');
+
+  // Estados para Edición de OC
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingOC, setEditingOC] = useState<OrdenCompraItem | null>(null);
+  const [editProveedor, setEditProveedor] = useState('');
+  const [editRuc, setEditRuc] = useState('');
+  const [editProveedorId, setEditProveedorId] = useState('');
+  const [isEditProvOpen, setIsEditProvOpen] = useState(false);
+  const editProvRef = useRef<HTMLDivElement>(null);
+
+  const [editInsumo, setEditInsumo] = useState('');
+  const [isEditInsumoOpen, setIsEditInsumoOpen] = useState(false);
+  const editInsumoRef = useRef<HTMLDivElement>(null);
+
+  const [editCantidadStr, setEditCantidadStr] = useState('1');
+  const [editUnidad, setEditUnidad] = useState('KG');
+  const [editPrecioStr, setEditPrecioStr] = useState('0.00');
+  const [editCondicion, setEditCondicion] = useState('Contado');
+  const [editFechaEntrega, setEditFechaEntrega] = useState('');
+  const [editObs, setEditObs] = useState('');
+  const [editGuardando, setEditGuardando] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  // Modal confirmación eliminar / anular
+  const [ocToDelete, setOcToDelete] = useState<OrdenCompraItem | null>(null);
+  const [deletingOC, setDeletingOC] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [toastSuccess, setToastSuccess] = useState('');
 
   // Cargar Proveedores e Insumos al montar el componente
   useEffect(() => {
@@ -217,6 +262,12 @@ export default function AdministracionOrdenesPage() {
       if (insumoComboboxRef.current && !insumoComboboxRef.current.contains(event.target as Node)) {
         setIsInsumoOpen(false);
       }
+      if (editProvRef.current && !editProvRef.current.contains(event.target as Node)) {
+        setIsEditProvOpen(false);
+      }
+      if (editInsumoRef.current && !editInsumoRef.current.contains(event.target as Node)) {
+        setIsEditInsumoOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -242,6 +293,26 @@ export default function AdministracionOrdenesPage() {
       )
       .slice(0, 30);
   }, [insumosList, nuevoInsumo]);
+
+  const filteredEditProveedores = useMemo(() => {
+    if (!editProveedor.trim()) return proveedoresList.slice(0, 30);
+    const q = editProveedor.toLowerCase().trim();
+    return proveedoresList
+      .filter((p) => (p.razonSocial && p.razonSocial.toLowerCase().includes(q)) || (p.ruc && p.ruc.includes(q)))
+      .slice(0, 30);
+  }, [proveedoresList, editProveedor]);
+
+  const filteredEditInsumos = useMemo(() => {
+    if (!editInsumo.trim()) return insumosList.slice(0, 30);
+    const q = editInsumo.toLowerCase().trim();
+    return insumosList
+      .filter((i) =>
+        (i.nombre && i.nombre.toLowerCase().includes(q)) ||
+        (i.codigo && i.codigo.toLowerCase().includes(q)) ||
+        (i.familia && i.familia.toLowerCase().includes(q))
+      )
+      .slice(0, 30);
+  }, [insumosList, editInsumo]);
 
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
   const textTitle = isDark ? 'text-slate-400' : 'text-slate-600';
@@ -328,6 +399,118 @@ export default function AdministracionOrdenesPage() {
       setOrdenes((prev) => prev.map((orden) => (orden.id === id ? mapOrdenCompra(res.data as BackendOrdenCompra) : orden)));
     } catch (error) {
       alert(error instanceof Error ? error.message : 'No se pudo recibir la orden de compra.');
+    }
+  };
+
+  const openEditModal = (oc: OrdenCompraItem) => {
+    setEditError('');
+    setEditingOC(oc);
+    setEditProveedor(oc.proveedor);
+    setEditRuc(oc.ruc);
+    setEditProveedorId(oc.proveedorId || '');
+    setEditCondicion(oc.condicionPago || 'Contado');
+    setEditFechaEntrega(oc.fechaEntregaEstimada ? oc.fechaEntregaEstimada.split('T')[0] : '');
+    setEditObs(oc.observaciones?.replace(/\s*\[EDICIONES:\s*\d+\]/gi, '').trim() || '');
+    if (oc.items && oc.items.length > 0) {
+      const first = oc.items[0];
+      setEditInsumo(first.insumo);
+      setEditCantidadStr(String(first.cantidad));
+      setEditUnidad(first.unidadMedida || 'KG');
+      setEditPrecioStr(String(first.precioUnitario));
+    } else {
+      setEditInsumo('');
+      setEditCantidadStr('1');
+      setEditUnidad('KG');
+      setEditPrecioStr('0.00');
+    }
+    setIsEditModalOpen(true);
+  };
+
+  const handleActualizarOC = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOC) return;
+    const cant = parseFloat(editCantidadStr) || 0;
+    const prec = parseFloat(editPrecioStr) || 0;
+    if (!editProveedor.trim() || !editInsumo.trim() || cant <= 0 || prec <= 0) {
+      setEditError('Por favor completa todos los datos requeridos con cantidad y precio mayores a 0.');
+      return;
+    }
+
+    setEditGuardando(true);
+    setEditError('');
+    try {
+      const res = await apiFetch<BackendOrdenCompra>(`/ordenes-compra/${editingOC.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          proveedorId: editProveedorId || undefined,
+          proveedorNombre: editProveedor.trim(),
+          ruc: editRuc.trim() || '20999999999',
+          fechaEntregaEstimada: editFechaEntrega ? new Date(editFechaEntrega).toISOString() : undefined,
+          condicionPago: editCondicion,
+          observaciones: editObs.trim(),
+          items: [{
+            insumoNombre: editInsumo.trim(),
+            cantidad: cant,
+            unidadMedida: editUnidad,
+            precioUnitario: prec,
+          }],
+        }),
+      });
+
+      if (!res.ok || !res.data) {
+        throw new Error(res.error || 'No se pudo actualizar la orden de compra.');
+      }
+
+      const updated = mapOrdenCompra(res.data);
+      setOrdenes((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setIsEditModalOpen(false);
+      setToastSuccess(`Orden ${updated.codigoOC} actualizada exitosamente.`);
+      setTimeout(() => setToastSuccess(''), 4500);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Error al actualizar la orden.');
+    } finally {
+      setEditGuardando(false);
+    }
+  };
+
+  const handleEliminarOC = async () => {
+    if (!ocToDelete) return;
+    setDeletingOC(true);
+    setDeleteError('');
+    try {
+      const res = await apiFetch<{ ok: boolean; mensaje: string }>(`/ordenes-compra/${ocToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error(res.error || 'No se pudo eliminar la orden de compra.');
+      setOrdenes((prev) => prev.filter((o) => o.id !== ocToDelete.id));
+      setToastSuccess(res.data?.mensaje || `Orden ${ocToDelete.codigoOC} eliminada correctamente.`);
+      setOcToDelete(null);
+      setTimeout(() => setToastSuccess(''), 4500);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Error al eliminar la orden.');
+    } finally {
+      setDeletingOC(false);
+    }
+  };
+
+  const handleAnularOC = async () => {
+    if (!ocToDelete) return;
+    setDeletingOC(true);
+    setDeleteError('');
+    try {
+      const res = await apiFetch<BackendOrdenCompra>(`/ordenes-compra/${ocToDelete.id}/anular`, {
+        method: 'PATCH',
+      });
+      if (!res.ok || !res.data) throw new Error(res.error || 'No se pudo anular la orden de compra.');
+      const updated = mapOrdenCompra(res.data);
+      setOrdenes((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setToastSuccess(`Orden ${ocToDelete.codigoOC} anulada correctamente.`);
+      setOcToDelete(null);
+      setTimeout(() => setToastSuccess(''), 4500);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Error al anular la orden.');
+    } finally {
+      setDeletingOC(false);
     }
   };
 
@@ -484,6 +667,30 @@ export default function AdministracionOrdenesPage() {
                     <span className="text-xs text-slate-400 font-mono">
                       📅 Emisión: {oc.fechaEmision} • Entrega: {oc.fechaEntregaEstimada}
                     </span>
+                    {oc.estado !== 'RECIBIDO' && oc.estado !== 'ANULADA' && (
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-black font-mono border ${
+                          esAdminOGerencia
+                            ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                            : (oc.edicionesCount || 0) === 0
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : (oc.edicionesCount || 0) === 1
+                            ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            : 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+                        }`}
+                        title={
+                          esAdminOGerencia
+                            ? 'Administrador / Gerencia: Ediciones ilimitadas'
+                            : `Asistente: ${(oc.edicionesCount || 0)} de ${(oc.maxEdicionesAsistente || 2)} ediciones usadas`
+                        }
+                      >
+                        {esAdminOGerencia
+                          ? '👑 Admin: Ilimitado'
+                          : (oc.edicionesCount || 0) >= (oc.maxEdicionesAsistente || 2)
+                          ? '⚠️ Límite 2 edits alcanzado'
+                          : `${(oc.maxEdicionesAsistente || 2) - (oc.edicionesCount || 0)} edit restante`}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -542,19 +749,60 @@ export default function AdministracionOrdenesPage() {
 
                 <div className="flex items-center gap-2">
                   {oc.estado !== 'RECIBIDO' && (
-                    <button
-                      onClick={() => handleMarcarRecibido(oc.id)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 transition-all"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Ingresar a Kardex</span>
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(oc)}
+                        disabled={!esAdminOGerencia && (oc.edicionesCount || 0) >= (oc.maxEdicionesAsistente || 2)}
+                        title={
+                          !esAdminOGerencia && (oc.edicionesCount || 0) >= (oc.maxEdicionesAsistente || 2)
+                            ? 'Has alcanzado el límite máximo de 2 ediciones permitidas para tu rol. Solicita autorización a Gerencia.'
+                            : 'Editar insumos, cantidad, unidad o proveedor'
+                        }
+                        className={`px-3 py-1.5 rounded-xl border font-bold flex items-center gap-1.5 transition-all text-xs ${
+                          !esAdminOGerencia && (oc.edicionesCount || 0) >= (oc.maxEdicionesAsistente || 2)
+                            ? 'opacity-40 cursor-not-allowed bg-slate-800 text-slate-500 border-slate-700'
+                            : isDark
+                            ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/30 cursor-pointer'
+                            : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200 cursor-pointer'
+                        }`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        <span>Editar OC</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOcToDelete(oc);
+                          setDeleteError('');
+                        }}
+                        title="Eliminar o anular orden de compra"
+                        className={`p-1.5 rounded-xl border transition-all text-xs cursor-pointer ${
+                          isDark
+                            ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                            : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200'
+                        }`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleMarcarRecibido(oc.id)}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Ingresar a Kardex</span>
+                      </button>
+                    </>
                   )}
                   <button
+                    type="button"
                     onClick={() => {
                       alert(`Mostrando vista previa oficial de ${oc.codigoOC} para impresión.`);
                     }}
-                    className={`px-3 py-1.5 rounded-xl border font-bold transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl border font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                       isDark
                         ? 'bg-[#151D2A] border-[#1A2232] text-slate-300 hover:text-white'
                         : 'bg-slate-100 border-slate-300 text-slate-700'
@@ -805,7 +1053,7 @@ export default function AdministracionOrdenesPage() {
                 )}
               </div>
 
-              {/* Cantidad, Unidad y P. Unitario con solución al problema del "025" */}
+              {/* Cantidad, Unidad y P. Unitario */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold text-slate-300 mb-1">Cantidad:</label>
@@ -828,10 +1076,12 @@ export default function AdministracionOrdenesPage() {
                     onChange={(e) => setNuevaUnidad(e.target.value)}
                     className={`w-full rounded-xl border p-2.5 ${inputBg}`}
                   >
-                    <option value="KG">KG</option>
-                    <option value="LT">LT</option>
-                    <option value="UND">UND (Envase)</option>
-                    <option value="GAL">GAL</option>
+                    <option value="KG">KG (Kilogramo)</option>
+                    <option value="GR">GR (Gramo)</option>
+                    <option value="LT">LT (Litro)</option>
+                    <option value="ML">ML (Mililitro)</option>
+                    <option value="UND">UND (Envase / Unidad)</option>
+                    <option value="GAL">GAL (Galón)</option>
                     <option value="CIL">CIL (Cilindro)</option>
                     <option value="TN">TN (Tonelada)</option>
                   </select>
@@ -851,6 +1101,16 @@ export default function AdministracionOrdenesPage() {
                   />
                 </div>
               </div>
+
+              {nuevaUnidad === 'GR' && (parseFloat(nuevaCantidadStr) || 0) <= 10 && (
+                <div className="p-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 text-[11px] flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold">⚠️ Atención: Has seleccionado Gramos (GR)</strong>
+                    Estás comprando {nuevaCantidadStr} GR. Si el insumo se adquiere en <strong>1 Kilo</strong>, selecciona la unidad <strong>KG</strong> o escribe <strong>1000 GR</strong> para no distorsionar el costo unitario en Kardex.
+                  </div>
+                </div>
+              )}
 
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between font-mono">
                 <span className="font-bold text-slate-300">TOTAL ESTIMADO OC:</span>
@@ -889,6 +1149,363 @@ export default function AdministracionOrdenesPage() {
           </div>
         </div>
       )}
+
+      {/* MODAL EDITAR ORDEN DE COMPRA (CRUD CONDICIONADO) */}
+      {isEditModalOpen && editingOC && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-lg rounded-2xl border p-6 space-y-4 shadow-2xl relative ${cardBg}`}>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <h3 className={`text-base font-black ${textValue}`}>
+                    Editar Orden de Compra: {editingOC.codigoOC}
+                  </h3>
+                  <div className="mt-0.5">
+                    {esAdminOGerencia ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        👑 Modo Directivo: Edición Ilimitada
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                        👤 Asistente: Edición {(editingOC.edicionesCount || 0) + 1} de 2 permitidas
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleActualizarOC} className="space-y-3.5 text-xs">
+              {/* Proveedor en Edición */}
+              <div className="relative" ref={editProvRef}>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Proveedor / Razón Social:
+                </label>
+                <div className="relative">
+                  <Building2 className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Buscar o escribir nombre del proveedor..."
+                    value={editProveedor}
+                    onChange={(e) => {
+                      setEditProveedor(e.target.value);
+                      setIsEditProvOpen(true);
+                    }}
+                    onFocus={() => setIsEditProvOpen(true)}
+                    className={`w-full rounded-xl border pl-9 pr-10 p-2.5 ${inputBg}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsEditProvOpen(!isEditProvOpen)}
+                    className="absolute right-2.5 top-2.5 p-1 rounded-md text-slate-400 hover:text-white"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isEditProvOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {isEditProvOpen && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-700 bg-[#0F141C] shadow-2xl divide-y divide-slate-800/60">
+                    {filteredEditProveedores.map((p) => (
+                      <button
+                        key={p.id || p.ruc}
+                        type="button"
+                        onClick={() => {
+                          setEditProveedor(p.razonSocial);
+                          setEditRuc(p.ruc);
+                          setEditProveedorId(p.id || '');
+                          setIsEditProvOpen(false);
+                        }}
+                        className="w-full text-left p-2.5 hover:bg-cyan-500/10 transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="truncate">
+                          <p className="font-bold text-slate-200 truncate">{p.razonSocial}</p>
+                          <span className="text-[10px] text-cyan-400 font-mono">RUC: {p.ruc}</span>
+                        </div>
+                        {editRuc === p.ruc && <Check className="w-4 h-4 text-cyan-400 shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">RUC:</label>
+                  <input
+                    type="text"
+                    value={editRuc}
+                    onChange={(e) => setEditRuc(e.target.value)}
+                    className={`w-full rounded-xl border p-2.5 font-mono ${inputBg}`}
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">Condición de Pago:</label>
+                  <select
+                    value={editCondicion}
+                    onChange={(e) => setEditCondicion(e.target.value)}
+                    className={`w-full rounded-xl border p-2.5 ${inputBg}`}
+                  >
+                    <option value="Contado Contra Entrega">Contado Contra Entrega</option>
+                    <option value="Crédito 15 días">Crédito 15 días</option>
+                    <option value="Crédito 30 días">Crédito 30 días</option>
+                    <option value="Crédito 60 días">Crédito 60 días</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Insumo en Edición */}
+              <div className="relative" ref={editInsumoRef}>
+                <label className="block font-bold text-slate-300 mb-1">
+                  Insumo / Materia Prima:
+                </label>
+                <div className="relative">
+                  <Package className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Buscar o escribir nombre del insumo..."
+                    value={editInsumo}
+                    onChange={(e) => {
+                      setEditInsumo(e.target.value);
+                      setIsEditInsumoOpen(true);
+                    }}
+                    onFocus={() => setIsEditInsumoOpen(true)}
+                    className={`w-full rounded-xl border pl-9 pr-10 p-2.5 ${inputBg}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsEditInsumoOpen(!isEditInsumoOpen)}
+                    className="absolute right-2.5 top-2.5 p-1 rounded-md text-slate-400 hover:text-white"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isEditInsumoOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {isEditInsumoOpen && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-700 bg-[#0F141C] shadow-2xl divide-y divide-slate-800/60">
+                    {filteredEditInsumos.map((i) => (
+                      <button
+                        key={i.id || i.nombre}
+                        type="button"
+                        onClick={() => {
+                          setEditInsumo(i.nombre);
+                          if (i.unidad) setEditUnidad(i.unidad);
+                          if (i.precioRef && i.precioRef > 0) {
+                            setEditPrecioStr(i.precioRef.toFixed(2));
+                          }
+                          setIsEditInsumoOpen(false);
+                        }}
+                        className="w-full text-left p-2.5 hover:bg-cyan-500/10 transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="truncate">
+                          <p className="font-bold text-slate-200 truncate">{i.nombre}</p>
+                          <span className="text-[10px] text-cyan-400 font-mono">{i.codigo || i.unidad}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded bg-blue-500/20 text-cyan-300 text-[10px] font-bold">
+                          {i.unidad || 'KG'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Cantidad, Unidad y P. Unitario en Edición */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">Cantidad:</label>
+                  <input
+                    type="number"
+                    required
+                    step="any"
+                    min="0.01"
+                    placeholder="1"
+                    value={editCantidadStr}
+                    onChange={(e) => setEditCantidadStr(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    className={`w-full rounded-xl border p-2.5 font-mono ${inputBg}`}
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">Unidad:</label>
+                  <select
+                    value={editUnidad}
+                    onChange={(e) => setEditUnidad(e.target.value)}
+                    className={`w-full rounded-xl border p-2.5 ${inputBg}`}
+                  >
+                    <option value="KG">KG (Kilogramo)</option>
+                    <option value="GR">GR (Gramo)</option>
+                    <option value="LT">LT (Litro)</option>
+                    <option value="ML">ML (Mililitro)</option>
+                    <option value="UND">UND (Envase / Unidad)</option>
+                    <option value="GAL">GAL (Galón)</option>
+                    <option value="CIL">CIL (Cilindro)</option>
+                    <option value="TN">TN (Tonelada)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">P. Unitario (S/):</label>
+                  <input
+                    type="number"
+                    required
+                    step="any"
+                    min="0.01"
+                    placeholder="0.00"
+                    value={editPrecioStr}
+                    onChange={(e) => setEditPrecioStr(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    className={`w-full rounded-xl border p-2.5 font-mono ${inputBg}`}
+                  />
+                </div>
+              </div>
+
+              {/* Alerta Antierror KG vs GR */}
+              {editUnidad === 'GR' && (parseFloat(editCantidadStr) || 0) <= 10 && (
+                <div className="p-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 text-[11px] flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold">⚠️ Atención: Unidad en Gramos (GR)</strong>
+                    Estás indicando {editCantidadStr} GR a S/ {editPrecioStr}. Si el precio corresponde a <strong>1 Kilogramo</strong>, cambia la unidad a <strong>KG</strong> o coloca <strong>1000 GR</strong> para corregir el kardex.
+                  </div>
+                </div>
+              )}
+
+              {/* Total Recalculado */}
+              <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between font-mono">
+                <span className="font-bold text-slate-300">TOTAL ACTUALIZADO OC:</span>
+                <span className="text-base font-black text-cyan-400">
+                  S/ {(((parseFloat(editCantidadStr) || 0) * (parseFloat(editPrecioStr) || 0))).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-300 mb-1">Notas / Motivo de corrección:</label>
+                <textarea
+                  rows={2}
+                  placeholder="Explica brevemente la corrección..."
+                  value={editObs}
+                  onChange={(e) => setEditObs(e.target.value)}
+                  className={`w-full rounded-xl border p-2.5 ${inputBg}`}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={editGuardando}
+                  className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black tracking-wider uppercase shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+                >
+                  {editGuardando ? 'Guardando...' : 'Guardar Corrección'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ELIMINAR / ANULAR OC */}
+      {ocToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-md rounded-2xl border p-6 space-y-4 shadow-2xl relative ${cardBg}`}>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-400" />
+                <h3 className={`text-base font-black ${textValue}`}>
+                  Gestionar Orden: {ocToDelete.codigoOC}
+                </h3>
+              </div>
+              <button
+                onClick={() => setOcToDelete(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="space-y-2 text-xs text-slate-300">
+              <p>
+                <strong>Proveedor:</strong> {ocToDelete.proveedor}
+              </p>
+              <p>
+                <strong>Total Orden:</strong> S/ {ocToDelete.totalPEN.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+              </p>
+              <p>
+                <strong>Estado Actual:</strong> <span className="font-bold text-amber-400">{ocToDelete.estado}</span>
+              </p>
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 space-y-1 mt-2">
+                <p>• <strong>Eliminar Definitivamente:</strong> Borra la orden de compra por completo de la base de datos (solo si no fue ingresada a Kardex).</p>
+                <p>• <strong>Anular Orden:</strong> Conserva el registro histórico pero cambia su estado a <span className="text-rose-400 font-bold">ANULADA</span>.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={deletingOC}
+                  onClick={handleAnularOC}
+                  className="px-3 py-2 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-bold transition-all text-center text-xs"
+                >
+                  Anular Orden
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingOC}
+                  onClick={handleEliminarOC}
+                  className="px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold transition-all text-center text-xs shadow-lg shadow-rose-500/20"
+                >
+                  {deletingOC ? 'Procesando...' : 'Eliminar Definitiva'}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOcToDelete(null)}
+                className="w-full py-2 rounded-xl border border-slate-700 text-slate-400 hover:bg-slate-800 text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST DE ÉXITO */}
+      {toastSuccess && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-bold text-xs shadow-2xl shadow-emerald-500/30 animate-bounce">
+          <Check className="w-4 h-4 text-slate-950" />
+          <span>{toastSuccess}</span>
+        </div>
+      )}
     </div>
   );
 }
+

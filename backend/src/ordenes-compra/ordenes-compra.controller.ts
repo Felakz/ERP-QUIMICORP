@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Patch, Body, Param, Req, UseGuards } from '@nestjs/common';
 import { OrdenesCompraService } from './ordenes-compra.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { CrearOrdenCompraDto } from './dto/crear-orden-compra.dto';
+import { ActualizarOrdenCompraDto } from './dto/actualizar-orden-compra.dto';
 
 @Controller('ordenes-compra')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -20,6 +21,23 @@ export class OrdenesCompraController {
   @Post()
   async crear(@Body() dto: CrearOrdenCompraDto) {
     return this.service.crear(dto);
+  }
+
+  @Put(':id')
+  async actualizar(
+    @Param('id') id: string,
+    @Body() dto: ActualizarOrdenCompraDto,
+    @Req() req: any,
+  ) {
+    return this.service.actualizar(id, dto, req?.user);
+  }
+
+  @Delete(':id')
+  async eliminar(
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    return this.service.eliminar(id, req?.user);
   }
 
   @Patch(':id/recibir')
