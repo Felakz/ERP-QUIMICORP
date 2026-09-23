@@ -12,6 +12,8 @@ import {
   Moon,
   Award,
   FlaskConical,
+  Fingerprint,
+  ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -30,7 +32,20 @@ const GERENCIA_SECTIONS = [
       { href: '/gerencia/formulas', label: 'Fórmulas y Pasos de Elaboración', icon: FlaskConical },
     ],
   },
+  {
+    title: 'TALENTO HUMANO & RRHH',
+    items: [
+      { href: '/gerencia/asistencia', label: 'Asistencia & Roles de Colaboradores', icon: Fingerprint },
+    ],
+  },
+  {
+    title: 'GOBERNANZA & SEGURIDAD',
+    items: [
+      { href: '/gerencia/seguridad', label: 'Seguridad & Auditoría', icon: ShieldCheck },
+    ],
+  },
 ];
+
 
 export default function GerenciaLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -87,7 +102,9 @@ export default function GerenciaLayout({ children }: { children: React.ReactNode
                 </p>
                 <div className="space-y-0.5">
                   {section.items.map((item) => {
-                    const isActive = pathname === item.href;
+                    const isActive =
+                      pathname === item.href ||
+                      (item.href === '/gerencia/asistencia' && pathname === '/administracion/asistencia');
                     const Icon = item.icon;
 
                     return (
