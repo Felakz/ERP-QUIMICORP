@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { AsistenciaService } from './asistencia.service';
 import { RegistrarMarcacionDto, VincularUsuarioDto } from './dto/marcacion.dto';
+import { ActualizarUsuarioDto, CrearColaboradorDto } from './dto/actualizar-usuario.dto';
 import { ServiceTokenGuard } from './guards/service-token.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -50,6 +51,37 @@ export class AsistenciaController {
     return this.asistenciaService.vincularUsuario(id, dto);
   }
 
+  @Get('roles')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.GERENTE_ADMINISTRATIVO)
+  roles() {
+    return this.asistenciaService.listarRoles();
+  }
+
+  @Put('usuarios/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA)
+  actualizarUsuario(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ActualizarUsuarioDto,
+  ) {
+    return this.asistenciaService.actualizarUsuario(id, dto);
+  }
+
+  @Post('usuarios')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA)
+  crearUsuario(@Body() dto: CrearColaboradorDto) {
+    return this.asistenciaService.crearUsuario(dto);
+  }
+
+  @Delete('usuarios/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.GERENCIA)
+  eliminarUsuario(@Param('id', ParseUUIDPipe) id: string) {
+    return this.asistenciaService.eliminarUsuario(id);
+  }
+
   @Get('sucursales')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.GERENTE_ADMINISTRATIVO)
@@ -64,3 +96,4 @@ export class AsistenciaController {
     return this.asistenciaService.listarTurnos();
   }
 }
+

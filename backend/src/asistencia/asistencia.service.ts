@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RegistrarMarcacionDto, VincularUsuarioDto } from './dto/marcacion.dto';
+import { ActualizarUsuarioDto, CrearColaboradorDto } from './dto/actualizar-usuario.dto';
 
 const TIPO_SALIDA_ALMUERZO = 'SALIDA_ALMUERZO';
 const TIPO_RETORNO_ALMUERZO = 'RETORNO_ALMUERZO';
@@ -247,7 +248,11 @@ export class AsistenciaService {
         id: u.id,
         dni: u.dni,
         nombre: `${u.nombres} ${u.apellidos}`.trim(),
+        nombres: u.nombres,
+        apellidos: u.apellidos,
         cargo: u.cargo || u.rol?.nombre || 'Sin cargo',
+        rolId: u.rolId,
+        rolNombre: u.rol?.nombre || 'PRODUCCION_ALMACEN',
         sucursal: u.sucursal?.nombre || '—',
         sucursalId: u.sucursalId,
         turnoId: u.turnoId,
@@ -338,4 +343,146 @@ export class AsistenciaService {
       },
     });
   }
+
+  /** Obtener catálogo de roles del sistema */
+  async listarRoles() {
+    return this.prisma.rol.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+  }
+
+  /** Actualizar cargo y rol de colaborador (Exclusivo Gerencia General) */
+  async actualizarUsuario(id: string, dto: ActualizarUsuarioDto) {
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id },
+      include: { rol: true },
+    });
+    if (!usuario) {
+      throw new NotFoundException(`Colaborador con ID ${id} no encontrado.`);
+    }
+
+    if (dto.rolId) {
+      const rolExiste = await this.prisma.rol.findUnique({ where: { id: dto.rolId } });
+      if (!rolExiste) {
+        throw new BadRequestException('El rol seleccionado no es válido en el sistema.');
+      }
+    }
+
+    const updated = await this.prisma.usuario.update({
+      where: { id },
+      data: {
+        cargo: dto.cargo !== undefined ? dto.cargo.trim() : undefined,
+        rolId: dto.rolId !== undefined ? dto.rolId : undefined,
+        nombres: dto.nombres !== undefined ? dto.nombres.trim() : undefined,
+        apellidos: dto.apellidos !== undefined ? dto.apellidos.trim() : undefined,
+        dni: dto.dni !== undefined ? dto.dni.trim() : undefined,
+        turnoId: dto.turnoId !== undefined ? (dto.turnoId || null) : undefined,
+        sucursalId: dto.sucursalId !== undefined ? (dto.sucursalId || null) : undefined,
+        estado: dto.estado !== undefined ? dto.estado : undefined,
+      },
+      include: {
+        rol: true,
+        sucursal: true,
+        turno: true,
+      },
+    });
+
+    // Si tiene cuenta en `users`, mantener en sincronía su rolId y role enum
+    if (dto.rolId && updated.dni) {
+      const rolNombre = updated.rol?.nombre as any;
+      await this.prisma.user.updateMany({
+        where: { email: { contains: updated.dni } },
+        data: {
+          rolId: updated.rolId,
+          ...(rolNombre ? { role: rolNombre } : {}),
+        },
+      }).catch(() => null);
+    }
+
+    return {
+      id: updated.id,
+      dni: updated.dni,
+      nombre: `${updated.nombres} ${updated.apellidos}`.trim(),
+      nombres: updated.nombres,
+      apellidos: updated.apellidos,
+      cargo: updated.cargo || updated.rol?.nombre || 'Sin cargo',
+      rolId: updated.rolId,
+      rolNombre: updated.rol?.nombre || 'PRODUCCION_ALMACEN',
+      sucursal: updated.sucursal?.nombre || '—',
+      sucursalId: updated.sucursalId,
+      turnoId: updated.turnoId,
+      turno: updated.turno
+        ? `${updated.turno.nombre} (${updated.turno.horaInicio} - ${updated.turno.horaFin})`
+        : 'Sin turno asignado',
+      estado: updated.estado,
+    };
+  }
+
+  /** Crear nuevo colaborador (Exclusivo Gerencia General) */
+  async crearUsuario(dto: CrearColaboradorDto) {
+    const existeDni = await this.prisma.usuario.findUnique({
+      where: { dni: dto.dni.trim() },
+    });
+    if (existeDni) {
+      throw new BadRequestException(`Ya existe un colaborador registrado con el DNI ${dto.dni}.`);
+    }
+
+    const rolExiste = await this.prisma.rol.findUnique({ where: { id: dto.rolId } });
+    if (!rolExiste) {
+      throw new BadRequestException('El rol seleccionado no existe.');
+    }
+
+    const nuevo = await this.prisma.usuario.create({
+      data: {
+        dni: dto.dni.trim(),
+        nombres: dto.nombres.trim(),
+        apellidos: dto.apellidos.trim(),
+        cargo: dto.cargo?.trim() || 'OPERARIO',
+        rolId: dto.rolId,
+        passwordHash: '$2b$10$e8wF3QvYkZ4jR5u1sN7kOuB8t6qG0pA2m5x9Yv3u1r5t8q9w0e2y4', // Hash base
+        turnoId: dto.turnoId || null,
+        sucursalId: dto.sucursalId || null,
+        estado: 'ACTIVO',
+      },
+      include: {
+        rol: true,
+        sucursal: true,
+        turno: true,
+      },
+    });
+
+    return {
+      id: nuevo.id,
+      dni: nuevo.dni,
+      nombre: `${nuevo.nombres} ${nuevo.apellidos}`.trim(),
+      nombres: nuevo.nombres,
+      apellidos: nuevo.apellidos,
+      cargo: nuevo.cargo || nuevo.rol?.nombre || 'Sin cargo',
+      rolId: nuevo.rolId,
+      rolNombre: nuevo.rol?.nombre || 'PRODUCCION_ALMACEN',
+      sucursal: nuevo.sucursal?.nombre || '—',
+      sucursalId: nuevo.sucursalId,
+      turnoId: nuevo.turnoId,
+      turno: nuevo.turno
+        ? `${nuevo.turno.nombre} (${nuevo.turno.horaInicio} - ${nuevo.turno.horaFin})`
+        : 'Sin turno asignado',
+      estado: nuevo.estado,
+    };
+  }
+
+  /** Dar de baja / Desactivar colaborador (Exclusivo Gerencia General) */
+  async eliminarUsuario(id: string) {
+    const usuario = await this.prisma.usuario.findUnique({ where: { id } });
+    if (!usuario) {
+      throw new NotFoundException(`Colaborador no encontrado.`);
+    }
+
+    await this.prisma.usuario.update({
+      where: { id },
+      data: { estado: 'INACTIVO' },
+    });
+
+    return { ok: true, mensaje: `Colaborador ${usuario.nombres} ${usuario.apellidos} dado de baja exitosamente.` };
+  }
 }
+
