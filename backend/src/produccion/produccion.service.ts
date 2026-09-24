@@ -484,6 +484,7 @@ export class ProduccionService {
       envaseCantidad?: number;
       envaseSku2?: string;
       envaseCantidad2?: number;
+      envasesSecundarios?: Array<{ sku: string; cantidad: number }>;
       envaseCliente?: boolean;
       tipoEnvaseCliente?: string;
       envaseClienteCantidad?: number;
@@ -577,13 +578,21 @@ export class ProduccionService {
     // Descuento de envases consumidos en el despacho (1 etiqueta = 1 envase).
     // Soporta hasta dos envases diferentes por despacho; cada uno genera su
     // SALIDA_VENTA en kardex (KardexMovimiento + KardexInmutable) y actualiza su stock.
-    // Si el envase es PROVISTO POR EL CLIENTE se omite por completo el descuento.
     const opcionesEnvases: { sku: string; cantidad: number }[] = [];
     if (!usaEnvaseDelCliente && opciones?.envaseSku) {
       opcionesEnvases.push({ sku: opciones.envaseSku, cantidad: Number(opciones.envaseCantidad || 0) });
     }
-    if (!usaEnvaseDelCliente && opciones?.envaseSku2) {
+    // Soporte múltiple: envasesSecundarios (hasta 5) + compatibilidad con envaseSku2 legacy
+    if (Array.isArray(opciones?.envasesSecundarios) && opciones.envasesSecundarios.length > 0) {
+      for (const s of opciones.envasesSecundarios) {
+        if (s?.sku) opcionesEnvases.push({ sku: String(s.sku), cantidad: Number(s.cantidad || 0) });
+      }
+    } else if (!usaEnvaseDelCliente && opciones?.envaseSku2) {
       opcionesEnvases.push({ sku: opciones.envaseSku2, cantidad: Number(opciones.envaseCantidad2 || 0) });
+    }
+
+    if (opcionesEnvases.length > 6) {
+      throw new BadRequestException('Máximo 5 envases secundarios por despacho.');
     }
 
     let envaseDescontado: { sku: string; nombre: string; cantidad: number; saldo: number }[] = [];

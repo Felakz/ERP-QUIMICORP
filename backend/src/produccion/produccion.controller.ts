@@ -113,6 +113,7 @@ export class ProduccionController {
       envaseCantidad?: number;
       envaseSku2?: string;
       envaseCantidad2?: number;
+      envasesSecundarios?: Array<{ sku: string; cantidad: number }>;
       envaseCliente?: boolean;
       tipoEnvaseCliente?: string;
       envaseClienteCantidad?: number;
@@ -123,6 +124,7 @@ export class ProduccionController {
       envaseCantidad: body?.envaseCantidad,
       envaseSku2: body?.envaseSku2,
       envaseCantidad2: body?.envaseCantidad2,
+      envasesSecundarios: body?.envasesSecundarios,
       envaseCliente: body?.envaseCliente,
       tipoEnvaseCliente: body?.tipoEnvaseCliente,
       envaseClienteCantidad: body?.envaseClienteCantidad,

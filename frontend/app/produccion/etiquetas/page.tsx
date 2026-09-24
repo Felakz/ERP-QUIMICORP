@@ -112,14 +112,14 @@ export default function EtiquetasDespachoPage() {
   const [numeroGuia, setNumeroGuia] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [backendConectado, setBackendConectado] = useState<boolean>(false);
-  // Segundo envase opcional por despacho
-  const [showEnvase2, setShowEnvase2] = useState<boolean>(false);
-  const [envaseSku2, setEnvaseSku2] = useState<string>('');
-  const [envaseCantidad2, setEnvaseCantidad2] = useState<number>(1);
+  // Envases secundarios (hasta 5 tipos, despacho)
+  const [envasesSecundarios, setEnvasesSecundarios] = useState<Array<{ sku: string; cantidad: number }>>([]);
   // Envase provisto por el cliente (no se descuenta del stock interno)
   const [envaseCliente, setEnvaseCliente] = useState<boolean>(false);
   const [tipoEnvaseCliente, setTipoEnvaseCliente] = useState<string>('STICK');
   const [otroEnvaseCliente, setOtroEnvaseCliente] = useState<string>('');
+  // Sticks: pedido en KG pero despacho/etiqueta en UN
+  const [gramosPorStick, setGramosPorStick] = useState<number>(0);
 
   // Cargar la cola de despacho REAL desde el backend y fusionarla con la vista
   useEffect(() => {
@@ -227,10 +227,12 @@ export default function EtiquetasDespachoPage() {
     return envases.find((e) => e.codigo === pedidoActivo?.envaseSku) || envases[0];
   }, [envases, pedidoActivo]);
 
-  // Segundo envase (opcional, debe ser distinto al primero)
-  const envaseActivo2 = useMemo(() => {
-    return envases.find((e) => e.codigo === envaseSku2 && envaseSku2 !== envaseActivo?.codigo) || null;
-  }, [envases, envaseSku2, envaseActivo]);
+  // Envases secundarios resueltos (distintos al principal)
+  const secundariosResueltos = useMemo(() => {
+    return envasesSecundarios
+      .map((s) => envases.find((e) => e.codigo === s.sku))
+      .filter(Boolean) as EnvaseDisponible[];
+  }, [envases, envasesSecundarios]);
 
   // Cálculos Metrológicos Dinámicos por Pedido — KG/L validado (peso real de balanza)
   const taraKg = (pedidoActivo?.taraGramos ?? 985) / 1000;
@@ -241,6 +243,7 @@ export default function EtiquetasDespachoPage() {
   const litrosMatch = cantidadDisplay.match(/([\d.,]+)/);
   const litrosValor = esLitros && litrosMatch ? parseFloat(litrosMatch[1].replace(',', '.')) : null;
   const netoMl = litrosValor !== null ? Math.round(litrosValor * 1000) : null;
+  const sticksUnidades = gramosPorStick > 0 ? Math.round((contenidoNeto * 1000) / gramosPorStick) : null;
 
   // Generador de QR Real 100% Escaneable
   useEffect(() => {
@@ -449,8 +452,16 @@ export default function EtiquetasDespachoPage() {
       return;
     }
 
-    if (showEnvase2 && envaseSku2 && envaseSku2 === envaseActivo?.codigo) {
-      alert('El segundo envase debe ser diferente al primero.');
+    // Validar que secundarios no repitan el principal
+    const secundariosInvalidos = envasesSecundarios.filter((s) => s.sku === envaseActivo?.codigo);
+    if (secundariosInvalidos.length > 0) {
+      alert('Los envases secundarios deben ser diferentes al principal.');
+      return;
+    }
+    // Validar duplicados entre secundarios
+    const skus = envasesSecundarios.map((s) => s.sku).filter(Boolean);
+    if (new Set(skus).size !== skus.length) {
+      alert('No repitas el mismo envase secundario.');
       return;
     }
 
@@ -469,12 +480,18 @@ export default function EtiquetasDespachoPage() {
             ? otroEnvaseCliente.trim()
             : (tipoEnvaseCliente === 'OTRO' ? 'ENVASE PROVISTO POR CLIENTE' : tipoEnvaseCliente.trim());
         payload.envaseClienteCantidad = Number(p.unidadesPedidas) || 1;
+        // Cliente trae X + ofrecemos Y extra (secundarios con origen INVENTARIO)
+        if (envasesSecundarios.length > 0) {
+          payload.envasesSecundarios = envasesSecundarios.map((s) => ({ sku: s.sku, cantidad: Number(s.cantidad) || 1 }));
+        }
       } else {
         payload.envaseSku = envaseActivo?.codigo || p.envaseSku || 'ENV-001';
         payload.envaseCantidad = Number(p.unidadesPedidas) || 1;
-        if (showEnvase2 && envaseSku2) {
-          payload.envaseSku2 = envaseSku2;
-          payload.envaseCantidad2 = Number(envaseCantidad2) || 1;
+        if (envasesSecundarios.length > 0) {
+          payload.envasesSecundarios = envasesSecundarios.map((s) => ({ sku: s.sku, cantidad: Number(s.cantidad) || 1 }));
+          // Compatibilidad con campo legacy (primer secundario)
+          payload.envaseSku2 = envasesSecundarios[0].sku;
+          payload.envaseCantidad2 = Number(envasesSecundarios[0].cantidad) || 1;
         }
       }
 
@@ -508,8 +525,7 @@ export default function EtiquetasDespachoPage() {
         return curr;
       });
       cargarEnvases();
-      setShowEnvase2(false);
-      setEnvaseSku2('');
+      setEnvasesSecundarios([]);
       setEnvaseCliente(false);
       setTipoEnvaseCliente('STICK');
 
@@ -636,7 +652,7 @@ export default function EtiquetasDespachoPage() {
                 return (
                   <div
                     key={ped.id}
-                    onClick={() => { setSelectedPedidoId(ped.id); setShowEnvase2(false); setEnvaseSku2(''); }}
+                    onClick={() => { setSelectedPedidoId(ped.id); setEnvasesSecundarios([]); }}
                     className={`p-3.5 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${
                       isSel
                         ? 'bg-[#00F2C3]/10 border-[#00F2C3] shadow-lg shadow-[#00F2C3]/10 ring-1 ring-[#00F2C3]/50'
@@ -772,6 +788,20 @@ export default function EtiquetasDespachoPage() {
                   </div>
 
                   <div>
+                    <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Gramos por STICK (KG→UN)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={gramosPorStick || ''}
+                      onChange={(e) => setGramosPorStick(Math.max(0, parseFloat(e.target.value) || 0))}
+                      placeholder="Ej. 20"
+                      className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
+                    />
+                    <p className="text-[9px] text-slate-500 mt-0.5">Si &gt;0, la etiqueta muestra UN = KG×1000 / g. Ej. 10 KG / 20g = 500 UN</p>
+                  </div>
+
+                  <div>
                     <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Display de Cantidad</label>
                     <input
                       type="text"
@@ -813,6 +843,7 @@ export default function EtiquetasDespachoPage() {
                   <div className="text-right shrink-0">
                     <span className="inline-block rounded-xl bg-[#00F2C3]/10 px-3.5 py-1.5 text-xs font-black text-[#00F2C3] border border-[#00F2C3]/40 shadow-sm shadow-[#00F2C3]/20">
                       Cant.: {pedidoActivo.cantidadKilosDisplay}
+                      {sticksUnidades !== null && ` · ${sticksUnidades.toLocaleString()} UN`}
                     </span>
                     <span className="block text-[10px] text-slate-400 font-mono mt-1">
                       LOTE: <strong className="text-white text-xs">{pedidoActivo.codigoLote}</strong>
@@ -835,7 +866,7 @@ export default function EtiquetasDespachoPage() {
                       <div className="flex justify-between text-slate-300 text-[11px]">
                         <span>CONTENIDO NETO:</span>
                         <strong className="text-blue-400 font-mono">
-                          {contenidoNeto.toFixed(3)} kg{esLitros && netoMl !== null ? ` = (${netoMl.toLocaleString()}ml)` : ''}
+                          {contenidoNeto.toFixed(3)} kg{esLitros && netoMl !== null ? ` = (${netoMl.toLocaleString()}ml)` : ''}{sticksUnidades !== null ? ` · ${sticksUnidades.toLocaleString()} UN` : ''}
                         </strong>
                       </div>
                       <div className="flex justify-between text-xs pt-1.5 border-t border-[#1A2232] font-black">
@@ -1056,72 +1087,78 @@ export default function EtiquetasDespachoPage() {
                 </div>
               </div>
 
-              {/* --- 2do Envase (opcional, solo inventario) --- */}
-              {envaseCliente ? null : !showEnvase2 ? (
-                <button
-                  onClick={() => setShowEnvase2(true)}
-                  className={`w-full flex items-center justify-center gap-1.5 rounded-lg border border-dashed py-1.5 text-[11px] font-bold transition-colors ${
-                    isDark
-                      ? 'border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/5'
-                      : 'border-teal-300 text-teal-600 hover:bg-teal-50'
-                  }`}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Agregar otro envase al despacho
-                </button>
-              ) : (
-                <div className={`p-3 rounded-xl border font-sans space-y-2 ${isDark ? 'bg-[#0B0F17] border-[#1A2232]' : 'bg-slate-50 border-slate-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-[10px] uppercase font-bold ${textTitle}`}>Envase Secundario (adicional al primero)</span>
+              {/* --- Envases Secundarios (hasta 5 tipos, adicionales al primero) --- */}
+              <div className={`p-3 rounded-xl border font-sans space-y-2 ${isDark ? 'bg-[#0B0F17] border-[#1A2232]' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] uppercase font-bold ${textTitle}`}>Envases Secundarios ({envasesSecundarios.length}/5) — adicionales al primero</span>
+                  {envasesSecundarios.length < 5 && (
                     <button
-                      onClick={() => { setShowEnvase2(false); setEnvaseSku2(''); setEnvaseCantidad2(1); }}
-                      className="text-slate-400 hover:text-rose-400"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <select
-                      value={envaseSku2}
-                      onChange={(e) => {
-                        setEnvaseSku2(e.target.value);
-                        if (!envaseCantidad2 || envaseCantidad2 < 1) setEnvaseCantidad2(1);
+                      onClick={() => {
+                        const disponibles = envases.filter((e) => e.codigo !== envaseActivo?.codigo && !envasesSecundarios.some((s) => s.sku === e.codigo));
+                        const primero = disponibles[0]?.codigo || '';
+                        setEnvasesSecundarios((prev) => [...prev, { sku: primero, cantidad: 1 }]);
                       }}
-                      className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
+                      className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 ${isDark ? 'border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10' : 'border-teal-300 text-teal-600 hover:bg-teal-50'}`}
                     >
-                      <option value="">Seleccionar envase...</option>
-                      {envases
-                        .filter((e) => e.codigo !== envaseActivo?.codigo)
-                        .map((env) => (
-                          <option key={env.codigo} value={env.codigo}>
-                            {env.codigo} · {env.nombre} — {Number(env.stockReal).toLocaleString()} {env.unidadMedida}
-                          </option>
-                        ))}
-                    </select>
-                    <div>
-                      <label className={`block text-[9px] uppercase font-bold mb-0.5 ${textTitle}`}>Unidades</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={envaseCantidad2}
-                        onChange={(e) => setEnvaseCantidad2(Math.max(1, Number(e.target.value) || 1))}
-                        className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
-                      />
-                    </div>
-                    {envaseActivo2 && (
-                      <p
-                        className={`text-[9px] font-sans self-end ${
-                          Number(envaseActivo2.stockReal) < envaseCantidad2 ? 'text-rose-500 font-bold' : 'text-slate-500'
-                        }`}
-                      >
-                        Stock {envaseActivo2.codigo}:{' '}
-                        {Number(envaseActivo2.stockReal).toLocaleString()} {envaseActivo2.unidadMedida}
-                        {Number(envaseActivo2.stockReal) >= envaseCantidad2 ? ' ✔' : ' ⚠ insuficiente'}
-                      </p>
-                    )}
-                  </div>
+                      <Plus className="w-3 h-3" /> Agregar
+                    </button>
+                  )}
                 </div>
-              )}
+                {envaseCliente && <p className="text-[9px] text-purple-400 font-bold">Envase del cliente activo: los secundarios de abajo sí descuentan de inventario (son lo que ofreces tú extra)</p>}
+                {envasesSecundarios.length === 0 ? (
+                  <p className="text-[11px] text-slate-500 text-center py-1">Sin envases secundarios. Usa “Agregar” para añadir hasta 5 tipos.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {envasesSecundarios.map((sec, idx) => {
+                      const envSec = envases.find((e) => e.codigo === sec.sku) || null;
+                      return (
+                        <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_90px_32px] gap-2 items-end">
+                          <select
+                            value={sec.sku}
+                            onChange={(e) => {
+                              const nuevo = [...envasesSecundarios];
+                              nuevo[idx] = { ...nuevo[idx], sku: e.target.value };
+                              setEnvasesSecundarios(nuevo);
+                            }}
+                            className={`w-full rounded-lg border p-2 text-xs font-semibold ${inputBg}`}
+                          >
+                            <option value="">Seleccionar envase...</option>
+                            {envases
+                              .filter((e) => e.codigo !== envaseActivo?.codigo)
+                              .map((env) => (
+                                <option key={env.codigo} value={env.codigo} disabled={envasesSecundarios.some((s, i) => i !== idx && s.sku === env.codigo)}>
+                                  {env.codigo} · {env.nombre} — {Number(env.stockReal).toLocaleString()} {env.unidadMedida}
+                                </option>
+                              ))}
+                          </select>
+                          <div>
+                            <label className={`block text-[9px] uppercase font-bold mb-0.5 ${textTitle}`}>Unidades</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={sec.cantidad}
+                              onChange={(e) => {
+                                const nuevo = [...envasesSecundarios];
+                                nuevo[idx] = { ...nuevo[idx], cantidad: Math.max(1, Number(e.target.value) || 1) };
+                                setEnvasesSecundarios(nuevo);
+                              }}
+                              className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
+                            />
+                          </div>
+                          <button onClick={() => setEnvasesSecundarios((prev) => prev.filter((_, i) => i !== idx))} className="p-2 rounded-lg text-rose-400 hover:bg-rose-500/10">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                          {envSec && (
+                            <p className={`sm:col-span-3 text-[9px] font-sans ${Number(envSec.stockReal) < sec.cantidad ? 'text-rose-500 font-bold' : 'text-slate-500'}`}>
+                              Stock {envSec.codigo}: {Number(envSec.stockReal).toLocaleString()} {envSec.unidadMedida} {Number(envSec.stockReal) >= sec.cantidad ? '✔' : '⚠ insuficiente'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               {/* Botones de Impresión y Despacho */}
               <div className="flex flex-wrap items-center gap-3 pt-2 font-mono">
