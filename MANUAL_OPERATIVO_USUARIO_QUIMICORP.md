@@ -96,15 +96,48 @@ En auditoría corporativa y normatividad tributaria internacional, ninguna perso
 
 El sistema aplica de manera inquebrantable la siguiente regla de negocio:
 
-* **Asistente Administrativo / Almacén:** Puede editar una orden de compra pendiente un **MÁXIMO DE 2 VECES**.
+* **Asistente Administrativo / Operario:** Puede editar una orden de compra pendiente un **MÁXIMO DE 2 VECES**.
   * *1ra Edición:* Para corregir un error menor de tipeo o ajustar la fecha estimada de entrega.
   * *2da Edición:* Oportunidad final de subsanación.
-  * *3er Intento:* **BLOQUEO AUTOMÁTICO.** El sistema rechaza la edición con el mensaje:
-    > *"Has alcanzado el límite máximo de 2 ediciones permitidas para tu rol en esta Orden de Compra. Comunícate con Gerencia o Administración para autorizar cambios adicionales."*
-* **Gerencia General / Dirección:** Tiene **ediciones ilimitadas** para auditar, autorizar y rectificar cualquier operación que requiera revisión superior.
+  * *3er Intento:* **BLOQUEO AUTOMÁTICO.** El sistema rechaza la edición con el mensaje de error:
+    > *"Has alcanzado el límite máximo de 2 ediciones permitidas para tu rol en la orden OC-XXXX-XXXXXX. Para correcciones adicionales, solicita autorización a Gerencia o Administración."*
+* **Gerencia General / Dirección:** Cuenta con **ediciones ilimitadas** para auditar, autorizar y rectificar cualquier operación que requiera revisión superior y trazabilidad excepcional.
 
 > [!IMPORTANT]
 > **Protección Legal para el Colaborador:** Estas restricciones no son solo para proteger el patrimonio de Quimicorp; **protegen al propio trabajador**. Al estar limitado por sistema, el asistente queda legalmente exento de sospechas de colusión, manipulación contable o fraude ante revisiones de auditoría interna o fiscalizaciones de SUNAT.
+
+---
+
+### 4.3. Tipología de Infracciones de Seguridad, Fraude y Daño Patrimonial Monetario
+
+En el ERP de Quimicorp se han implementado blindajes técnicos para neutralizar conductas que vulneran la ley, ponen en riesgo la liquidez de la empresa o constituyen delitos económicos. Toda manipulación indebida en estos módulos está tipificada como **falta laboral grave con consecuencias penales inmediatas**:
+
+#### 4.3.1. Alteración de Cuentas Bancarias y Códigos Interbancarios (CCI) de Proveedores
+* **El Riesgo de Fraude:** Modificar los datos bancarios de un proveedor en el catálogo o en la Orden de Compra justo antes de un pago programado para desviar fondos de Quimicorp hacia cuentas de terceros o personales.
+* **Política de Seguridad:** Los números de cuenta y CCI de los proveedores están sujetos a verificación de titularidad con RUC ante la entidad bancaria. Cualquier intento de sustituir un número de cuenta sin la carta de certificación bancaria oficial firmada por el representante legal del proveedor será derivado de inmediato a auditoría y Gerencia General.
+
+#### 4.3.2. Manipulación no Autorizada de Líneas de Crédito y Días de Pago (`limiteCredito` / `diasCreditoMax`)
+* **El Riesgo Financiero:** Elevar de manera arbitraria la línea de crédito o ampliar los días máximos de cobranza a clientes morosos, familiares o empresas amigas sin el aval formal de Gerencia.
+* **Consecuencia:** Esto genera cuentas incobrables directas, desabastecimiento de caja chica y quiebra del ciclo de liquidez empresarial.
+* **Blindaje:** El módulo de Clientes y Cuentas por Cobrar bloquea la emisión de nuevos pedidos y entregas de mercadería cuando un cliente supera su límite de crédito o presenta facturas vencidas con saldo pendiente. Ningún asistente tiene atribución para levantar este bloqueo.
+
+#### 4.3.3. Alteración de Precios de Venta y Aplicación de Descuentos Arbitrarios
+* **El Riesgo Comercial:** Modificar a la baja los precios unitarios de productos terminados o aplicar descuentos discrecionales en cotizaciones para favorecer a ciertos compradores o recibir comisiones indebidas por debajo de la mesa.
+* **Regla Inquebrantable:** Los precios oficiales están calculados sobre la base de costos de materia prima, mano de obra y margen neto corporativo. Todo descuento especial requiere la aprobación digital explícita de Gerencia General.
+
+#### 4.3.4. Fuga de Activos por Omisión de Adicionales y Envases (Baldes, Cilindros, Fletes)
+* **El Riesgo de Pérdida Física:** Vender producto envasado cobrando únicamente el líquido a granel y regalando u omitiendo en el sistema el valor del envase (baldes de 20 L, bidones, cilindros de 55 galones o herramientas de aplicación).
+* **Consecuencia en Kardex:** Cada envase tiene un costo de adquisición monetario. Si el personal de ventas o asistencia entrega envases sin incluirlos en el pedido o los cobra "en efectivo por fuera", se produce un faltante físico en almacén y una sustracción indebida de patrimonio.
+
+#### 4.3.5. Intento de Escalamiento Ilícito de Roles y Permisos en el Módulo de Asistencia
+* **Por qué el CRUD de Roles está Blindado Exclusivamente a Gerencia General:** En el módulo de Asistencia del Personal, la reasignación de cargos y roles (`OPERARIO`, `SUPERVISOR`, `ASISTENTE`, `ADMINISTRACION`) está protegida tanto en el código del servidor (`@Roles(Role.GERENCIA)`) como en la interfaz gráfica.
+* **El Peligro de Seguridad:** Si un asistente o supervisor pudiera cambiarse el rol a sí mismo o a sus compañeros, podría autoasignarse privilegios de Administrador para borrarse faltas o tardanzas, autorizarse compras fraudulentas, desbloquearse límites de edición o eliminar registros contables. El intento de manipular este sistema o vulnerar credenciales ajenas es causal de despido fulminante.
+
+#### 4.3.6. Distorsión Metrológica Negligente o Maliciosa (El Fraude por Inflación de Inventario)
+* **El Caso Real (Kilos vs. Gramos):** Si un asistente registra en una Orden de Compra `1 GR` a un precio de `S/ 95.00` cuando en realidad compraba `1 KG`:
+  * El sistema asume que la unidad básica vale S/ 95.00 por gramo.
+  * Por regla matemática de conversión, el valor registrado para 1 Kilo pasa a ser de **S/ 95,000.00**.
+  * Si la orden llega a entrar a Kardex, el activo corriente de la empresa se infla artificialmente en millones de soles ficticios, viciando los estados financieros y exponiendo a la empresa a graves multas tributarias por parte de SUNAT por inconsistencia en la valuación de inventarios.
 
 ---
 
@@ -114,24 +147,52 @@ El sistema aplica de manera inquebrantable la siguiente regla de negocio:
 
 1. **Paso 1: Búsqueda del Proveedor:**
    * Utilizar el buscador de proveedores escribiendo la Razón Social o el RUC de 11 dígitos.
-   * Seleccionar el proveedor de la lista desplegable. Esto carga de inmediato su condición de pago y su homologación.
+   * Seleccionar el proveedor de la lista desplegable. Esto carga de inmediato su condición de pago oficial y su RUC homologado.
 2. **Paso 2: Selección de Insumos (Materia Prima):**
    * Escribir el nombre oficial en el buscador de insumos.
-   * Seleccionar el insumo listado. **Nunca inventar nombres abreviados ni omitir detalles de catálogo.**
-3. **Paso 3: Alerta Metrológica Crítica (KILOGRAMOS vs. GRAMOS):**
-   * **CUIDADO EXTREMO:** El sistema alertará en color ámbar si seleccionas `GR` (Gramos) y colocas una cantidad baja (ej. 1 a 10) con un costo elevado.
-   * *Caso Real de Error:* Colocar `1 GR` a `S/ 95.00`. Para el sistema, un gramo vale S/ 95, lo que significaría que el Kilo costaría **S/ 95,000.00**. Esto paraliza el Kardex.
-   * *Forma Correcta:* Si se compra un kilo, la unidad DEBE ser `KG` y la cantidad `1`. Si se compra a granel fraccionado, verificar si la presentación es `GR`, `KG`, `LT` o `GAL`.
+   * Seleccionar el insumo listado. **Queda terminantemente prohibido inventar nombres abreviados, jergas o apodos.**
+3. **Paso 3: Alerta Metrológica Crítica (KILOGRAMOS vs. GRAMOS / LITROS vs. MILILITROS):**
+   * **CUIDADO EXTREMO:** El sistema alertará visualmente en color ámbar si seleccionas `GR` (Gramos) y colocas una cantidad baja con un costo elevado (precio típico de Kilo).
+   * *Verificación Obligatoria:* Si compraste un saco o galón cerrado de 20 Kilos, la unidad DEBE ser `KG` y la cantidad `20`. Si se compran aditivos de alta pureza dosificados en gramos, verificar que el precio unitario corresponda al costo real de UN solo gramo (ej. S/ 0.095 por gramo, no S/ 95.00).
 4. **Paso 4: Verificación del Total Estimado:**
    * Revisar el cuadro verde del Total Estimado de la Orden antes de presionar *"Emitir Orden de Compra"*.
-   * Si el monto total no coincide al centavo con la proforma física o digital del proveedor, **no emitas la orden**. Revisa la cantidad y el precio unitario pactado.
+   * Si el monto total en pantalla no coincide al centavo con la cotización formal o factura proforma del proveedor, **no emitas la orden**. Revisa la cantidad y el precio unitario ingresado.
 
-### 5.2. Corrección de Órdenes Pendientes
+### 5.2. Corrección y Ciclo de Vida de las Órdenes de Compra
 
-* Si detectas un error tras la emisión, pulsa el botón **"Editar OC"**.
-* El sistema te indicará cuántas ediciones te quedan disponibles (`Edición 1 de 2`).
-* Corrige la unidad o la cantidad, redacta el motivo de la corrección en el campo de notas y guarda los cambios.
-* Recuerda que una vez que Almacén presione **"Ingresar a Kardex"**, la orden pasa a estado `RECIBIDO` y **nadie en la empresa podrá editarla**, ya que el stock real habrá ingresado a la contabilidad de planta.
+Toda Orden de Compra en Quimicorp transita por estados estrictos que garantizan el control tributario y operativo:
+
+```mermaid
+graph TD
+    A[Borrador / Emisión] -->|Estado PENDIENTE| B[Orden Emitida]
+    B -->|Máx 2 Ediciones Asistente| B
+    B -->|Solo en PENDIENTE por error duplicado| C[Eliminación Definitiva]
+    B -->|Cancelación Formal Auditada| D[Anulada - Histórico Preservado]
+    B -->|Almacén: Ingresar a Kardex| E[Estado RECIBIDO]
+    E -->|INMUTABILIDAD TOTAL| F[Bloqueo Permanente: No editable ni anulable]
+```
+
+#### Reglas de Gestión en Órdenes de Compra:
+
+1. **Edición de Órdenes Pendientes:**
+   * Mientras la orden esté en estado `PENDIENTE`, el asistente puede pulsar **"Editar OC"** para subsanar errores de digitación o ajustar fechas de entrega.
+   * El sistema muestra en todo momento el contador visible (`Edición 1 de 2`).
+   * Al alcanzar las 2 ediciones, el asistente no podrá volver a modificarla.
+2. **Protocolo ante Agotamiento de Ediciones:**
+   * Si se agotan las 2 ediciones y persiste un error, el asistente **no debe inventar una orden nueva ni culpar al software**.
+   * Debe remitir una solicitud por correo o comunicación interna a Gerencia General o Administración Superior explicando el motivo de la tercera corrección para que el Administrador proceda con la edición autorizada.
+3. **Inmutabilidad Absoluta al Ingresar a Kardex (Estado `RECIBIDO`):**
+   * Cuando el área de Almacén pulsa el botón **"Ingresar a Kardex"**, la materia prima ingresa físicamente al stock de fábrica y a la valorización contable.
+   * En ese instante, la orden pasa a estado `RECIBIDO` y **QUEDA TOTALMENTE BLOQUEADA**.
+   * **Ni el Asistente, ni el Administrador, ni el Programador pueden editarla ni eliminarla**, porque cualquier cambio retroactivo alteraría el costo promedio ponderado de producción y falsearía los libros contables presentados a SUNAT.
+4. **Diferencia Operativa y Legal: "Eliminar OC" vs. "Anular OC":**
+   * **Eliminación Definitiva (`DELETE`):**
+     * *Cuándo procede:* Únicamente cuando la orden está en estado `PENDIENTE` y se generó por un error involuntario de doble clic o duplicidad inmediata que aún no ha tenido contacto con el proveedor ni con almacén.
+     * *Efecto:* Borra el registro antes de que entre a cualquier circuito contable.
+   * **Anulación Formal (`PATCH /anular`):**
+     * *Cuándo procede:* Cuando la orden ya fue enviada o comunicada, pero el proveedor no tiene stock, canceló el pedido o se renegoció la compra.
+     * *Efecto:* La orden se marca como `ANULADA`. **El código correlativo se conserva en el historial para auditoría fiscal**, dejando constancia transparente de por qué no se completó la operación.
+     * *Regla Estricta:* Una orden que ya fue ingresada a Kardex (`RECIBIDO`) **jamás puede anularse**, y una orden anulada **jamás puede recepcionarse**.
 
 ---
 
@@ -175,6 +236,7 @@ El sistema aplica de manera inquebrantable la siguiente regla de negocio:
 | *"El sistema no me deja guardar la orden de compra."* | El usuario dejó el campo de precio unitario en blanco o ingresó texto en una casilla numérica. | Colocar números válidos mayores a cero y verificar que no existan campos obligatorios vacíos. |
 | *"El sistema borró mi fórmula o no la reconoce."* | El usuario escribió el nombre con faltas ortográficas o inventó una sigla que no existe en el catálogo. | Buscar el insumo en el selector escribiendo sus primeras 3 letras y haciendo clic en el resultado del catálogo. |
 | *"El botón de guardar se bloqueó y ya no puedo editar."* | El colaborador ya utilizó sus **2 oportunidades de edición permitidas** para su rol. | Solicitar formalmente a Gerencia General o Administración Superior la revisión y modificación autorizada. |
+| *"El sistema no me deja borrar ni cambiar una orden ya recibida."* | La orden ya fue ingresada a Kardex (estado `RECIBIDO`) y el inventario real ya fue cargado. | **Por ley tributaria y control interno, las órdenes recibidas son inmutables.** No insista; no es un fallo, es protección contable. |
 | *"Se descuadró el costo del lote en miles de soles."* | El operador colocó unidad `GR` (Gramos) en vez de `KG` (Kilos) al comprar el insumo a granel. | Revisar siempre la unidad de medida antes de emitir cualquier documento. Si cuesta S/ 90 el kilo, la unidad DEBE ser `KG`. |
 | *"La huella no marcó mi hora de ingreso."* | El colaborador colocó el dedo húmedo o fuera del sensor, o no esperó la confirmación auditiva del equipo biométrico. | Marcar con el dedo seco y centrado. Si persiste, el Administrador debe verificar la conectividad de red del equipo ZKTeco. |
 
@@ -192,11 +254,24 @@ Antes de hacer clic en **"Emitir Orden de Compra"**, **"Crear Lote"** o **"Guard
 
 ---
 
-## 8. DISPOSICIONES FINALES Y SANCIONES
+## 8. MARCO LEGAL, RESPONSABILIDAD PENAL Y SANCIONES CONTRACTUALES
 
-1. **Carácter Vinculante:** El desconocimiento de este manual no exime de responsabilidad laboral ni administrativa a ningún miembro de la organización.
-2. **Reincidencia en Negligencias de Tipeo:** La reiteración de errores graves en unidades (ej. confundir Gramos con Kilos) o la insistencia injustificada en atribuir al software fallas causadas por digitación deficiente será tipificada como **falta de diligencia operativa**, elevándose el informe correspondiente a Recursos Humanos con la evidencia telemétrica de Sentry.
-3. **Auditoría Continua:** Gerencia General realiza inspecciones periódicas de los registros de modificaciones. Cualquier intento deliberado de evadir los límites de edición o de ingresar datos fraudulentos dará lugar a las acciones contractuales y legales pertinentes.
+El uso del ERP Quimicorp está normado bajo las leyes de la República del Perú y el Reglamento Interno de Trabajo (RIT) de la compañía:
+
+1. **Responsabilidad Contractual y Despido Justificado (D. Leg. N° 728):**
+   * Conforme al **Artículo 25° del D. Leg. N° 728** (Ley de Productividad y Competitividad Laboral), se tipifican expresamente como **FALTA GRAVE** sancionable con despido inmediato sin derecho a indemnización:
+     * *Inciso a):* El incumplimiento injustificado de las obligaciones de trabajo y la reiterada resistencia a las directivas de control y seguridad.
+     * *Inciso c):* La apropiación consumada o frustrada de bienes, insumos o fondos de la empresa, así como la retención o utilización indebida de los mismos.
+     * *Inciso d):* La entrega de información falsa al empleador o la adulteración dolosa de registros en el sistema que cause perjuicio a la empresa.
+2. **Responsabilidad Penal por Delitos Informáticos y Financieros:**
+   * La alteración maliciosa de cuentas bancarias de proveedores, la distorsión dolosa de precios, el falseamiento de inventarios o el intento de vulneración de privilegios informáticos configuran delitos sancionados por el **Código Penal Peruano**:
+     * **Artículo 196° (Estafa y Defraudación):** Pena privativa de la libertad de hasta 6 años por procurar para sí o para un tercero un provecho ilícito mediante engaño o ardid.
+     * **Artículo 198° (Fraude en la Administración de Personas Jurídicas):** Pena de hasta 4 años por falsear balances, reflejar inventarios inexistentes o fraguar estados de ingresos y egresos.
+     * **Artículo 438° (Falsedad Genérica):** Pena de hasta 4 años por alterar la verdad de los hechos en documentos digitales.
+     * **Ley N° 30096 (Ley de Delitos Informáticos):** Sanción con pena efectiva por acceso indebido, sabotaje o modificación no autorizada de bases de datos corporativas.
+3. **Valor Probatorio de Sentry y Auditoría Forense:**
+   * Toda la telemetría registrada por Sentry, los historiales de modificación (`[EDICIONES: X]`), las direcciones IP y las marcas de tiempo tienen **pleno valor probatorio legal y pericial**.
+   * En caso de detectarse negligencia reiterada, dolo o sospecha de fraude, Quimicorp remitirá las pruebas periciales extraídas directamente del servidor al **Ministerio de Trabajo (SUNAFIL)**, la **Policía Nacional del Perú (DIVINDAT)** y el **Ministerio Público** para el inicio de las acciones laborales y penales que correspondan.
 
 ---
-*QUIMICORP PERÚ S.A.C. — Dirección de Operaciones & Tecnología de la Información*
+*QUIMICORP PERÚ S.A.C. — Dirección de Operaciones, Asesoría Legal & Tecnología de la Información*
