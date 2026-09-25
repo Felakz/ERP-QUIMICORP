@@ -440,20 +440,23 @@ export class ProduccionService {
         },
       });
 
-      // 3. Enviar a la Cola de Etiquetas & Despacho (/produccion/etiquetas)
-      await (tx as any).colaDespacho.create({
-        data: {
-          loteCodigo: orden.codigoLote,
-          productoNombre: orden.formula.nombreProducto,
-          clienteNombre: clienteFinal,
-          cantidad: `${cantidadProducida} KG`,
-          fechaFabricacion: new Date(),
-          codigoQR: `QR-QUIMICORP-${orden.codigoLote}`,
-          codigoBarras: `7759000${orden.codigoLote.replace(/\D/g, '') || '1001'}`,
-          estado: 'LISTO_PARA_IMPRIMIR',
-          ruc: '20612434124',
-        },
-      });
+      // 3. Enviar a la Cola de Etiquetas & Despacho (/produccion/etiquetas) — idempotente
+      const colaExistente = await (tx as any).colaDespacho.findFirst({ where: { loteCodigo: orden.codigoLote } });
+      if (!colaExistente) {
+        await (tx as any).colaDespacho.create({
+          data: {
+            loteCodigo: orden.codigoLote,
+            productoNombre: orden.formula.nombreProducto,
+            clienteNombre: clienteFinal,
+            cantidad: `${cantidadProducida} KG`,
+            fechaFabricacion: new Date(),
+            codigoQR: `QR-QUIMICORP-${orden.codigoLote}`,
+            codigoBarras: `7759000${orden.codigoLote.replace(/\D/g, '') || '1001'}`,
+            estado: 'LISTO_PARA_IMPRIMIR',
+            ruc: '20612434124',
+          },
+        });
+      }
 
       // 4. Emisión de Evento WebSocket
       this.produccionGateway.emitirEstadoActualizado({

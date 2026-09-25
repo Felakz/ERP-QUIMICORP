@@ -118,6 +118,8 @@ export default function EtiquetasDespachoPage() {
   const [envaseCliente, setEnvaseCliente] = useState<boolean>(false);
   const [tipoEnvaseCliente, setTipoEnvaseCliente] = useState<string>('STICK');
   const [otroEnvaseCliente, setOtroEnvaseCliente] = useState<string>('');
+  // Bultos: edición local para no trabar el input controlado por pedidoActivo
+  const [bultosInput, setBultosInput] = useState<string>('1');
   // Sticks: pedido en KG pero despacho/etiqueta en UN
   const [gramosPorStick, setGramosPorStick] = useState<number>(0);
 
@@ -391,6 +393,21 @@ export default function EtiquetasDespachoPage() {
     const g = pedidoActivo?.numeroGuia || '';
     setNumeroGuia(g);
   }, [pedidoActivo?.id]);
+  // Sincronizar bultosInput con el pedido activo seleccionado
+  useEffect(() => {
+    setBultosInput(String(pedidoActivo?.unidadesPedidas ?? 1));
+  }, [pedidoActivo?.id]);
+  useEffect(() => {
+    // si cambia por otra vía, reflejar sin perder foco mientras se escribe
+    if (document.activeElement?.getAttribute('data-bultos-input') !== '1') {
+      setBultosInput(String(pedidoActivo?.unidadesPedidas ?? 1));
+    }
+  }, [pedidoActivo?.unidadesPedidas]);
+  const commitBultos = (valor: string) => {
+    const n = Math.max(1, parseInt(valor, 10) || 1);
+    setBultosInput(String(n));
+    handleUpdatePedidoField('unidadesPedidas', n);
+  };
   const guardarGuiaLocal = (valor: string) => {
     setNumeroGuia(valor);
     handleUpdatePedidoField('numeroGuia', valor);
@@ -451,6 +468,11 @@ export default function EtiquetasDespachoPage() {
       alert('Este lote no pertenece a la cola de despacho real del backend. Registre el lote en producción para poder despacharlo.');
       return;
     }
+    // Asegurar que bultos editados se apliquen aunque no se haya hecho blur
+    const bultosVal = Math.max(1, parseInt(bultosInput, 10) || Number(p.unidadesPedidas) || 1);
+    if (String(bultosVal) !== String(p.unidadesPedidas)) {
+      handleUpdatePedidoField('unidadesPedidas', bultosVal);
+    }
 
     // Validar que secundarios no repitan el principal
     const secundariosInvalidos = envasesSecundarios.filter((s) => s.sku === envaseActivo?.codigo);
@@ -479,14 +501,14 @@ export default function EtiquetasDespachoPage() {
           (tipoEnvaseCliente === 'OTRO' && otroEnvaseCliente.trim())
             ? otroEnvaseCliente.trim()
             : (tipoEnvaseCliente === 'OTRO' ? 'ENVASE PROVISTO POR CLIENTE' : tipoEnvaseCliente.trim());
-        payload.envaseClienteCantidad = Number(p.unidadesPedidas) || 1;
+        payload.envaseClienteCantidad = bultosVal;
         // Cliente trae X + ofrecemos Y extra (secundarios con origen INVENTARIO)
         if (envasesSecundarios.length > 0) {
           payload.envasesSecundarios = envasesSecundarios.map((s) => ({ sku: s.sku, cantidad: Number(s.cantidad) || 1 }));
         }
       } else {
         payload.envaseSku = envaseActivo?.codigo || p.envaseSku || 'ENV-001';
-        payload.envaseCantidad = Number(p.unidadesPedidas) || 1;
+        payload.envaseCantidad = bultosVal;
         if (envasesSecundarios.length > 0) {
           payload.envasesSecundarios = envasesSecundarios.map((s) => ({ sku: s.sku, cantidad: Number(s.cantidad) || 1 }));
           // Compatibilidad con campo legacy (primer secundario)
@@ -999,10 +1021,13 @@ export default function EtiquetasDespachoPage() {
                     <div>
                       <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Bultos a Despachar</label>
                       <input
+                        data-bultos-input="1"
                         type="number"
                         min={1}
-                        value={pedidoActivo.unidadesPedidas}
-                        onChange={(e) => handleUpdatePedidoField('unidadesPedidas', Number(e.target.value) || 1)}
+                        value={bultosInput}
+                        onChange={(e) => setBultosInput(e.target.value)}
+                        onBlur={(e) => commitBultos(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') commitBultos((e.target as HTMLInputElement).value); }}
                         className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
                       />
                     </div>
@@ -1042,10 +1067,10 @@ export default function EtiquetasDespachoPage() {
                           </option>
                         ))}
                       </select>
-                      <p className={`mt-1 text-[9px] font-sans ${envaseActivo && Number(envaseActivo.stockReal) < (pedidoActivo.unidadesPedidas || 1) ? 'text-rose-500 font-bold' : 'text-slate-500'}`}>
+                      <p className={`mt-1 text-[9px] font-sans ${envaseActivo && Number(envaseActivo.stockReal) < (parseInt(bultosInput, 10) || 1) ? 'text-rose-500 font-bold' : 'text-slate-500'}`}>
                         {envaseActivo
                           ? `Stock actual: ${Number(envaseActivo.stockReal).toLocaleString()} ${envaseActivo.unidadMedida}` +
-                            (Number(envaseActivo.stockReal) >= (pedidoActivo.unidadesPedidas || 1)
+                            (Number(envaseActivo.stockReal) >= (parseInt(bultosInput, 10) || 1)
                               ? ' ✔ suficiente para el despacho'
                               : ' ⚠ insuficiente para este despacho')
                           : 'Sin maestro de envases conectado'}
@@ -1055,10 +1080,13 @@ export default function EtiquetasDespachoPage() {
                     <div>
                       <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>Bultos a Despachar</label>
                       <input
+                        data-bultos-input="1"
                         type="number"
                         min={1}
-                        value={pedidoActivo.unidadesPedidas}
-                        onChange={(e) => handleUpdatePedidoField('unidadesPedidas', Number(e.target.value) || 1)}
+                        value={bultosInput}
+                        onChange={(e) => setBultosInput(e.target.value)}
+                        onBlur={(e) => commitBultos(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') commitBultos((e.target as HTMLInputElement).value); }}
                         className={`w-full rounded-lg border p-2 text-xs font-mono font-bold ${inputBg}`}
                       />
                     </div>
