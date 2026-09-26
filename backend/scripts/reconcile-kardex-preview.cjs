@@ -110,6 +110,7 @@ async function main() {
     const duplicateReleases = complete.slice(1);
     const tracePool = tracesByDocument.get(`OP-${orderCode}`) || [];
     const usedTraceIds = new Set();
+    const lastTraceByItem = new Map();
     let tracedChanges = 0;
 
     const processOutput = (movement, action, releaseNumber) => {
@@ -139,7 +140,25 @@ async function main() {
         return;
       }
       usedTraceIds.add(trace.id);
-      const stockAdjustment = new Prisma.Decimal(movement.cantidadSalida).minus(desired).toDecimalPlaces(4).toNumber();
+      let stockAdjustment;
+      if (classification.action === 'DUPLICADO') {
+        const previous = lastTraceByItem.get(item.id);
+        if (!previous) {
+          review.push({ lote: orderCode, movimientoId: movement.id, codigo: item.codigo, razon: 'Duplicado sin traza previa comparable', filas: 1 });
+          return;
+        }
+        if (close(trace.stockAnterior, previous.stockNuevo)) {
+          stockAdjustment = Number(movement.cantidadSalida); // descuento secuencial: devolverlo
+        } else if (close(trace.stockAnterior, previous.stockAnterior) && close(trace.stockNuevo, previous.stockNuevo)) {
+          stockAdjustment = 0; // carrera concurrente: ambas filas escribieron el mismo saldo
+        } else {
+          review.push({ lote: orderCode, movimientoId: movement.id, codigo: item.codigo, razon: 'No se pudo determinar si el duplicado afectó el stock', filas: 1 });
+          return;
+        }
+      } else {
+        stockAdjustment = new Prisma.Decimal(movement.cantidadSalida).minus(desired).toDecimalPlaces(4).toNumber();
+      }
+      lastTraceByItem.set(item.id, trace);
       changes.push({
         lote: orderCode, liberacion: releaseNumber, accion: classification.action,
         codigo: item.codigo, insumo: item.nombre, insumoId: item.id,

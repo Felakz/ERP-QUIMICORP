@@ -7,9 +7,10 @@ import { Prisma } from '@prisma/client';
 const units: Record<string, { base: string; factor: number }> = {
   GR: { base: 'GR', factor: 1 }, G: { base: 'GR', factor: 1 },
   KG: { base: 'GR', factor: 1000 }, KILO: { base: 'GR', factor: 1000 }, KILOS: { base: 'GR', factor: 1000 },
+  KILOGRAMO: { base: 'GR', factor: 1000 }, KILOGRAMOS: { base: 'GR', factor: 1000 },
   ML: { base: 'ML', factor: 1 },
   L: { base: 'ML', factor: 1000 }, LT: { base: 'ML', factor: 1000 }, LITRO: { base: 'ML', factor: 1000 }, LITROS: { base: 'ML', factor: 1000 },
-  UN: { base: 'UN', factor: 1 }, UND: { base: 'UN', factor: 1 }, UNIDAD: { base: 'UN', factor: 1 },
+  UN: { base: 'UN', factor: 1 }, UND: { base: 'UN', factor: 1 }, UNIDAD: { base: 'UN', factor: 1 }, UNIDADES: { base: 'UN', factor: 1 },
 };
 
 function definition(unit: string) {

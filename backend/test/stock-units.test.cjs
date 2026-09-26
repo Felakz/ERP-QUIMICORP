@@ -29,6 +29,7 @@ function fixture(stock = 98640.65, unit = 'KG') {
 test('KG, GR, L, ML and UN convert only once and incompatible dimensions fail', () => {
   assert.equal(cantidadEnStock(7.86, 'KG', 'GR'), 7860);
   assert.equal(cantidadEnStock(250, 'KG', 'KG'), 250000);
+  assert.equal(cantidadEnStock(250, 'KILOGRAMOS', 'KG'), 250000);
   assert.equal(cantidadEnStock(250000, 'GR', 'KG'), 250000);
   assert.equal(cantidadEnStock(7860, 'GR', 'KG'), 7860);
   assert.equal(cantidadEnStock(2.5, 'L', 'ML'), 2500);
