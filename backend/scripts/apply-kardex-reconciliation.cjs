@@ -10,6 +10,9 @@ const prisma = new PrismaClient();
 const reportDir = path.resolve(__dirname, '../../reports/kardex-reconciliation');
 const planPath = path.join(reportDir, 'preview.json');
 const apply = process.argv.includes('--apply');
+const physicalCode = process.argv.find(arg => arg.startsWith('--physical-code='))?.split('=')[1];
+const physicalStockText = process.argv.find(arg => arg.startsWith('--physical-stock='))?.split('=')[1];
+const physicalStock = physicalStockText === undefined ? undefined : Number(physicalStockText);
 const close = (a, b, tolerance = 0.011) => Math.abs(Number(a) - Number(b)) <= tolerance;
 
 function json(value) {
@@ -20,7 +23,13 @@ async function main() {
   if (!fs.existsSync(planPath)) throw new Error('Falta preview.json. Ejecuta primero reconcile-kardex-preview.cjs.');
   const planText = fs.readFileSync(planPath, 'utf8');
   const plan = JSON.parse(planText);
+  if ((physicalCode && physicalStock === undefined) || (!physicalCode && physicalStock !== undefined) || (physicalStock !== undefined && (!Number.isFinite(physicalStock) || physicalStock < 0))) {
+    throw new Error('El conteo físico requiere --physical-code=CODIGO y --physical-stock=CANTIDAD_BASE no negativa.');
+  }
+  const physicalItem = physicalCode ? plan.impactoPorInsumo.find(item => item.codigo === physicalCode) : null;
+  if (physicalCode && !physicalItem) throw new Error(`El insumo ${physicalCode} no existe en el plan.`);
   const blocked = new Set(plan.impactoPorInsumo.filter(item => item.estado === 'BLOQUEADO_STOCK_NEGATIVO').map(item => item.insumoId));
+  if (physicalItem) blocked.delete(physicalItem.insumoId);
   const relevantActions = new Set(['CONVERTIR_KG_A_GR', 'RELABELAR_COMO_GR', 'DUPLICADO']);
   const changes = plan.cambios.filter(change => relevantActions.has(change.accion) && !blocked.has(change.insumoId));
   const itemPlans = plan.impactoPorInsumo.filter(item => !blocked.has(item.insumoId) && changes.some(change => change.insumoId === item.insumoId));
@@ -32,6 +41,7 @@ async function main() {
     relabels: changes.filter(change => change.accion === 'RELABELAR_COMO_GR').length,
     duplicateOutputs: changes.filter(change => change.accion === 'DUPLICADO').length,
     blockedItems: blocked.size,
+    physicalReconciliation: physicalItem ? { codigo: physicalCode, stockFinal: physicalStock } : null,
   };
   if (!apply) {
     console.log(json({ mode: 'DRY_RUN', ...summary, message: 'No se modificó la base. Agrega --apply para ejecutar.' }));
@@ -50,7 +60,7 @@ async function main() {
     for (const itemId of itemIds) await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${itemId} FOR UPDATE`;
 
     const [items, movements, traces] = await Promise.all([
-      tx.insumo.findMany({ where: { id: { in: itemIds } }, orderBy: { id: 'asc' } }),
+      tx.insumo.findMany({ where: { id: { in: itemIds } }, include: { familia: true }, orderBy: { id: 'asc' } }),
       tx.kardexMovimiento.findMany({ where: { insumoId: { in: itemIds } }, orderBy: [{ fecha: 'asc' }, { id: 'asc' }] }),
       tx.kardexInmutable.findMany({ where: { insumoId: { in: itemIds } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
     ]);
@@ -85,7 +95,9 @@ async function main() {
 
     let movementUpdates = 0;
     let traceUpdates = 0;
+    const physicalAdjustments = [];
     for (const itemPlan of itemPlans) {
+      const item = itemById.get(itemPlan.insumoId);
       const itemMovements = movements.filter(row => row.insumoId === itemPlan.insumoId);
       let movementAdjustment = new Prisma.Decimal(0);
       for (const movement of itemMovements) {
@@ -127,11 +139,47 @@ async function main() {
       }
       if (!close(traceAdjustment, itemPlan.ajusteNeto)) throw new Error(`Impacto de trazas inconsistente para ${itemPlan.codigo}.`);
       const projected = new Prisma.Decimal(itemPlan.stockActual).plus(itemPlan.ajusteNeto).toDecimalPlaces(4);
-      if (projected.isNegative()) throw new Error(`La corrección dejaría negativo a ${itemPlan.codigo}.`);
-      await tx.insumo.update({ where: { id: itemPlan.insumoId }, data: { stockReal: projected } });
+      const hasPhysicalCount = physicalItem?.insumoId === itemPlan.insumoId;
+      if (projected.isNegative() && !hasPhysicalCount) throw new Error(`La corrección dejaría negativo a ${itemPlan.codigo}.`);
+      let finalStock = projected;
+      if (hasPhysicalCount) {
+        finalStock = new Prisma.Decimal(physicalStock).toDecimalPlaces(4);
+        const adjustment = finalStock.minus(projected).toDecimalPlaces(4);
+        if (!adjustment.isZero()) {
+          const user = await tx.usuario.findFirst({ where: { dni: '70000000' } });
+          if (!user) throw new Error('No se encontró el usuario sistema para registrar el conteo físico.');
+          const factor = ['KG', 'L'].includes(String(item.unidadMedida).toUpperCase()) ? 1000 : 1;
+          const cost = new Prisma.Decimal(item.costoUnitario || 0).div(factor).toNumber();
+          const input = adjustment.isPositive();
+          await tx.kardexMovimiento.create({ data: {
+            categoriaKardex: item.tipo === 'ENVASE' ? 'ENVASE' : item.tipo === 'BASE' ? 'MATERIA_PRIMA' : 'INSUMO',
+            productoNombre: item.nombre,
+            familia: item.familia?.nombre || 'General',
+            categoriaNombre: item.familia?.nombre || 'General',
+            proveedorCliente: `CONCILIACIÓN POR CONTEO FÍSICO ${new Date().toISOString().slice(0, 10)}`,
+            unidadMedida: ['KG', 'GR'].includes(String(item.unidadMedida).toUpperCase()) ? 'GR' : ['L', 'ML'].includes(String(item.unidadMedida).toUpperCase()) ? 'ML' : 'UN',
+            fecha: new Date(), tipoDoc: 'AJUSTE', tipoOperacion: input ? 'ENTRADA_AJUSTE' : 'SALIDA_MERMA',
+            cantidadEntrada: input ? adjustment.toNumber() : 0,
+            cantidadSalida: input ? 0 : adjustment.abs().toNumber(),
+            saldoFinal: finalStock.toNumber(), costoUnitario: cost,
+            montoEntradaPen: input ? adjustment.mul(cost).toNumber() : 0,
+            montoSalidaPen: input ? 0 : adjustment.abs().mul(cost).toNumber(),
+            montoSaldoPen: finalStock.mul(cost).toNumber(), insumoId: item.id, usuarioId: user.id,
+          } });
+          await tx.kardexInmutable.create({ data: {
+            insumoId: item.id, tipoMovimiento: 'AJUSTE_FINO', cantidad: adjustment.abs(),
+            stockAnterior: projected, stockNuevo: finalStock,
+            documentoReferencia: `CONCILIACIÓN CONTEO FÍSICO ${new Date().toISOString().slice(0, 10)}`, usuarioId: user.id,
+          } });
+          movementUpdates += 1;
+          traceUpdates += 1;
+          physicalAdjustments.push({ codigo: itemPlan.codigo, stockTeoricoCorregido: projected.toNumber(), ajuste: adjustment.toNumber(), stockFinal: finalStock.toNumber() });
+        }
+      }
+      await tx.insumo.update({ where: { id: itemPlan.insumoId }, data: { stockReal: finalStock, stockTeorico: finalStock } });
     }
 
-    return { auditId, movementUpdates, traceUpdates, itemsUpdated: itemPlans.length, backupPath };
+    return { auditId, movementUpdates, traceUpdates, itemsUpdated: itemPlans.length, physicalAdjustments, backupPath };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 15000, timeout: 120000 });
 
   console.log(json({ mode: 'APPLIED', ...summary, ...result }));

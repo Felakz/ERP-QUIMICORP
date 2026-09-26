@@ -22,12 +22,17 @@ function toCsv(rows) {
 
 // aprobarLote writes all component outputs followed by one finished-product
 // entry. This marker remains useful even when the mutable formula later changes.
+function isFinishedProductMarker(row) {
+  return row.categoriaKardex === 'PRODUCTO_TERMINADO' && row.tipoOperacion === 'ENTRADA_PRODUCCION' &&
+    (row.cantidadEntrada > 0 || String(row.proveedorCliente || '').includes('CORRECCIÓN AUDITORÍA: LIBERACIÓN DUPLICADA'));
+}
+
 function splitReleases(rows) {
   const complete = [];
   let current = [];
   for (const row of rows) {
     current.push(row);
-    if (row.categoriaKardex === 'PRODUCTO_TERMINADO' && row.tipoOperacion === 'ENTRADA_PRODUCCION' && row.cantidadEntrada > 0) {
+    if (isFinishedProductMarker(row)) {
       complete.push(current);
       current = [];
     }
@@ -178,8 +183,8 @@ async function main() {
     canonical.forEach(row => processOutput(row, 'CONSERVAR_Y_CONVERTIR', 1));
     duplicateReleases.forEach((release, index) => {
       release.forEach(row => processOutput(row, 'DUPLICADO', index + 2));
-      const product = release.find(row => row.categoriaKardex === 'PRODUCTO_TERMINADO' && row.cantidadEntrada > 0);
-      if (product) duplicateFinishedProducts.push({ lote: orderCode, liberacion: index + 2, movimientoId: product.id, fecha: product.fecha.toISOString(), cantidadEntrada: product.cantidadEntrada, unidad: product.unidadMedida });
+      const product = release.find(isFinishedProductMarker);
+      if (product?.cantidadEntrada > 0) duplicateFinishedProducts.push({ lote: orderCode, liberacion: index + 2, movimientoId: product.id, fecha: product.fecha.toISOString(), cantidadEntrada: product.cantidadEntrada, unidad: product.unidadMedida });
     });
     if (incomplete.length) review.push({ lote: orderCode, razon: 'Filas posteriores sin cierre de producto terminado', filas: incomplete.length, ids: incomplete.map(row => row.id).join('|') });
     releaseSummary.push({ lote: orderCode, liberacionesCompletas: complete.length, liberacionesDuplicadas: duplicateReleases.length, filasIncompletas: incomplete.length, cambiosConTraza: tracedChanges });
