@@ -35,6 +35,10 @@ export class RegistrarAjusteFinoDto {
   @IsNumber()
   cantidadAgregada: number;
 
+  @IsOptional()
+  @IsString()
+  unidadMedida?: string;
+
   @IsString()
   registradoPorId: string;
 }

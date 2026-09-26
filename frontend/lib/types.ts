@@ -60,6 +60,7 @@ export interface OrdenProduccion {
   formulaId: string;
   formula: FormulaMaster;
   cantidadPlanificada: string;
+  cantidadPlanificadaKg?: number;
   cantidadObtenida: string | null;
   mermaCalculada: string | null;
   estado: EstadoOrdenProduccion;

@@ -1,4 +1,5 @@
 'use client';
+import { stockUnit } from '@/lib/stockUnits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
@@ -1032,7 +1033,7 @@ export default function AdministracionOrdenesPage() {
                               {i.codigo && <span className="font-mono text-cyan-400 font-bold">{i.codigo}</span>}
                               {i.familia && <span>• {i.familia}</span>}
                               {i.stock !== undefined && (
-                                <span className="text-amber-400 font-mono">Stock: {i.stock} {i.unidad}</span>
+                                <span className="text-amber-400 font-mono">Stock: {i.stock} {stockUnit(i.unidad)}</span>
                               )}
                             </div>
                           </div>

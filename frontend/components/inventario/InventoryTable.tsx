@@ -1,4 +1,5 @@
 'use client';
+import { stockUnit } from '@/lib/stockUnits';
 
 import { useMemo, useState } from 'react';
 import {
@@ -76,7 +77,7 @@ export function InventoryTable() {
           return (
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm">
-                {stockReal.toFixed(2)} {row.unidadMedida}
+                {stockReal.toFixed(2)} {stockUnit(row.unidadMedida)}
               </span>
               {critico && (
                 <Badge tone="critical">

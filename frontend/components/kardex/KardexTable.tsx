@@ -1,4 +1,5 @@
 'use client';
+import { stockUnit } from '@/lib/stockUnits';
 
 import { useMemo } from 'react';
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
@@ -66,7 +67,7 @@ export function KardexTable() {
           const row = info.row.original;
           return (
             <span className="font-mono text-xs text-slate-500">
-              {Number(row.stockAnterior).toFixed(2)} → {Number(row.stockNuevo).toFixed(2)}
+              {Number(row.stockAnterior).toFixed(2)} → {Number(row.stockNuevo).toFixed(2)} {stockUnit(row.insumo.unidadMedida)}
             </span>
           );
         },

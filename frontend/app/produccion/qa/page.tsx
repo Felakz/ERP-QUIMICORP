@@ -1,4 +1,5 @@
 'use client';
+import { stockUnit } from '@/lib/stockUnits';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -192,14 +193,14 @@ export default function ProduccionQAPage() {
         const data = res.data;
         if (data.length > 0) {
           lotesFromApi = data.map((o: any) => {
-            const cantidadKg = Number(o.cantidadPlanificada || 100);
+            const cantidadKg = Number(o.cantidadPlanificadaKg ?? o.cantidadPlanificada);
             let formulaItems: RecetaItemUI[] = [];
 
             if (o.formula?.detalles && Array.isArray(o.formula.detalles)) {
               formulaItems = o.formula.detalles.map((d: any) => {
                 const pct = Number(d.porcentaje || 10);
                 const gramos = cantidadKg * 1000 * (pct / 100);
-                const stockKg = Number(d.insumo?.stockReal || 0);
+                const stockGramos = Number(d.insumo?.stockReal || 0);
                 return {
                   insumoId: d.insumoId,
                   sku: d.insumo?.codigo || 'INS',
@@ -208,8 +209,8 @@ export default function ProduccionQAPage() {
                   porcentaje: pct,
                   pesoTeorico: Math.round((gramos / 1000) * 100) / 100,
                   gramosCalculados: Math.round(gramos * 100) / 100,
-                  stockReal: stockKg,
-                  suficiente: stockKg * 1000 >= gramos,
+                  stockReal: stockGramos,
+                  suficiente: stockUnit(d.insumo?.unidadMedida || 'GR') === 'GR' && stockGramos >= gramos,
                   esAditivo: false,
                 };
               });

@@ -1,3 +1,4 @@
+import { costoPorUnidadStock, factorUnidad, unidadStock } from '../common/stock-units';
 import { Injectable } from '@nestjs/common';
 import { EstadoGenerico, EstadoSubAlmacen } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
@@ -31,7 +32,7 @@ export class DashboardInventarioService {
 
     for (const insumo of insumos) {
       const stockReal = Number(insumo.stockReal);
-      const costoUnitario = Number(insumo.costoUnitario);
+      const costoUnitario = costoPorUnidadStock(Number(insumo.costoUnitario), insumo.unidadMedida);
       const stockMinimo = Number(insumo.stockMinimo);
 
       valorizacionTotal += stockReal * costoUnitario;
@@ -63,10 +64,10 @@ export class DashboardInventarioService {
         codigo: i.codigo,
         nombre: i.nombre,
         familia: i.familia.nombre,
-        unidadMedida: i.unidadMedida,
+        unidadMedida: unidadStock(i.unidadMedida),
         stockReal: Number(i.stockReal),
         stockMinimo: Number(i.stockMinimo),
-        costoUnitario: Number(i.costoUnitario),
+        costoUnitario: costoPorUnidadStock(Number(i.costoUnitario), i.unidadMedida),
         deficit: (Number(i.stockMinimo) - Number(i.stockReal)).toFixed(2),
         nivelPorcentaje:
           Number(i.stockMinimo) > 0
@@ -90,7 +91,7 @@ export class DashboardInventarioService {
 
       for (const insumo of f.insumos) {
         const stock = Number(insumo.stockReal);
-        const costo = Number(insumo.costoUnitario);
+        const costo = costoPorUnidadStock(Number(insumo.costoUnitario), insumo.unidadMedida);
         stockTotal += stock;
         valorizacion += stock * costo;
       }
@@ -113,14 +114,14 @@ export class DashboardInventarioService {
 
     const insumosValorizados = insumos.map((i) => {
       const stockReal = Number(i.stockReal);
-      const costoUnitario = Number(i.costoUnitario);
+      const costoUnitario = costoPorUnidadStock(Number(i.costoUnitario), i.unidadMedida);
       const valorTotal = stockReal * costoUnitario;
       return {
         id: i.id,
         codigo: i.codigo,
         nombre: i.nombre,
         familia: i.familia.nombre,
-        unidadMedida: i.unidadMedida,
+        unidadMedida: unidadStock(i.unidadMedida),
         stockReal,
         stockMinimo: Number(i.stockMinimo),
         costoUnitario,
@@ -174,13 +175,12 @@ export class DashboardInventarioService {
     const insumosFormatted = insumos.map((i) => {
       const stockReal = Number(i.stockReal);
       const stockMinimo = Number(i.stockMinimo);
-      const unidadVisual = i.unidadMedidaVisual || (i.unidadMedida === 'KG' ? 'KG' : i.unidadMedida === 'L' ? 'LT' : 'GR');
+      const unidadBase = unidadStock(i.unidadMedida);
+      const unidadVisual = i.unidadMedidaVisual && unidadStock(i.unidadMedidaVisual) === unidadBase ? i.unidadMedidaVisual : unidadBase;
 
       // Cantidad física exacta en la unidad visual correspondiente
       let cantidadFisica = stockReal;
-      if (unidadVisual === 'KG' || unidadVisual === 'LT' || unidadVisual === 'L') {
-        cantidadFisica = stockReal / 1000;
-      }
+      cantidadFisica = stockReal / factorUnidad(unidadVisual);
 
       let estado: 'OK' | 'LOW STOCK' | 'CRITICAL' = 'OK';
 
@@ -226,7 +226,7 @@ export class DashboardInventarioService {
     const totalFisicoKgLt = insumos.reduce((acc, i) => {
       const u = i.unidadMedidaVisual || i.unidadMedida;
       const s = Number(i.stockReal);
-      return acc + (u === 'KG' || u === 'LT' || u === 'L' ? s / 1000 : s / 1000);
+      return acc + (unidadStock(i.unidadMedida) === 'GR' ? s / 1000 : 0);
     }, 0);
 
     return {

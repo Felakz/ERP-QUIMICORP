@@ -1,4 +1,5 @@
 'use client';
+import { kardexTotal } from '@/lib/stockUnits';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -43,6 +44,8 @@ interface KardexMovimientoUI {
   categoriaNombre: string;
   proveedorCliente: string;
   unidadMedida: string;
+  unidadSaldo?: string;
+  requiereConciliacionUnidad?: boolean;
   fecha: string;
   tipoDoc: string;
   serie: string;
@@ -370,21 +373,11 @@ export default function KardexPage() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedMovimientos = filteredMovimientos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const totalEntradas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadEntrada || 0), 0);
-  const totalSalidas = filteredMovimientos.reduce((acc, m) => acc + Number(m.cantidadSalida || 0), 0);
-
-  const formatearPeso = (n: number): string =>
-    unidad === 'KG'
-      ? (n / 1000).toLocaleString('es-PE', { minimumFractionDigits: 2 })
-      : Math.round(n).toLocaleString('es-PE');
+  const totalEntradas = kardexTotal(filteredMovimientos, 'cantidadEntrada', unidad);
+  const totalSalidas = kardexTotal(filteredMovimientos, 'cantidadSalida', unidad);
+  const pendientesUnidad = filteredMovimientos.filter(m => m.requiereConciliacionUnidad).length;
 
   const totalItemsUnicos = new Set(filteredMovimientos.map((m) => m.productoNombre)).size;
-  const saldoMap = new Map<string, number>();
-  filteredMovimientos.forEach((m) => {
-    saldoMap.set(m.productoNombre, Number(m.saldoFinal || 0));
-  });
-  const totalSaldoAcumulado = Array.from(saldoMap.values()).reduce((acc, v) => acc + v, 0);
-
   return (
     <div className="space-y-4 font-mono min-h-screen">
       {/* Banner Principal de Kardex Inmutable */}
@@ -490,6 +483,7 @@ export default function KardexPage() {
           ))}
         </div>
       </div>
+      {pendientesUnidad > 0 && <p className="text-xs text-amber-400">{pendientesUnidad} movimientos con unidades pendientes de conciliación. Sus cantidades históricas se conservan y se excluyen de los totales.</p>}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* TOTAL ENTRADAS */}
         <div className={`rounded-2xl p-4 border transition-all shadow-sm space-y-1 ${cardBg}`}>
@@ -498,9 +492,9 @@ export default function KardexPage() {
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-emerald-400 font-mono">
-              +{formatearPeso(totalEntradas)}
+              +{totalEntradas}
             </span>
-            <span className="text-xs text-emerald-400 font-bold">{unidad}</span>
+
           </div>
         </div>
 
@@ -511,9 +505,9 @@ export default function KardexPage() {
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-black text-rose-400 font-mono">
-              -{formatearPeso(totalSalidas)}
+              -{totalSalidas}
             </span>
-            <span className="text-xs text-rose-400 font-bold">{unidad}</span>
+
           </div>
         </div>
 
@@ -757,7 +751,7 @@ export default function KardexPage() {
 
                       {/* Unidad Medida */}
                       <td className="py-3.5 px-3 text-center font-mono text-slate-400 font-bold">
-                        {m.unidadMedida}
+                        {m.unidadMedida}{m.requiereConciliacionUnidad && <span className="block text-[9px] text-amber-400" title="La unidad del movimiento histórico difiere de la unidad del saldo. No incluido en totales hasta conciliar.">Por conciliar</span>}
                       </td>
 
                       {/* Entradas */}
@@ -784,7 +778,7 @@ export default function KardexPage() {
                             : 'text-cyan-700'
                         }`}
                       >
-                        {Number(m.saldoFinal).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                        {Number(m.saldoFinal).toLocaleString('es-PE', { minimumFractionDigits: 2 })} <span className="text-[9px]">{m.unidadSaldo || m.unidadMedida}</span>
                       </td>
                     </tr>
                   );

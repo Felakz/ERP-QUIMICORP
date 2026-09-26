@@ -1,4 +1,5 @@
 'use client';
+import { stockUnit } from '@/lib/stockUnits';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -1211,7 +1212,7 @@ export default function GerenciaFormulasPage() {
                               Costo Real: <strong className="text-emerald-300">S/ {costoUnit.toFixed(2)}</strong>/{insMatched.unidadMedida || 'KG'}
                             </span>
                             <span className="text-slate-500 font-mono">
-                              Stock: {Number(insMatched.stockReal || 0).toLocaleString()} {insMatched.unidadMedida || 'KG'}
+                              Stock: {Number(insMatched.stockReal || 0).toLocaleString()} {stockUnit(insMatched.unidadMedida || 'GR')}
                             </span>
                             <span className="ml-auto text-emerald-400 font-mono font-bold">
                               Contribución: S/ {costoContrib.toFixed(4)}/kg

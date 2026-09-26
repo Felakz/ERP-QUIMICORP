@@ -1,7 +1,8 @@
+import { cantidadEnStock, costoPorUnidadStock, factorUnidad, unidadStock } from '../common/stock-units';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CrearInsumoDto } from './dto/crear-insumo.dto';
-import { CategoriaKardex, EstadoGenerico, Prisma, TipoInsumo, TipoMovimiento, TipoMovimientoKardex } from '@prisma/client';
+import { CategoriaKardex, EstadoGenerico, Prisma, Role, TipoInsumo, TipoMovimiento, TipoMovimientoKardex } from '@prisma/client';
 
 @Injectable()
 export class InventarioService {
@@ -65,7 +66,8 @@ export class InventarioService {
       throw new ConflictException(`El código ${codigo} ya existe. Usa un SKU distinto o edita el existente.`);
     }
 
-    const stockInicial = Number(dto.stockInicial || 0);
+    const stockInicial = cantidadEnStock(Number(dto.stockInicial || 0), dto.unidadMedida, dto.unidadMedida);
+    if (stockInicial < 0) throw new BadRequestException('El stock inicial no puede ser negativo.');
     const esSoloFormula = Boolean(dto.esSoloFormula);
 
     return this.prisma.$transaction(async (tx) => {
@@ -77,7 +79,7 @@ export class InventarioService {
           unidadMedida: dto.unidadMedida,
           tipo: dto.tipo ?? 'OTRO',
           estadoFisico: dto.estadoFisico ?? null,
-          stockMinimo: dto.stockMinimo ?? 0,
+          stockMinimo: cantidadEnStock(Number(dto.stockMinimo || 0), dto.unidadMedida, dto.unidadMedida),
           costoUnitario: dto.costoUnitario ?? 0,
           stockReal: stockInicial,
           stockTeorico: stockInicial,
@@ -89,7 +91,7 @@ export class InventarioService {
       if (stockInicial > 0) {
         const user = await tx.usuario.findFirst({ where: { dni: '70000000' } });
         const categoria = this.categoriaKardexSegunTipo(insumo.tipo, insumo.familia?.nombre);
-        const costo = Number(insumo.costoUnitario || 0);
+        const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo.unidadMedida);
 
         await tx.kardexMovimiento.create({
           data: {
@@ -98,7 +100,7 @@ export class InventarioService {
             familia: insumo.familia?.nombre || 'General',
             categoriaNombre: insumo.familia?.nombre || 'Químicos Base',
             proveedorCliente: 'ALTA INICIAL - ADMINISTRACION',
-            unidadMedida: insumo.unidadMedida,
+            unidadMedida: unidadStock(insumo.unidadMedida),
             fecha: new Date(),
             tipoDoc: 'ALTA',
             tipoOperacion: TipoMovimiento.ENTRADA_COMPRA,
@@ -135,14 +137,16 @@ export class InventarioService {
     if (!cantidad || cantidad <= 0) throw new BadRequestException('La cantidad debe ser mayor a cero.');
 
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${insumoId}::uuid FOR UPDATE`;
       const insumo = await tx.insumo.findUnique({
         where: { id: insumoId },
         include: { familia: true },
       });
       if (!insumo) throw new NotFoundException('Insumo no encontrado.');
 
+      cantidad = cantidadEnStock(cantidad, insumo.unidadMedida, insumo.unidadMedida);
       const stockAnterior = Number(insumo.stockReal || 0);
-      const stockNuevo = stockAnterior + cantidad;
+      const stockNuevo = new Prisma.Decimal(stockAnterior).plus(cantidad).toDecimalPlaces(4).toNumber();
 
       await tx.insumo.update({
         where: { id: insumoId },
@@ -154,7 +158,7 @@ export class InventarioService {
         : await tx.usuario.findFirst({ where: { dni: '70000000' } });
 
       const categoria = this.categoriaKardexSegunTipo(insumo.tipo, insumo.familia?.nombre);
-      const costo = Number(insumo.costoUnitario || 0);
+      const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo.unidadMedida);
 
       await tx.kardexMovimiento.create({
         data: {
@@ -163,7 +167,7 @@ export class InventarioService {
           familia: insumo.familia?.nombre || 'General',
           categoriaNombre: insumo.familia?.nombre || 'Químicos Base',
           proveedorCliente: documentoReferencia || 'REPOSICION STOCK - ADMINISTRACION',
-          unidadMedida: insumo.unidadMedida,
+          unidadMedida: unidadStock(insumo.unidadMedida),
           fecha: new Date(),
           tipoDoc: 'REPO',
           tipoOperacion: TipoMovimiento.ENTRADA_COMPRA,
@@ -201,87 +205,101 @@ export class InventarioService {
   }
 
   async actualizarInsumo(id: string, dto: any, user?: any) {
-    const insumoActual = await this.prisma.insumo.findUnique({
-      where: { id },
-      include: { familia: true },
-    });
-    if (!insumoActual) throw new NotFoundException(`Insumo con ID ${id} no encontrado.`);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${id}::uuid FOR UPDATE`;
+      const insumoActual = await tx.insumo.findUnique({
+        where: { id },
+        include: { familia: true },
+      });
+      if (!insumoActual) throw new NotFoundException(`Insumo con ID ${id} no encontrado.`);
 
-    const data: any = {};
-    if (dto.nombre !== undefined) data.nombre = String(dto.nombre).trim();
-    if (dto.codigo !== undefined) {
-      const codigoLimpio = String(dto.codigo).trim().toUpperCase();
-      if (codigoLimpio !== insumoActual.codigo) {
-        const existe = await this.prisma.insumo.findUnique({ where: { codigo: codigoLimpio } });
-        if (existe && existe.id !== id) {
-          throw new ConflictException(`Ya existe un insumo con el código ${codigoLimpio}`);
+      const data: any = {};
+      if (dto.nombre !== undefined) data.nombre = String(dto.nombre).trim();
+      if (dto.codigo !== undefined) {
+        const codigoLimpio = String(dto.codigo).trim().toUpperCase();
+        if (codigoLimpio !== insumoActual.codigo) {
+          const existe = await tx.insumo.findUnique({ where: { codigo: codigoLimpio } });
+          if (existe && existe.id !== id) {
+            throw new ConflictException(`Ya existe un insumo con el código ${codigoLimpio}`);
+          }
+          data.codigo = codigoLimpio;
         }
-        data.codigo = codigoLimpio;
       }
-    }
-    if (dto.familiaId) data.familiaId = dto.familiaId;
-    if (dto.unidadMedida) data.unidadMedida = dto.unidadMedida;
-    if (dto.tipo) data.tipo = dto.tipo;
-    if (dto.estadoFisico !== undefined) data.estadoFisico = dto.estadoFisico ? String(dto.estadoFisico).trim() : null;
-    if (dto.stockMinimo !== undefined) data.stockMinimo = Number(dto.stockMinimo);
-    if (dto.costoUnitario !== undefined) data.costoUnitario = Number(dto.costoUnitario);
-    if (dto.esSoloFormula !== undefined) data.esSoloFormula = Boolean(dto.esSoloFormula);
+      if (dto.familiaId) data.familiaId = dto.familiaId;
+      if (dto.unidadMedida) {
+        if (unidadStock(dto.unidadMedida) !== unidadStock(insumoActual.unidadMedida)) throw new BadRequestException('No se puede cambiar la dimensión de un insumo con historial.');
+        data.unidadMedida = dto.unidadMedida;
+        if (dto.costoUnitario === undefined) data.costoUnitario = costoPorUnidadStock(Number(insumoActual.costoUnitario), insumoActual.unidadMedida) * factorUnidad(dto.unidadMedida);
+      }
+      if (dto.tipo) data.tipo = dto.tipo;
+      if (dto.estadoFisico !== undefined) data.estadoFisico = dto.estadoFisico ? String(dto.estadoFisico).trim() : null;
+      if (dto.stockMinimo !== undefined) data.stockMinimo = Number(dto.stockMinimo);
+      if (dto.costoUnitario !== undefined) data.costoUnitario = Number(dto.costoUnitario);
+      if (dto.esSoloFormula !== undefined) data.esSoloFormula = Boolean(dto.esSoloFormula);
 
-    if (dto.stockReal !== undefined) {
-      const nuevoStock = Number(dto.stockReal);
-      data.stockReal = nuevoStock;
-      data.stockTeorico = nuevoStock;
+      if (dto.stockReal !== undefined) {
+        const nuevoStock = Number(dto.stockReal);
+        if (!Number.isFinite(nuevoStock) || nuevoStock < 0) throw new BadRequestException('El stock debe ser un número no negativo en la unidad base.');
+        data.stockReal = nuevoStock;
+        data.stockTeorico = nuevoStock;
 
-      const stockAnterior = Number(insumoActual.stockReal || 0);
-      const diff = nuevoStock - stockAnterior;
+        const stockAnterior = Number(insumoActual.stockReal || 0);
+        const diff = nuevoStock - stockAnterior;
 
-      // Bloqueo: altas de stock solo vía OC RECIBIDA (cantidad exacta cotizada)
-      if (diff > 0.0001 && !dto.viaOC) {
-        throw new BadRequestException('Alta de stock solo vía Orden de Compra RECIBIDA con cantidad exacta cotizada. Use OC → Recibir.');
+        // Bloqueo: altas de stock solo vía OC RECIBIDA, excepto admins que pueden ajustar
+        const esAdminGerencia =
+          user?.role === Role.GERENCIA ||
+          user?.role === Role.ADMINISTRACION ||
+          user?.role === Role.GERENTE_ADMINISTRATIVO;
+        if (diff > 0.0001 && !(dto as any).viaOC && !esAdminGerencia) {
+          throw new BadRequestException('Alta de stock solo vía Orden de Compra RECIBIDA con cantidad exacta cotizada. Use OC → Recibir.');
+        }
+
+        if (Math.abs(diff) > 0.0001) {
+          const usuarioRegistro = user?.id && await tx.usuario.findUnique({ where: { id: user.id } }) || await tx.usuario.findFirst({ where: { dni: '70000000' } });
+          if (!usuarioRegistro) throw new BadRequestException('No se encontró el usuario responsable del ajuste.');
+          const categoria = this.categoriaKardexSegunTipo(data.tipo || insumoActual.tipo, insumoActual.familia?.nombre);
+          const costo = costoPorUnidadStock(Number(data.costoUnitario !== undefined ? data.costoUnitario : insumoActual.costoUnitario || 0), data.unidadMedida || insumoActual.unidadMedida);
+
+          await tx.kardexMovimiento.create({
+            data: {
+              categoriaKardex: categoria,
+              productoNombre: data.nombre || insumoActual.nombre,
+              familia: insumoActual.familia?.nombre || 'General',
+              categoriaNombre: insumoActual.familia?.nombre || 'Químicos Base',
+              proveedorCliente: 'AJUSTE MANUAL - CRUD ADMINISTRACION',
+              unidadMedida: unidadStock(data.unidadMedida || insumoActual.unidadMedida),
+              fecha: new Date(),
+              tipoDoc: 'AJUSTE',
+              tipoOperacion: diff >= 0 ? TipoMovimiento.ENTRADA_AJUSTE : TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,
+              cantidadEntrada: diff >= 0 ? diff : 0,
+              cantidadSalida: diff < 0 ? Math.abs(diff) : 0,
+              saldoFinal: nuevoStock,
+              costoUnitario: costo,
+              montoEntradaPen: diff >= 0 ? diff * costo : 0,
+              montoSalidaPen: diff < 0 ? Math.abs(diff) * costo : 0,
+              montoSaldoPen: nuevoStock * costo,
+              insumoId: id,
+              usuarioId: usuarioRegistro.id,
+            } as any,
+          });
+
+          await tx.kardexInmutable.create({
+            data: {
+              insumoId: id,
+              tipoMovimiento: TipoMovimientoKardex.AJUSTE_FINO,
+              cantidad: Math.abs(diff),
+              stockAnterior,
+              stockNuevo: nuevoStock,
+              documentoReferencia: 'AJUSTE MANUAL CRUD INVENTARIO',
+              usuarioId: usuarioRegistro.id,
+            },
+          });
+        }
       }
 
-      if (Math.abs(diff) > 0.0001) {
-        const categoria = this.categoriaKardexSegunTipo(data.tipo || insumoActual.tipo, insumoActual.familia?.nombre);
-        const costo = Number(data.costoUnitario !== undefined ? data.costoUnitario : insumoActual.costoUnitario || 0);
-
-        await this.prisma.kardexMovimiento.create({
-          data: {
-            categoriaKardex: categoria,
-            productoNombre: data.nombre || insumoActual.nombre,
-            familia: insumoActual.familia?.nombre || 'General',
-            categoriaNombre: insumoActual.familia?.nombre || 'Químicos Base',
-            proveedorCliente: 'AJUSTE MANUAL - CRUD ADMINISTRACION',
-            unidadMedida: data.unidadMedida || insumoActual.unidadMedida,
-            fecha: new Date(),
-            tipoDoc: 'AJUSTE',
-            tipoOperacion: diff >= 0 ? TipoMovimiento.ENTRADA_AJUSTE : TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,
-            cantidadEntrada: diff >= 0 ? diff : 0,
-            cantidadSalida: diff < 0 ? Math.abs(diff) : 0,
-            saldoFinal: nuevoStock,
-            costoUnitario: costo,
-            montoEntradaPen: diff >= 0 ? diff * costo : 0,
-            montoSalidaPen: diff < 0 ? Math.abs(diff) * costo : 0,
-            montoSaldoPen: nuevoStock * costo,
-            insumoId: id,
-            usuarioId: user?.id,
-          } as any,
-        }).catch(() => null);
-
-        await this.prisma.kardexInmutable.create({
-          data: {
-            insumoId: id,
-            tipoMovimiento: TipoMovimientoKardex.AJUSTE_FINO,
-            cantidad: Math.abs(diff),
-            stockAnterior,
-            stockNuevo: nuevoStock,
-            documentoReferencia: 'AJUSTE MANUAL CRUD INVENTARIO',
-            usuarioId: user?.id,
-          },
-        }).catch(() => null);
-      }
-    }
-
-    return this.prisma.insumo.update({ where: { id }, data, include: { familia: true } });
+      return tx.insumo.update({ where: { id }, data, include: { familia: true } });
+    });
   }
 
   async eliminarInsumo(id: string) {

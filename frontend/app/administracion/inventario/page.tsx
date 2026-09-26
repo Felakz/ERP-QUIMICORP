@@ -1,4 +1,5 @@
 'use client';
+import { unitFactor } from '@/lib/stockUnits';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -77,7 +78,7 @@ export default function InventarioAdministracionPage() {
       if (ok && data) {
         const parsedItems = (data.insumos || []).map((m: any) => ({
           ...m,
-          cantidadFisica: m.cantidadFisica ?? (m.unidad === 'GR' ? m.stockReal : m.stockReal / 1000),
+          cantidadFisica: m.cantidadFisica ?? (m.stockReal / unitFactor(m.unidad)),
           stockReal: m.stockReal ?? m.stockActual ?? 0,
           stockMinimo: m.stockMinimo ?? 10,
         }));

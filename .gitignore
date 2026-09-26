@@ -46,4 +46,8 @@ scratch/
 # office temp files
 ~$*
 
+# Local diagnostics containing inventory records
+/reports/kardex-units/
+/reports/kardex-reconciliation/
+
 

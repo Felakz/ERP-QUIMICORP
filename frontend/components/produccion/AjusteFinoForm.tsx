@@ -64,9 +64,9 @@ export function AjusteFinoForm() {
   // Recalculo instantáneo: compara lo planificado por fórmula vs lo ajustado
   const recalcularMerma = () => {
     if (!ordenSeleccionada) return;
-    const planificado = Number(ordenSeleccionada.cantidadPlanificada);
+    const planificado = Number(ordenSeleccionada.cantidadPlanificadaKg ?? ordenSeleccionada.cantidadPlanificada);
     const ajuste = Number(cantidad) || 0;
-    const nuevaMerma = planificado > 0 ? (ajuste / planificado) * 100 : 0;
+    const nuevaMerma = planificado > 0 ? (ajuste / 1000 / planificado) * 100 : 0;
     setMermaEstimativa(nuevaMerma);
   };
 
@@ -132,7 +132,7 @@ export function AjusteFinoForm() {
 
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">
-              Cantidad agregada (+) / retirada (-)
+              Cantidad en GR: agregada al lote (+) / devuelta al almacén (-)
             </label>
             <Input
               type="number"

@@ -1,3 +1,4 @@
+import { cantidadEnStock, costoPorUnidadStock, factorUnidad, unidadStock } from '../common/stock-units';
 import {
   BadRequestException,
   ConflictException,
@@ -296,10 +297,10 @@ export class OrdenesCompraService {
     );
 
     const stockAnterior = Number(insumoFinal.stockReal);
-    const costoAnterior = Number(insumoFinal.costoUnitario);
+    const costoAnterior = costoPorUnidadStock(Number(insumoFinal.costoUnitario), insumoFinal.unidadMedida);
     const valorAnterior = stockAnterior * costoAnterior;
     const valorCompra = cantidad * precioCompra;
-    const stockNuevo = stockAnterior + cantidad;
+    const stockNuevo = new Prisma.Decimal(stockAnterior).plus(cantidad).toDecimalPlaces(4).toNumber();
     const costoPromedio = stockNuevo > 0 ? (valorAnterior + valorCompra) / stockNuevo : precioCompra;
     const categoria = this.categoriaKardex(insumoFinal.tipo, insumoFinal.familia.nombre);
 
@@ -308,7 +309,7 @@ export class OrdenesCompraService {
       data: {
         stockReal: stockNuevo,
         stockTeorico: stockNuevo,
-        costoUnitario: costoPromedio,
+        costoUnitario: costoPromedio * factorUnidad(insumoFinal.unidadMedida),
       },
     });
 
@@ -319,7 +320,7 @@ export class OrdenesCompraService {
         familia: insumoFinal.familia.nombre,
         categoriaNombre: insumoFinal.familia.nombre,
         proveedorCliente: oc.proveedorNombre,
-        unidadMedida: insumoFinal.unidadMedida,
+        unidadMedida: unidadStock(insumoFinal.unidadMedida),
         fecha: new Date(),
         tipoDoc: 'OC',
         numero: oc.codigoOC,
@@ -438,32 +439,8 @@ export class OrdenesCompraService {
     unidadOC: UnidadMedida,
     unidadInsumo: UnidadMedida,
   ): { cantidad: number; precioUnitario: number } {
-    if (unidadOC === unidadInsumo) return { cantidad: cantidadOC, precioUnitario: precioOC };
-
-    const masa: Record<string, number> = { [UnidadMedida.GR]: 1, [UnidadMedida.KG]: 1000 };
-    const volumen: Record<string, number> = { [UnidadMedida.ML]: 1, [UnidadMedida.L]: 1000 };
-
-    const factorMasa = masa[unidadOC] !== undefined && masa[unidadInsumo] !== undefined
-      ? masa[unidadOC] / masa[unidadInsumo]
-      : null;
-    if (factorMasa !== null) {
-      const cantidad = cantidadOC * factorMasa;
-      const precioUnitario = precioOC / factorMasa;
-      return { cantidad, precioUnitario };
-    }
-
-    const factorVol = volumen[unidadOC] !== undefined && volumen[unidadInsumo] !== undefined
-      ? volumen[unidadOC] / volumen[unidadInsumo]
-      : null;
-    if (factorVol !== null) {
-      const cantidad = cantidadOC * factorVol;
-      const precioUnitario = precioOC / factorVol;
-      return { cantidad, precioUnitario };
-    }
-
-    throw new BadRequestException(
-      `Unidad de OC (${unidadOC}) incompatible con unidad del insumo (${unidadInsumo}).`,
-    );
+    const cantidad = cantidadEnStock(cantidadOC, unidadOC, unidadInsumo);
+    return { cantidad, precioUnitario: costoPorUnidadStock(precioOC, unidadOC) };
   }
 
   private categoriaKardex(tipo: TipoInsumo | null, familia: string): CategoriaKardex {

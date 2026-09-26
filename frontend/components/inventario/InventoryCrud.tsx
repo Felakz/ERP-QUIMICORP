@@ -1,4 +1,5 @@
 'use client';
+import { stockUnit } from '@/lib/stockUnits';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Package, Plus, Search, Edit3, Save, X, RefreshCw, Tag, CheckCircle2, Trash2, SlidersHorizontal, Check } from 'lucide-react';
@@ -221,7 +222,7 @@ export function InventoryCrud() {
                 <th className="p-3">Código (SKU)</th>
                 <th className="p-3">Nombre</th>
                 <th className="p-3">Categoría</th>
-                <th className="p-3">Unidad</th>
+                <th className="p-3">Unidad comercial</th>
                 <th className="p-3">Tipo</th>
                 <th className="p-3">Estado Físico</th>
                 <th className="p-3 text-right">Stock</th>
@@ -373,7 +374,7 @@ export function InventoryCrud() {
                         title="Modificar número de stock actual"
                       />
                     ) : (
-                      <span className="font-black text-emerald-400">{Number(ins.stockReal ?? 0).toLocaleString()}</span>
+                      <span className="font-black text-emerald-400">{Number(ins.stockReal ?? 0).toLocaleString()} {stockUnit(ins.unidadMedida)}</span>
                     )}
                   </td>
 
@@ -452,14 +453,14 @@ export function InventoryCrud() {
             <h3 className={`text-sm font-bold ${textValue}`}>Registrar Insumo</h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Código (SKU) *</label><input value={form.codigo} onChange={e => setForm({...form, codigo: e.target.value})} placeholder={form.esSoloFormula ? "ESP-XXX" : "INS-XXX"} className={`w-full px-3 py-2 rounded-xl border font-mono ${inputBg}`} /></div>
-              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Unidad *</label><select value={form.unidadMedida} onChange={e => setForm({...form, unidadMedida: e.target.value})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}><option>KG</option><option>L</option><option>GR</option><option>UN</option></select></div>
+              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Unidad comercial *</label><select value={form.unidadMedida} onChange={e => setForm({...form, unidadMedida: e.target.value})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}><option>KG</option><option>L</option><option>GR</option><option>UN</option></select></div>
               <div className="col-span-2"><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Nombre canónico *</label><input value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`} /></div>
               <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Categoría *</label><select value={form.familiaId} onChange={e => setForm({...form, familiaId: e.target.value})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}><option value="">Seleccionar</option>{familias.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}</select></div>
               <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Tipo</label><select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}><option>BASE</option><option>FRAGANCIA</option><option>PIGMENTO</option><option>ENVASE</option><option>OTRO</option></select></div>
               <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Estado Físico</label><select value={form.estadoFisico} onChange={e => setForm({...form, estadoFisico: e.target.value})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`}><option>LIQUIDO</option><option>POLVO</option><option>GRANO</option><option>BLOQUE</option><option>CRISTAL</option><option>PASTA</option><option>BALDE</option><option>GALONERA</option><option>ENVASE</option><option>OTRO</option></select></div>
-              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Stock Mínimo</label><input type="number" value={form.stockMinimo} onChange={e => setForm({...form, stockMinimo: Number(e.target.value)})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`} /></div>
-              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Costo Unitario</label><input type="number" value={form.costoUnitario} onChange={e => setForm({...form, costoUnitario: Number(e.target.value)})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`} /></div>
-              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Stock Inicial</label><input type="number" value={form.stockInicial} onChange={e => setForm({...form, stockInicial: Number(e.target.value)})} placeholder="0 (genera Kardex de entrada)" className={`w-full px-3 py-2 rounded-xl border ${inputBg}`} /></div>
+              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Stock Mínimo ({form.unidadMedida})</label><input type="number" value={form.stockMinimo} onChange={e => setForm({...form, stockMinimo: Number(e.target.value)})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`} /></div>
+              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Costo Unitario (S/ por {form.unidadMedida})</label><input type="number" value={form.costoUnitario} onChange={e => setForm({...form, costoUnitario: Number(e.target.value)})} className={`w-full px-3 py-2 rounded-xl border ${inputBg}`} /></div>
+              <div><label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Stock Inicial ({form.unidadMedida})</label><input type="number" value={form.stockInicial} onChange={e => setForm({...form, stockInicial: Number(e.target.value)})} placeholder="0 (genera Kardex de entrada)" className={`w-full px-3 py-2 rounded-xl border ${inputBg}`} /></div>
               <div className="col-span-2 flex items-center gap-2 rounded-xl border px-3 py-2.5">
                 <input type="checkbox" id="esp-check" checked={form.esSoloFormula} onChange={e => setForm({...form, esSoloFormula: e.target.checked})} className="w-4 h-4 accent-purple-500" />
                 <label htmlFor="esp-check" className={`text-[11px] font-bold ${form.esSoloFormula ? 'text-purple-400' : textTitle}`}>Insumo de solo fórmula (ESP) — no aparece en el inventario físico ni en Kardex</label>
@@ -591,7 +592,7 @@ export function InventoryCrud() {
 
               <div className="rounded-xl border p-3 border-emerald-500/30 bg-emerald-500/5">
                 <label className="block text-[10px] font-black uppercase text-emerald-400 mb-1">
-                  🔢 Stock Físico Actual ({modalEditForm.unidadMedida})
+                  🔢 Stock Físico Actual ({stockUnit(modalEditForm.unidadMedida)})
                 </label>
                 <input
                   type="number"
@@ -604,7 +605,7 @@ export function InventoryCrud() {
               </div>
 
               <div>
-                <label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Stock Mínimo de Alerta</label>
+                <label className={`block text-[10px] font-bold uppercase mb-1 ${textTitle}`}>Stock Mínimo de Alerta ({stockUnit(modalEditForm.unidadMedida)})</label>
                 <input
                   type="number"
                   step="any"

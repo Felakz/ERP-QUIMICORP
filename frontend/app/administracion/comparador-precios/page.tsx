@@ -1,4 +1,5 @@
 'use client';
+import { stockUnit } from '@/lib/stockUnits';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -471,7 +472,7 @@ export default function AdministracionComparadorPreciosPage() {
                                   )}
                                 </div>
                                 <span className="text-[10px] text-slate-400 block truncate">
-                                  {insumo.categoria || 'Materia Prima'} • Stock: {insumo.stockActual.toLocaleString()} {insumo.unidad}
+                                  {insumo.categoria || 'Materia Prima'} • Stock: {insumo.stockActual.toLocaleString()} {stockUnit(insumo.unidad)}
                                 </span>
                               </div>
                             </div>
@@ -581,7 +582,7 @@ export default function AdministracionComparadorPreciosPage() {
                     Stock en Planta
                   </span>
                   <span className="text-xs font-mono font-bold text-cyan-400">
-                    {selectedInsumo.stockActual.toLocaleString()} {selectedInsumo.unidad}
+                    {selectedInsumo.stockActual.toLocaleString()} {stockUnit(selectedInsumo.unidad)}
                   </span>
                 </div>
 

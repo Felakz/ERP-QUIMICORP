@@ -1,3 +1,4 @@
+import { cantidadLoteKg, unidadStock } from '../common/stock-units';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { ProduccionGateway } from '../produccion/produccion.gateway';
@@ -1023,18 +1024,18 @@ export class PedidosAdminService {
       };
     }
 
-    const cantidadBatch = pedido.cantidadSolicitada || 100;
+    const cantidadBatch = cantidadLoteKg(Number(pedido.cantidadSolicitada), pedido.unidadMedida || 'KG', Number(pedido.formula.densidadTeorica));
     const detallesCalculados = [];
     let insumosFaltantesCount = 0;
 
     for (const det of pedido.formula.detalles) {
       const porcentaje = Number(det.porcentaje || 0);
-      const requerido = (cantidadBatch * porcentaje) / 100;
+      const requerido = (cantidadBatch * 1000 * porcentaje) / 100;
 
       // Obtener el stock real del insumo directamente de la relación cargada (cero consultas N+1 a la BD)
       const insumoDb = det.insumo || null;
 
-      const disponible = insumoDb ? Number(insumoDb.stockReal) : 100.0;
+      const disponible = insumoDb && unidadStock(insumoDb.unidadMedida) === 'GR' ? Number(insumoDb.stockReal) : 0;
       const suficiente = disponible >= requerido;
 
       if (!suficiente) {
@@ -1044,6 +1045,7 @@ export class PedidosAdminService {
       detallesCalculados.push({
         codigo: insumoDb?.codigo || 'QC-001',
         nombre: insumoDb?.nombre || det.insumo?.nombre || 'Insumo Químico',
+        unidadMedida: 'GR',
         requerido: parseFloat(requerido.toFixed(2)),
         disponible: parseFloat(disponible.toFixed(2)),
         faltante: suficiente ? 0 : parseFloat((requerido - disponible).toFixed(2)),

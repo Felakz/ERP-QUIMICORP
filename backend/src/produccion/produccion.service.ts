@@ -1,3 +1,4 @@
+import { cantidadEnStock, cantidadLoteKg, consumoFormulaGramos, costoPorUnidadStock, unidadStock } from '../common/stock-units';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EstadoOrdenProduccion, Prisma, TipoMovimientoKardex, CategoriaKardex, TipoMovimiento } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
@@ -50,9 +51,7 @@ export class ProduccionService {
     }
 
     const requerimientos: RequerimientoInsumo[] = formula.detalles.map((detalle) => {
-      const cantidadRequerida = new Prisma.Decimal(dto.cantidadPlanificada)
-        .mul(detalle.porcentaje)
-        .div(100);
+      const cantidadRequerida = new Prisma.Decimal(consumoFormulaGramos(dto.cantidadPlanificada, Number(detalle.porcentaje), detalle.insumo.unidadMedida));
       const stockDisponible = new Prisma.Decimal(detalle.insumo.stockReal);
       const suficiente = stockDisponible.gte(cantidadRequerida);
       const faltante = suficiente
@@ -63,7 +62,7 @@ export class ProduccionService {
         insumoId: detalle.insumoId,
         codigo: detalle.insumo.codigo,
         nombre: detalle.insumo.nombre,
-        unidadMedida: detalle.insumo.unidadMedida,
+        unidadMedida: unidadStock(detalle.insumo.unidadMedida),
         cantidadRequerida: cantidadRequerida.toFixed(4),
         stockDisponible: stockDisponible.toFixed(4),
         suficiente,
@@ -259,18 +258,19 @@ export class ProduccionService {
         data: {
           ordenProduccionId: dto.ordenProduccionId,
           insumoId: dto.insumoId,
-          cantidadAgregada: dto.cantidadAgregada,
+          cantidadAgregada: cantidadEnStock(dto.cantidadAgregada, dto.unidadMedida || 'GR', dto.unidadMedida || 'GR'),
           registradoPorId: dto.registradoPorId,
         },
       });
 
       await this.kardexService.registrarMovimiento({
         insumoId: dto.insumoId,
-        tipoMovimiento: TipoMovimientoKardex.AJUSTE_FINO,
+        tipoMovimiento: dto.cantidadAgregada > 0 ? TipoMovimientoKardex.AJUSTE_FINO : TipoMovimientoKardex.REAPROVECHAMIENTO,
         cantidad: Math.abs(dto.cantidadAgregada),
+        unidadMedida: dto.unidadMedida || 'GR',
         documentoReferencia: orden.codigoLote,
         usuarioId: dto.registradoPorId,
-      });
+      }, tx);
 
       return ajuste;
     });
@@ -335,6 +335,12 @@ export class ProduccionService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // Serialize release of this order and consume each stock from its current value.
+      await tx.$queryRaw`SELECT id FROM ordenes_produccion WHERE id = ${dto.ordenProduccionId}::uuid FOR UPDATE`;
+      const estadoActual = await tx.ordenProduccion.findUniqueOrThrow({ where: { id: dto.ordenProduccionId } });
+      if (['APROBADO', 'EN_ETIQUETADO', 'DESPACHADO'].includes(estadoActual.estado) || estadoActual.pasoProceso === 'LIBERADO_QA') {
+        throw new BadRequestException('El lote ya fue liberado; no se volverá a descontar stock.');
+      }
       const ordenAprobada = await tx.ordenProduccion.update({
         where: { id: dto.ordenProduccionId },
         data: {
@@ -353,9 +359,13 @@ export class ProduccionService {
         // Saltar detalles comodín sin insumo real vinculado (p.ej. "FRAGANCIA REFERENCIA")
         if (!detalle.insumo) continue;
         const porcentaje = Number(detalle.porcentaje);
-        const consumoCalculado = (Number(orden.cantidadPlanificada) * porcentaje) / 100;
-        const stockActual = Number(detalle.insumo.stockReal);
-        const nuevoSaldo = Math.max(0, stockActual - consumoCalculado);
+        const loteKg = cantidadLoteKg(Number(orden.cantidadPlanificada), orden.pedidoComercial?.unidadMedida || 'KG', Number(orden.formula.densidadTeorica));
+        const consumoCalculado = consumoFormulaGramos(loteKg, porcentaje, detalle.insumo.unidadMedida);
+        await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${detalle.insumoId}::uuid FOR UPDATE`;
+        const insumoActual = await tx.insumo.findUniqueOrThrow({ where: { id: detalle.insumoId } });
+        const stockActual = Number(insumoActual.stockReal);
+        if (stockActual < consumoCalculado) throw new BadRequestException(`Stock insuficiente de ${detalle.insumo.nombre}: disponible ${stockActual} ${unidadStock(detalle.insumo.unidadMedida)}, requerido ${consumoCalculado}.`);
+        const nuevoSaldo = new Prisma.Decimal(stockActual).minus(consumoCalculado).toNumber();
 
         await tx.insumo.update({
           where: { id: detalle.insumoId },
@@ -372,7 +382,7 @@ export class ProduccionService {
         else if (tipo === 'FRAGANCIA' || tipo === 'PIGMENTO') categoriaKardex = CategoriaKardex.INSUMO;
 
         // Costo unitario del insumo (0 mientras no se cargue la ficha de costos)
-        const costoUnitarioInsumo = Number(detalle.insumo.costoUnitario || 0);
+        const costoUnitarioInsumo = costoPorUnidadStock(Number(insumoActual.costoUnitario || 0), insumoActual.unidadMedida);
 
         await tx.kardexMovimiento.create({
           data: {
@@ -381,7 +391,7 @@ export class ProduccionService {
             familia: detalle.insumo.familia?.nombre || 'General',
             categoriaNombre: detalle.insumo.familia?.nombre || 'Químicos Base',
             proveedorCliente: `Consumo Planta - Lote ${orden.codigoLote} (${clienteFinal})`,
-            unidadMedida: detalle.insumo.unidadMedida,
+            unidadMedida: unidadStock(detalle.insumo.unidadMedida),
             fecha: new Date(),
             tipoDoc: 'OP',
             serie: 'LOTE',
@@ -415,7 +425,9 @@ export class ProduccionService {
       // 2. Entrada del Producto Terminado Aprobado
       //    Monto de costo del PT = monto fijado (cotización) y aprobado en la venta (PedidoComercial.montoTotal)
       const montoVenta = Number(orden.pedidoComercial?.montoTotal || 0);
-      const costoUnitarioPT = montoVenta > 0 && cantidadProducida > 0 ? montoVenta / cantidadProducida : 0;
+      const unidadPT = orden.pedidoComercial?.unidadMedida || 'KG';
+      const cantidadProducidaBase = cantidadEnStock(cantidadProducida, unidadPT, unidadPT);
+      const costoUnitarioPT = montoVenta > 0 && cantidadProducidaBase > 0 ? montoVenta / cantidadProducidaBase : 0;
 
       await tx.kardexMovimiento.create({
         data: {
@@ -424,16 +436,16 @@ export class ProduccionService {
           familia: orden.pedidoComercial?.productoNombre || 'Productos Terminados',
           categoriaNombre: 'Producto Terminado Aprobado',
           proveedorCliente: clienteFinal,
-          unidadMedida: orden.pedidoComercial?.unidadMedida || 'KG',
+          unidadMedida: unidadStock(unidadPT),
           fecha: new Date(),
           tipoDoc: 'OP',
           serie: 'LOTE',
           numero: orden.codigoLote,
           otp: `OTP-${orden.codigoLote}`,
           tipoOperacion: TipoMovimiento.ENTRADA_PRODUCCION,
-          cantidadEntrada: cantidadProducida,
+          cantidadEntrada: cantidadProducidaBase,
           cantidadSalida: 0,
-          saldoFinal: cantidadProducida,
+          saldoFinal: cantidadProducidaBase,
           costoUnitario: costoUnitarioPT,
           montoEntradaPen: montoVenta,
           montoSaldoPen: montoVenta,
@@ -448,7 +460,7 @@ export class ProduccionService {
             loteCodigo: orden.codigoLote,
             productoNombre: orden.formula.nombreProducto,
             clienteNombre: clienteFinal,
-            cantidad: `${cantidadProducida} KG`,
+            cantidad: `${cantidadProducida} ${unidadPT}`,
             fechaFabricacion: new Date(),
             codigoQR: `QR-QUIMICORP-${orden.codigoLote}`,
             codigoBarras: `7759000${orden.codigoLote.replace(/\D/g, '') || '1001'}`,
@@ -628,6 +640,7 @@ export class ProduccionService {
           if (!envase) {
             throw new NotFoundException(`Envase ${opt.sku} no encontrado en el maestro de insumos.`);
           }
+          if (unidadStock(envase.unidadMedida) !== 'UN') throw new BadRequestException('El envase debe estar registrado en UN.');
           return { sku: opt.sku, cantidad: opt.cantidad, envase };
         }),
       );
@@ -726,6 +739,7 @@ export class ProduccionService {
     adicionales: Array<{
       id: string;
       categoria: 'ENVASES' | 'BALDES_HERRAMIENTAS';
+      unidadMedida: string;
       cantidad: unknown;
       cantidadDespachada: unknown;
       insumoId: string | null;
@@ -742,12 +756,13 @@ export class ProduccionService {
         const cantidadPendiente = Number(adicional.cantidad) - Number(adicional.cantidadDespachada);
         if (cantidadPendiente <= 0) continue;
         const insumo = await tx.insumo.findUniqueOrThrow({ where: { id: adicional.insumoId }, include: { familia: true } });
+        const consumoBase = cantidadEnStock(cantidadPendiente, adicional.unidadMedida, insumo.unidadMedida);
         const stockAnterior = Number(insumo.stockReal);
-        if (stockAnterior < cantidadPendiente) {
+        if (stockAnterior < consumoBase) {
           throw new BadRequestException(`Stock insuficiente de ${insumo.codigo} (${insumo.nombre}).`);
         }
-        const stockNuevo = stockAnterior - cantidadPendiente;
-        const costo = Number(insumo.costoUnitario || 0);
+        const stockNuevo = new Prisma.Decimal(stockAnterior).minus(consumoBase).toNumber();
+        const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo.unidadMedida);
         const categoria = adicional.categoria === 'ENVASES' ? CategoriaKardex.ENVASE : CategoriaKardex.INSUMO;
         await tx.insumo.update({ where: { id: insumo.id }, data: { stockReal: stockNuevo } });
         await tx.kardexMovimiento.create({
@@ -757,16 +772,16 @@ export class ProduccionService {
             familia: insumo.familia.nombre,
             categoriaNombre: insumo.familia.nombre,
             proveedorCliente: `Adicional pedido - ${loteCodigo}`,
-            unidadMedida: insumo.unidadMedida,
+            unidadMedida: unidadStock(insumo.unidadMedida),
             fecha: new Date(),
             tipoDoc: 'GUIA',
             numero: documentoRef,
             tipoOperacion: TipoMovimiento.SALIDA_VENTA,
             cantidadEntrada: 0,
-            cantidadSalida: cantidadPendiente,
+            cantidadSalida: consumoBase,
             saldoFinal: stockNuevo,
             costoUnitario: costo,
-            montoSalidaPen: cantidadPendiente * costo,
+            montoSalidaPen: consumoBase * costo,
             montoSaldoPen: stockNuevo * costo,
             insumoId: insumo.id,
             usuarioId,
@@ -776,7 +791,7 @@ export class ProduccionService {
           data: {
             insumoId: insumo.id,
             tipoMovimiento: TipoMovimientoKardex.SALIDA,
-            cantidad: cantidadPendiente,
+            cantidad: consumoBase,
             stockAnterior,
             stockNuevo,
             documentoReferencia: documentoRef,
@@ -840,21 +855,23 @@ export class ProduccionService {
     return { inicioDia, finDia, fechaISO };
   }
 
-  listar(fechaStr?: string) {
+  async listar(fechaStr?: string) {
     let whereCondition: any = {};
     if (fechaStr) {
       const { inicioDia, finDia } = this.parsearRangoDia(fechaStr);
       whereCondition.createdAt = { gte: inicioDia, lte: finDia };
     }
 
-    return this.prisma.ordenProduccion.findMany({
+    const ordenes = await this.prisma.ordenProduccion.findMany({
       where: whereCondition,
       include: {
         formula: { include: { detalles: { include: { insumo: { include: { familia: true } } } } } },
         supervisor: { select: { nombres: true, apellidos: true } },
+        pedidoComercial: { select: { unidadMedida: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
+    return ordenes.map(o => ({ ...o, cantidadPlanificadaKg: cantidadLoteKg(Number(o.cantidadPlanificada), o.pedidoComercial?.unidadMedida || 'KG', Number(o.formula.densidadTeorica)) }));
   }
 
   async obtenerProgramacionDiaria(fechaStr?: string) {
@@ -882,14 +899,13 @@ export class ProduccionService {
 
     const listaFormatted = ordenesDelDia.map((oItem) => {
       const o = oItem as any;
-      const cantGramos = Number(o.cantidadPlanificada) || 0;
-      totalKgProgramados += cantGramos;
+      const cantidadPlanificada = Number(o.cantidadPlanificada) || 0;
+      totalKgProgramados += cantidadLoteKg(cantidadPlanificada, o.pedidoComercial?.unidadMedida || 'KG', Number(o.formula?.densidadTeorica));
 
       // Resolver unidad y cantidad de presentación desde el pedido comercial vinculado
       const pedido = o.pedidoComercial;
       const unidadPedido = pedido?.unidadMedida || 'KG';
-      const cantPedido = Number(pedido?.cantidadSolicitada);
-      const cantidadVisual = Number.isFinite(cantPedido) && cantPedido > 0 ? cantPedido : cantGramos / 1000;
+      const cantidadVisual = cantidadPlanificada;
 
       const esTerminado =
         o.estado === EstadoOrdenProduccion.APROBADO ||
@@ -962,7 +978,7 @@ export class ProduccionService {
       fecha: fechaISO,
       resumen: {
         totalOrdenes: listaFormatted.length,
-        totalKgProgramados: (totalKgProgramados / 1000).toFixed(2),
+        totalKgProgramados: totalKgProgramados.toFixed(2),
         totalTerminados: terminadosCount,
         totalEnProceso: enProcesoCount,
         totalPendientes: pendientesCount,
@@ -980,6 +996,7 @@ export class ProduccionService {
     const orden = await this.prisma.ordenProduccion.findUnique({
       where: { id: loteId },
       include: {
+        pedidoComercial: { select: { unidadMedida: true } },
         formula: {
           include: {
             detalles: {
@@ -998,7 +1015,7 @@ export class ProduccionService {
       throw new NotFoundException('Orden de producción no encontrada.');
     }
 
-    const cantidadPlanificadaKg = Number(orden.cantidadPlanificada) || 100;
+    const cantidadPlanificadaKg = cantidadLoteKg(Number(orden.cantidadPlanificada), orden.pedidoComercial?.unidadMedida || 'KG', Number(orden.formula.densidadTeorica));
 
     // 1. Componentes base de la fórmula
     const ingredientesBase = orden.formula.detalles.map((d) => {
@@ -1012,9 +1029,9 @@ export class ProduccionService {
         tipo: 'BASE',
         porcentaje: pct,
         gramosCalculados: Math.round(gramos * 100) / 100,
-        unidadMedida: d.insumo.unidadMedida,
+        unidadMedida: unidadStock(d.insumo.unidadMedida),
         stockReal: Number(d.insumo.stockReal),
-        suficiente: Number(d.insumo.stockReal) * 1000 >= gramos,
+        suficiente: unidadStock(d.insumo.unidadMedida) === 'GR' && Number(d.insumo.stockReal) >= gramos,
         esAditivo: false,
       };
     });
@@ -1061,9 +1078,9 @@ export class ProduccionService {
             tipo: ad.tipo || 'FRAGANCIA',
             porcentaje: pct,
             gramosCalculados: Math.round(gramos * 100) / 100,
-            unidadMedida: ad.insumo?.unidadMedida || 'KG',
-            stockReal: Number(ad.insumo?.stockReal || 50),
-            suficiente: Number(ad.insumo?.stockReal || 50) * 1000 >= gramos,
+            unidadMedida: unidadStock(ad.insumo?.unidadMedida || 'GR'),
+            stockReal: Number(ad.insumo?.stockReal || 0),
+            suficiente: !!ad.insumo && unidadStock(ad.insumo.unidadMedida) === 'GR' && Number(ad.insumo.stockReal) >= gramos,
             esAditivo: true,
           };
         });

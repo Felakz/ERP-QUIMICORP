@@ -1,3 +1,4 @@
+import { costoPorUnidadStock } from '../common/stock-units';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 
@@ -145,6 +146,7 @@ export class DashboardService {
         select: {
           stockReal: true,
           stockMinimo: true,
+          unidadMedida: true,
           costoUnitario: true,
         },
       }),
@@ -201,7 +203,7 @@ export class DashboardService {
     const stockCriticoValorizadoPen = insumosCriticos
       .filter((i) => Number(i.stockReal) <= Number(i.stockMinimo))
       .reduce(
-        (acc, i) => acc + Number(i.stockReal) * Number(i.costoUnitario),
+        (acc, i) => acc + Number(i.stockReal) * costoPorUnidadStock(Number(i.costoUnitario), i.unidadMedida),
         0
       );
 
