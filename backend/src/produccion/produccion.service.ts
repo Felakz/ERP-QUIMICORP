@@ -336,7 +336,7 @@ export class ProduccionService {
 
     return this.prisma.$transaction(async (tx) => {
       // Serialize release of this order and consume each stock from its current value.
-      await tx.$queryRaw`SELECT id FROM ordenes_produccion WHERE id = ${dto.ordenProduccionId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM ordenes_produccion WHERE id = ${dto.ordenProduccionId} FOR UPDATE`;
       const estadoActual = await tx.ordenProduccion.findUniqueOrThrow({ where: { id: dto.ordenProduccionId } });
       if (['APROBADO', 'EN_ETIQUETADO', 'DESPACHADO'].includes(estadoActual.estado) || estadoActual.pasoProceso === 'LIBERADO_QA') {
         throw new BadRequestException('El lote ya fue liberado; no se volverá a descontar stock.');
@@ -361,7 +361,7 @@ export class ProduccionService {
         const porcentaje = Number(detalle.porcentaje);
         const loteKg = cantidadLoteKg(Number(orden.cantidadPlanificada), orden.pedidoComercial?.unidadMedida || 'KG', Number(orden.formula.densidadTeorica));
         const consumoCalculado = consumoFormulaGramos(loteKg, porcentaje, detalle.insumo.unidadMedida);
-        await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${detalle.insumoId}::uuid FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${detalle.insumoId} FOR UPDATE`;
         const insumoActual = await tx.insumo.findUniqueOrThrow({ where: { id: detalle.insumoId } });
         const stockActual = Number(insumoActual.stockReal);
         if (stockActual < consumoCalculado) throw new BadRequestException(`Stock insuficiente de ${detalle.insumo.nombre}: disponible ${stockActual} ${unidadStock(detalle.insumo.unidadMedida)}, requerido ${consumoCalculado}.`);

@@ -137,7 +137,7 @@ export class InventarioService {
     if (!cantidad || cantidad <= 0) throw new BadRequestException('La cantidad debe ser mayor a cero.');
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${insumoId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${insumoId} FOR UPDATE`;
       const insumo = await tx.insumo.findUnique({
         where: { id: insumoId },
         include: { familia: true },
@@ -206,7 +206,7 @@ export class InventarioService {
 
   async actualizarInsumo(id: string, dto: any, user?: any) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${id}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${id} FOR UPDATE`;
       const insumoActual = await tx.insumo.findUnique({
         where: { id },
         include: { familia: true },

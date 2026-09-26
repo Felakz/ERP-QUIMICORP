@@ -21,7 +21,7 @@ export class KardexService {
   async registrarMovimiento(dto: RegistrarMovimientoDto, transaction?: Prisma.TransactionClient) {
     if (!Number.isFinite(dto.cantidad) || dto.cantidad <= 0) throw new BadRequestException('La cantidad debe ser mayor a cero.');
     const registrar = async (tx: Prisma.TransactionClient) => {
-      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${dto.insumoId}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${dto.insumoId} FOR UPDATE`;
       const insumo = await tx.insumo.findUnique({ where: { id: dto.insumoId }, include: { familia: true } });
       if (!insumo) throw new NotFoundException(`Insumo ${dto.insumoId} no encontrado.`);
       // Without an explicit unit the endpoint accepts the stock unit (GR/ML/UN).
