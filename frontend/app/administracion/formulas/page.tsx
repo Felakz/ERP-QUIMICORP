@@ -28,6 +28,7 @@ import {
 import { useTheme } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { apiFetch } from '@/lib/apiClient';
+import { FormulaIngredientSelect, FormulaIngredientEdit, IngredientOption } from '@/components/formulas/FormulaIngredientSelect';
 import {
   FORMULAS_MAESTRAS_REALES,
   CATEGORIAS_FORMULAS,
@@ -74,6 +75,7 @@ interface VarianteClienteAPI {
 
 interface FormulaMasterAPI {
   id: string;
+  updatedAt: string;
   codigoFormula: string;
   nombreProducto: string;
   version: number;
@@ -122,7 +124,14 @@ export default function FormulasPage() {
 
   // Formulario Editar Fórmula
   const [editNombreProducto, setEditNombreProducto] = useState<string>('');
-  const [editIngredientes, setEditIngredientes] = useState<Array<{ componente: string; porcentaje: number }>>([]);
+  const [editIngredientes, setEditIngredientes] = useState<FormulaIngredientEdit[]>([]);
+  const [editUpdatedAt, setEditUpdatedAt] = useState('');
+  const [insumosList, setInsumosList] = useState<IngredientOption[]>([]);
+  useEffect(() => {
+    apiFetch<IngredientOption[]>('/insumos').then(res => {
+      if (res.ok && Array.isArray(res.data)) setInsumosList(res.data);
+    });
+  }, []);
   const [editGuardando, setEditGuardando] = useState<boolean>(false);
 
   // Formulario Clonar
@@ -268,11 +277,16 @@ export default function FormulasPage() {
   // Manejo de Edición de Fórmula
   const handleAbrirEditarModal = () => {
     if (!formulaSeleccionada) return;
+    const original = formulasApi.find(f => f.id === formulaSeleccionada.id);
+    if (!original) { alert('Recargue las fórmulas del servidor antes de editar.'); return; }
+    setEditUpdatedAt(original.updatedAt);
     setEditNombreProducto(formulaSeleccionada.nombreProducto);
     setEditIngredientes(
-      formulaSeleccionada.ingredientes.map(i => ({
-        componente: i.componente,
-        porcentaje: i.porcentaje
+      original.detalles.map((d: any) => ({
+        id: d.id,
+        insumoId: d.insumoId || undefined,
+        componente: d.insumo?.nombre || d.nombreComponente || '',
+        porcentaje: Number(d.porcentaje)
       }))
     );
     setModalEditar(true);
@@ -291,6 +305,10 @@ export default function FormulasPage() {
     if (!formulaSeleccionada) return;
     try {
       setEditGuardando(true);
+      if (editIngredientes.some(i => !i.insumoId)) {
+        alert('Seleccione un insumo existente para cada componente antes de guardar.');
+        return;
+      }
       const porcentajesBase = editIngredientes.map((i) => Number(i.porcentaje) || 0);
       const totalBase = porcentajesBase.reduce((acc, p) => acc + p, 0);
       if (totalBase <= 0) {
@@ -300,8 +318,11 @@ export default function FormulasPage() {
       }
       const porcentajesFinales = normalizarPorcentajesExacto(porcentajesBase);
       const payload = {
+        expectedUpdatedAt: editUpdatedAt,
         nombreProducto: editNombreProducto,
         detalles: editIngredientes.map((i, idx) => ({
+          id: i.id,
+          insumoId: i.insumoId,
           nombreComponente: i.componente,
           porcentaje: porcentajesFinales[idx]
         }))
@@ -1010,19 +1031,17 @@ export default function FormulasPage() {
                     <div key={idx} className={`flex items-center gap-2 p-2 rounded-xl border ${
                       isDark ? 'border-slate-800 bg-[#0F141C]' : 'border-slate-200 bg-slate-50'
                     }`}>
-                      <input
-                        type="text"
-                        required
-                        value={ing.componente}
-                        onChange={(e) => {
+                      <FormulaIngredientSelect
+                        value={ing}
+                        options={insumosList}
+                        onChange={(selected) => {
                           const updated = [...editIngredientes];
-                          updated[idx].componente = e.target.value;
+                          updated[idx] = selected;
                           setEditIngredientes(updated);
                         }}
                         className={`flex-1 rounded-lg border px-2.5 py-1 text-xs focus:outline-none ${
                           isDark ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-300 bg-white text-slate-900'
                         }`}
-                        placeholder="Nombre de insumo"
                       />
                       <div className="flex items-center gap-1 w-28">
                         <input

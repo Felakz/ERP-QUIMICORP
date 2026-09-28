@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/lib/ThemeContext';
 import { apiFetch } from '@/lib/apiClient';
+import { FormulaIngredientSelect, FormulaIngredientEdit } from '@/components/formulas/FormulaIngredientSelect';
 import {
   gramosAPorcentaje,
   normalizarPorcentajesExacto,
@@ -58,6 +59,7 @@ interface VarianteAPI {
 
 interface FormulaAPI {
   id: string;
+  updatedAt: string;
   codigoFormula: string;
   nombreProducto: string;
   version: number;
@@ -115,7 +117,8 @@ export default function GerenciaFormulasPage() {
   const [editCodigo, setEditCodigo] = useState<string>('');
   const [editNombre, setEditNombre] = useState<string>('');
   const [editEstado, setEditEstado] = useState<string>('ACTIVA');
-  const [editIngredientes, setEditIngredientes] = useState<Array<{ componente: string; porcentaje: number }>>([]);
+  const [editIngredientes, setEditIngredientes] = useState<FormulaIngredientEdit[]>([]);
+  const [editUpdatedAt, setEditUpdatedAt] = useState('');
   const [editPasos, setEditPasos] = useState<PasoElaboracion[]>([]);
   const [editGuardando, setEditGuardando] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -316,10 +319,10 @@ export default function GerenciaFormulasPage() {
       return;
     }
     const idxInvalido = crearIngredientes.findIndex(
-      (i) => !i.componente.trim() || Number(i.porcentaje) <= 0
+      (i) => !i.insumoId || !i.componente.trim() || Number(i.porcentaje) <= 0
     );
     if (idxInvalido >= 0) {
-      setCrearError(`Revisa la línea ${idxInvalido + 1} de insumos: le falta el nombre o los gramos son 0.`);
+      setCrearError(`Revisa la línea ${idxInvalido + 1}: selecciona un insumo del inventario y una cantidad positiva.`);
       return;
     }
 
@@ -391,11 +394,14 @@ export default function GerenciaFormulasPage() {
 
   const openEdit = (f: FormulaAPI) => {
     setErrorMsg('');
+    setEditUpdatedAt(f.updatedAt);
     setEditCodigo(f.codigoFormula || '');
     setEditNombre(f.nombreProducto || '');
     setEditEstado(f.estado || 'ACTIVA');
     setEditIngredientes(
       (f.detalles || []).map((d) => ({
+        id: d.id,
+        insumoId: d.insumoId || undefined,
         componente: d.nombreComponente || d.insumo?.nombre || '',
         porcentaje: Number(d.porcentaje) || 0,
       }))
@@ -446,6 +452,10 @@ export default function GerenciaFormulasPage() {
 
     // Si no hay variante, guardamos la fórmula maestra (nombre + ingredientes + pasos)
     if (!selectedId) return;
+    if (editIngredientes.some(i => !i.insumoId)) {
+      setErrorMsg('Seleccione un insumo existente para cada componente antes de guardar.');
+      return;
+    }
     const porcentajesBase = editIngredientes.map((i) => Number(i.porcentaje) || 0);
     const totalBase = porcentajesBase.reduce((acc, p) => acc + p, 0);
     if (totalBase <= 0) {
@@ -454,10 +464,13 @@ export default function GerenciaFormulasPage() {
     }
     const porcentajesFinales = normalizarPorcentajesExacto(porcentajesBase);
     const payload = {
+      expectedUpdatedAt: editUpdatedAt,
       codigoFormula: editCodigo ? editCodigo.trim().toUpperCase() : undefined,
       nombreProducto: editNombre ? editNombre.trim().toUpperCase() : undefined,
       estado: editEstado,
       detalles: editIngredientes.map((i, idx) => ({
+        id: i.id,
+        insumoId: i.insumoId,
         nombreComponente: i.componente,
         porcentaje: porcentajesFinales[idx],
       })),
@@ -742,19 +755,17 @@ export default function GerenciaFormulasPage() {
                         <div key={idx} className={`flex items-center gap-2 p-2 rounded-xl border ${
                           isDark ? 'border-slate-800 bg-[#0F141C]' : 'border-slate-200 bg-slate-50'
                         }`}>
-                          <input
-                            type="text"
-                            required
-                            value={ing.componente}
-                            onChange={(e) => {
+                          <FormulaIngredientSelect
+                            value={ing}
+                            options={insumosList}
+                            onChange={(selected) => {
                               const updated = [...editIngredientes];
-                              updated[idx].componente = e.target.value;
+                              updated[idx] = selected;
                               setEditIngredientes(updated);
                             }}
                             className={`flex-1 rounded-lg border px-2.5 py-1 text-xs focus:outline-none ${
                               isDark ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-300 bg-white text-slate-900'
                             }`}
-                            placeholder="Nombre de insumo"
                           />
                           <div className="flex items-center gap-1 w-28">
                             <input

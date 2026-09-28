@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { EstadoFormula } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CrearFormulaDto } from './dto/crear-formula.dto';
+import { auditarFormula, detallesVinculados } from './formula-integrity';
 
 @Injectable()
 export class FormulasService {
@@ -35,18 +36,20 @@ export class FormulasService {
     return escalados;
   }
 
-  async crear(dto: CrearFormulaDto) {
-    const porcentajes = this.normalizarPorcentajes(dto.detalles.map((d) => Number(d.porcentaje) || 0));
+  async crear(dto: CrearFormulaDto, actorId: string) {
+    return this.prisma.$transaction(async tx => {
+    const detalles = await detallesVinculados(tx, dto.detalles);
+    const porcentajes = this.normalizarPorcentajes(detalles.map(d => d.porcentaje));
 
     const cod = dto.codigoFormula.trim().toUpperCase();
-    const existente = await this.prisma.formulaMaster.findUnique({
+    const existente = await tx.formulaMaster.findUnique({
       where: { codigoFormula: cod },
     });
     if (existente) {
       throw new BadRequestException(`El código de fórmula "${cod}" ya está registrado.`);
     }
 
-    return this.prisma.formulaMaster.create({
+    const created = await tx.formulaMaster.create({
       data: {
         codigoFormula: cod,
         nombreProducto: dto.nombreProducto.trim().toUpperCase(),
@@ -54,7 +57,7 @@ export class FormulasService {
         estado: dto.estado || EstadoFormula.ACTIVA,
         pasosElaboracion: dto.pasosElaboracion || null,
         detalles: {
-          create: dto.detalles.map((d, idx) => {
+          create: detalles.map((d, idx) => {
             const porc = porcentajes[idx];
             return {
               insumoId: d.insumoId || null,
@@ -78,6 +81,9 @@ export class FormulasService {
           include: { cliente: true },
         },
       },
+    });
+    await auditarFormula(tx, actorId, 'CREAR_FORMULA', null, created);
+    return created;
     });
   }
 
@@ -180,6 +186,7 @@ export class FormulasService {
 
     // Clonación en transacción atómica
     return this.prisma.$transaction(async (tx) => {
+      await detallesVinculados(tx, origen.detalles, origen.detalles);
       const nuevaFormula = await tx.formulaMaster.create({
         data: {
           codigoFormula: codigo!,
@@ -189,6 +196,8 @@ export class FormulasService {
           detalles: {
             create: origen.detalles.map((d) => ({
               insumoId: d.insumoId,
+              nombreComponente: d.nombreComponente,
+              skuComponente: d.skuComponente,
               porcentaje: d.porcentaje,
               pesoMasaTeorico: d.pesoMasaTeorico,
             })),
@@ -252,16 +261,21 @@ export class FormulasService {
     });
   }
 
-  async actualizarFormula(id: string, dto: any) {
+  async actualizarFormula(id: string, dto: any, actorId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const formula = await tx.formulaMaster.findUnique({ where: { id } });
+      await tx.$queryRaw`SELECT id FROM formulas_master WHERE id = ${id} FOR UPDATE`;
+      const formula = await tx.formulaMaster.findUnique({ where: { id }, include: { detalles: { include: { insumo: true } } } });
       if (!formula) throw new BadRequestException('Fórmula no encontrada.');
+      if (!dto.expectedUpdatedAt || new Date(dto.expectedUpdatedAt).getTime() !== formula.updatedAt.getTime()) {
+        throw new ConflictException('La fórmula cambió o falta su versión de edición. Recargue la página antes de guardar.');
+      }
+      const detalles = dto.detalles === undefined ? null : await detallesVinculados(tx, dto.detalles, formula.detalles);
 
       // Los detalles se normalizan a 100% exacto (acepta cualquier total mayor a 0).
       let porcentajesNormalizados: number[] | null = null;
-      if (Array.isArray(dto.detalles) && dto.detalles.length > 0) {
+      if (detalles) {
         porcentajesNormalizados = this.normalizarPorcentajes(
-          dto.detalles.map((d: any) => Number(d.porcentaje) || 0),
+          detalles.map(d => d.porcentaje),
         );
       }
 
@@ -281,33 +295,31 @@ export class FormulasService {
           estado: dto.estado || formula.estado,
           densidadTeorica: dto.densidadTeorica ? parseFloat(dto.densidadTeorica) : formula.densidadTeorica,
           pasosElaboracion: dto.pasosElaboracion !== undefined ? dto.pasosElaboracion : formula.pasosElaboracion,
+          version: { increment: 1 },
         },
       });
 
-      if (Array.isArray(dto.detalles)) {
-        await tx.formulaDetalle.deleteMany({ where: { formulaId: id } });
-        for (let idx = 0; idx < dto.detalles.length; idx++) {
-          const item = dto.detalles[idx];
-          const porc = porcentajesNormalizados ? porcentajesNormalizados[idx] : parseFloat(item.porcentaje) || 0;
-          await tx.formulaDetalle.create({
-            data: {
-              formulaId: id,
-              insumoId: item.insumoId || null,
-              nombreComponente: item.nombreComponente || 'Insumo',
-              porcentaje: porc,
-              pesoMasaTeorico: item.pesoMasaTeorico ? parseFloat(item.pesoMasaTeorico) : parseFloat((porc * 10).toFixed(3)),
-            },
-          });
+      if (detalles) {
+        // Keep stable detail IDs. Only explicitly removed ingredients are deleted.
+        await tx.formulaDetalle.deleteMany({ where: { formulaId: id, id: { notIn: detalles.map(d => d.id).filter(Boolean) } } });
+        for (let idx = 0; idx < detalles.length; idx++) {
+          const item = detalles[idx], porc = porcentajesNormalizados![idx];
+          const data = { insumoId: item.insumoId, nombreComponente: item.nombreComponente, skuComponente: item.skuComponente,
+            porcentaje: porc, pesoMasaTeorico: Number((porc * 10).toFixed(3)) };
+          if (item.id) await tx.formulaDetalle.update({ where: { id: item.id }, data });
+          else await tx.formulaDetalle.create({ data: { formulaId: id, ...data } });
         }
       }
 
-      return tx.formulaMaster.findUnique({
+      const updated = await tx.formulaMaster.findUnique({
         where: { id },
         include: {
           detalles: { include: { insumo: true } },
           variants: { include: { cliente: true } },
         },
       });
+      await auditarFormula(tx, actorId, 'EDITAR_FORMULA', formula, updated);
+      return updated;
     });
   }
 
