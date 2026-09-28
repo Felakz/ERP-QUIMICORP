@@ -51,6 +51,9 @@ export interface PedidoEtiquetaItem {
   numeroPedido: string;
   codigoLote: string;
   colaId?: string;
+  saldoPendiente?: number | null;
+  unidadSaldo?: string | null;
+  adicionalesPendientes?: Array<{id: string; nombre: string; unidadMedida: string; pendiente: number}>;
   numeroGuia?: string;
   nombreProducto: string;
   clienteNombre: string;
@@ -109,6 +112,10 @@ export default function EtiquetasDespachoPage() {
   // Estados de Despacho
   const [destino, setDestino] = useState<string>('Almacén Central Despachos');
   const [responsable, setResponsable] = useState<string>('');
+  const [cantidadEntrega, setCantidadEntrega] = useState('');
+  const [unidadEntrega, setUnidadEntrega] = useState('');
+  const [cantidadesAdicionales, setCantidadesAdicionales] = useState<Record<string, string>>({});
+  useEffect(() => { setCantidadEntrega(''); setUnidadEntrega(''); setCantidadesAdicionales({}); }, [selectedPedidoId]);
   const [numeroGuia, setNumeroGuia] = useState<string>('');
   const [despachando, setDespachando] = useState<boolean>(false);
   const [backendConectado, setBackendConectado] = useState<boolean>(false);
@@ -138,20 +145,21 @@ export default function EtiquetasDespachoPage() {
               const kilosMatch = cantidadStr.match(/([\d.,]+)/);
               const valor = kilosMatch ? parseFloat(kilosMatch[1].replace(',', '.')) : 20;
               // KG/L: el peso real viene de balanza (ajuste manual), no por densidad
-              const contenido = valor;
+              const contenido = c.pesoFinalKg != null ? Number(c.pesoFinalKg) : /\bKG\b/i.test(cantidadStr) ? valor : /\bGR\b/i.test(cantidadStr) ? valor / 1000 : 0;
               return {
                 id: `cola-${c.id}`,
                 colaId: c.id,
+                saldoPendiente: c.saldoPendiente, unidadSaldo: c.unidadSaldo, adicionalesPendientes: c.adicionalesPendientes,
                 idPedido: (c.loteCodigo || c.id || 'PED').replace(/[^A-Za-z0-9-]/g, '').slice(0, 14) || 'PED-REAL',
                 numeroPedido: (c.loteCodigo || c.id || 'ORD').replace(/[^0-9]/g, '').slice(-6) || '000001',
                 codigoLote: c.loteCodigo || c.id,
-                numeroGuia: c.numeroGuia || '',
+                numeroGuia: '',
                 nombreProducto: c.productoNombre || 'PRODUCTO QUIMICORP',
                 clienteNombre: c.clienteNombre || 'CLIENTE',
                 clienteRuc: '',
                 cantidadKilosDisplay: cantidadStr || '— ',
                 contenidoNetoKg: contenido,
-                unidadesPedidas: kilosMatch ? Math.max(1, parseInt(kilosMatch[1], 10)) : 1,
+                unidadesPedidas: 1,
                 sku: 'QRM-REAL-001',
                 fechaFab: new Date(c.fechaFabricacion || c.createdAt).toISOString().split('T')[0],
                 fechaVenc: '',
@@ -489,7 +497,12 @@ export default function EtiquetasDespachoPage() {
 
     setDespachando(true);
     try {
+      if (!cantidadEntrega || !Number.isFinite(Number(cantidadEntrega)) || Number(cantidadEntrega) <= 0 || !p.unidadSaldo || !numeroGuia.trim()) throw new Error('Completa la cantidad entregada y una guía única.');
+      if ((p.adicionalesPendientes || []).some(a => cantidadesAdicionales[a.id] == null || cantidadesAdicionales[a.id] === '')) throw new Error('Indica la cantidad entregada de cada adicional (cero si queda pendiente).');
       const payload: Record<string, any> = {
+        cantidadEntregada: Number(cantidadEntrega),
+        unidadEntrega: unidadEntrega || p.unidadSaldo,
+        adicionales: (p.adicionalesPendientes || []).map(a => ({ id: a.id, cantidad: Number(cantidadesAdicionales[a.id]) })),
         colaId: p.colaId,
         numeroGuia: numeroGuia?.trim() || p.numeroGuia || null,
       };
@@ -538,6 +551,7 @@ export default function EtiquetasDespachoPage() {
       }
 
       // Sacar de la cola de Etiquetas (solo quedan LISTO_PARA_IMPRIMIR) — queda en historial del cliente como ENTREGADO
+      if (data?.estado === 'DESPACHADO') {
       setPedidosCola((prev) => prev.filter((it) => it.id !== p.id));
       setSelectedPedidoId((curr) => {
         if (curr === p.id) {
@@ -546,6 +560,12 @@ export default function EtiquetasDespachoPage() {
         }
         return curr;
       });
+      } else {
+        const refreshed = await apiFetch<any[]>('/produccion/etiquetas/cola');
+        const current = refreshed.data?.find(c => c.id === p.colaId);
+        setPedidosCola(prev => prev.map(it => it.id === p.id ? { ...it, saldoPendiente: current?.saldoPendiente ?? data.saldoPendiente ?? it.saldoPendiente, adicionalesPendientes: current?.adicionalesPendientes ?? it.adicionalesPendientes } : it));
+      }
+      setCantidadEntrega(''); setCantidadesAdicionales({}); setNumeroGuia('');
       cargarEnvases();
       setEnvasesSecundarios([]);
       setEnvaseCliente(false);
@@ -559,8 +579,8 @@ export default function EtiquetasDespachoPage() {
           `• Lote: ${p.codigoLote}\n` +
           `• Guia: ${numeroGuia?.trim() || 'S/N'}\n` +
           `• Bultos: ${p.unidadesPedidas} (${p.cantidadKilosDisplay})\n` +
-          `• Peso Neto Total: ${(contenidoNeto * p.unidadesPedidas).toFixed(3)} kg\n` +
-          `• Peso Bruto Total: ${(pesoBrutoTotalKg * p.unidadesPedidas).toFixed(3)} kg\n` +
+          `• Entregado: ${cantidadEntrega} ${unidadEntrega || p.unidadSaldo}\n` +
+          `• Pendiente: ${data?.saldoPendiente ?? 0} ${p.unidadSaldo}\n` +
           `• Destino: ${destino}\n` +
           `• Responsable: ${responsable}` +
           envaseInfo +
@@ -1103,6 +1123,18 @@ export default function EtiquetasDespachoPage() {
                   </>
                 )}
 
+                <div className="space-y-2">
+                  <p className="text-xs">Saldo por entregar: {pedidoActivo?.saldoPendiente ?? 'Por conciliar'} {pedidoActivo?.unidadSaldo}. La entrega no vuelve a descontar materias primas.</p>
+                  <label className="block text-xs">Cantidad realmente entregada
+                    <select value={unidadEntrega || pedidoActivo?.unidadSaldo || ''} onChange={e => { setUnidadEntrega(e.target.value); setCantidadEntrega(''); }} className={`w-full rounded border p-2 ${inputBg}`}>
+                      {(pedidoActivo?.unidadSaldo === 'GR' ? ['GR','KG'] : pedidoActivo?.unidadSaldo === 'ML' ? ['ML','LT'] : []).map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <input type="number" min="0.0001" step="0.0001" value={cantidadEntrega} onChange={e => setCantidadEntrega(e.target.value)} className={`w-full rounded border p-2 ${inputBg}`} />
+                  </label>
+                  {(pedidoActivo?.adicionalesPendientes || []).map(a => <label key={a.id} className="block text-xs">{a.nombre}: entrega en {a.unidadMedida} (pendiente {a.pendiente})
+                    <input type="number" min="0" step="0.0001" value={cantidadesAdicionales[a.id] ?? ''} onChange={e => setCantidadesAdicionales(v => ({ ...v, [a.id]: e.target.value }))} className={`w-full rounded border p-2 ${inputBg}`} />
+                  </label>)}
+                </div>
                 <div>
                   <label className={`block text-[10px] uppercase font-bold mb-1 ${textTitle}`}>N° Guía de Remisión</label>
                   <textarea

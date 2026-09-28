@@ -1,4 +1,5 @@
 'use client';
+import { colorParaCliente } from '@/lib/customerColor';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -381,7 +382,7 @@ export default function AdministracionPedidosComercialesPage() {
         descripcion: it.productoNombre || it.descripcion,
         variante: it.varianteId || it.variante,
         aroma: it.aroma,
-        color: it.color,
+        color: colorParaCliente(it),
         cantidad: Number(it.cantidad) || 1,
         unidad: it.unidadMedida || it.unidad || 'KG',
         precioUnitario: Number(it.precioUnitario) || 0,
@@ -398,7 +399,7 @@ export default function AdministracionPedidosComercialesPage() {
             descripcion: it.productoNombre || it.descripcion,
             variante: it.varianteId || it.variante,
             aroma: it.aroma,
-            color: it.color,
+            color: colorParaCliente(it),
             cantidad: Number(it.cantidad) || 1,
             unidad: it.unidadMedida || it.unidad || 'KG',
             precioUnitario: Number(it.precioUnitario) || 0,
@@ -434,7 +435,7 @@ export default function AdministracionPedidosComercialesPage() {
           codigo: p.codigoRefAdmin || 'FM-0001',
           descripcion: p.producto,
           aroma: p.aroma,
-          color: p.color,
+          color: colorParaCliente(p),
           cantidad: p.cantidad,
           unidad: p.unidad,
           precioUnitario: p.precioUnitario,
@@ -464,7 +465,7 @@ export default function AdministracionPedidosComercialesPage() {
       plazoEntrega: p.plazoEntrega || 'Inmediato / Según stock',
       productoNombre: p.producto,
       aroma: p.aroma,
-      color: p.color,
+      color: colorParaCliente(p),
       cantidad: p.cantidad,
       unidad: p.unidad,
       precioUnitario: p.precioUnitario,

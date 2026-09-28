@@ -1,7 +1,7 @@
 'use client';
 import { stockUnit } from '@/lib/stockUnits';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users,
@@ -109,10 +109,11 @@ export default function ProduccionQAPage() {
   const [taraKg, setTaraKg] = useState('');
   const [referenciaPesaje, setReferenciaPesaje] = useState('');
   const [cantidadFabricada, setCantidadFabricada] = useState('');
+  const consumoRequest = useRef(0);
   const [usarConsumosReales, setUsarConsumosReales] = useState(false);
   const [cargandoConsumos, setCargandoConsumos] = useState(false);
-  const [consumosReales, setConsumosReales] = useState<Array<{ insumoId: string; nombre: string; unidadMedida: string; cantidad: string; documentoSoporte: string }>>([]);
-  useEffect(() => { setPesoBrutoKg(''); setTaraKg(''); setReferenciaPesaje(''); setUsarConsumosReales(false); setConsumosReales([]); }, [selectedLoteId]);
+  const [consumosReales, setConsumosReales] = useState<Array<{ insumoId: string; nombre: string; unidadMedida: string; unidadStock: string; registrado: number; cantidad: string; documentoSoporte: string }>>([]);
+  useEffect(() => { consumoRequest.current++; setCargandoConsumos(false); setPesoBrutoKg(''); setTaraKg(''); setReferenciaPesaje(''); setUsarConsumosReales(false); setConsumosReales([]); }, [selectedLoteId]);
 
   const [programacionData, setProgramacionData] = useState<{
     fecha: string;
@@ -326,12 +327,14 @@ export default function ProduccionQAPage() {
   const selectedLote = lotes.find((l) => l.id === selectedLoteId) || null;
   useEffect(() => { setCantidadFabricada(selectedLote ? String(selectedLote.cantidadObtenida ?? selectedLote.cantidadPlanificada) : ''); }, [selectedLoteId, selectedLote?.cantidadObtenida, selectedLote?.cantidadPlanificada]);
   const habilitarConsumosReales = async (active: boolean) => {
+    const request = ++consumoRequest.current;
     setUsarConsumosReales(active);
     if (!active || !selectedLote) return;
     setCargandoConsumos(true);
     const response = await apiFetch<any>(`/produccion/ordenes/${selectedLote.id}/receta`);
+    if (request !== consumoRequest.current) return;
     if (response.ok && response.data?.ingredientes?.length) {
-      setConsumosReales(response.data.ingredientes.map((i: any) => ({ insumoId: i.insumoId, nombre: i.nombre, unidadMedida: i.unidadStock, cantidad: '', documentoSoporte: '' })));
+      setConsumosReales(response.data.ingredientes.map((i: any) => ({ insumoId: i.insumoId, nombre: i.nombre, unidadMedida: i.unidadStock, unidadStock: i.unidadStock, registrado: i.consumoRegistrado || 0, cantidad: '', documentoSoporte: '' })));
     } else { setUsarConsumosReales(false); alert(response.error || 'No se pudo obtener la receta.'); }
     setCargandoConsumos(false);
   };
@@ -463,7 +466,7 @@ export default function ProduccionQAPage() {
     if (!cantidadFabricada || !Number.isFinite(Number(cantidadFabricada)) || Number(cantidadFabricada) <= 0) {
       alert('Registra la cantidad realmente fabricada en la unidad del lote.'); return;
     }
-    if (usarConsumosReales && (cargandoConsumos || !consumosReales.length || consumosReales.some(i => i.cantidad === '' || !Number.isFinite(Number(i.cantidad)) || Number(i.cantidad) < 0 || !i.documentoSoporte.trim()))) {
+    if (!usarConsumosReales || (cargandoConsumos || !consumosReales.length || consumosReales.some(i => i.cantidad === '' || !Number.isFinite(Number(i.cantidad)) || Number(i.cantidad) < 0 || !i.documentoSoporte.trim()))) {
       alert('Completa la cantidad y soporte de todos los ingredientes. Cero requiere también su justificación.'); return;
     }
 
@@ -1183,17 +1186,20 @@ export default function ProduccionQAPage() {
               {/* Card Header del Lote Seleccionado */}
               <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
                 <label className="block text-xs">Cantidad realmente fabricada ({selectedLote.unidadMedida})<input type="number" min="0.0001" step="0.0001" value={cantidadFabricada} onChange={e => setCantidadFabricada(e.target.value)} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
-                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={usarConsumosReales} onChange={e => habilitarConsumosReales(e.target.checked)} disabled={cargandoConsumos} />Registrar consumos reales con documento de soporte</label>
+                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={usarConsumosReales} onChange={e => habilitarConsumosReales(e.target.checked)} disabled={cargandoConsumos} />Cantidades realmente utilizadas (obligatorio para liberar)</label>
                 {usarConsumosReales && <div className="space-y-3">
-                  <p className="text-xs">Completa todos los insumos según la hoja de fabricación. Si no se usó uno, registra cero y explica la sustitución en el soporte.</p>
+                  <p className="text-xs">Registra el total usado por insumo, incluidos los ajustes ya registrados; se descontará solo la diferencia. Usa las cantidades pesadas de la hoja de fabricación. Cero requiere justificar el insumo no utilizado.</p>
                   {cargandoConsumos ? <p className="text-xs">Cargando ingredientes…</p> : consumosReales.map((i, index) => <div key={i.insumoId} className="grid grid-cols-2 gap-2">
-                    <label className="text-xs">{i.nombre} ({i.unidadMedida})<input type="number" min="0" step="0.0001" value={i.cantidad} onChange={e => setConsumosReales(rows => rows.map((r,n) => n === index ? { ...r, cantidad: e.target.value } : r))} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
+                    <label className="text-xs">{i.nombre} — ya descontado: {i.registrado} {i.unidadStock}
+                      <select value={i.unidadMedida} onChange={e => setConsumosReales(rows => rows.map((r,n) => n === index ? { ...r, unidadMedida: e.target.value, cantidad: '' } : r))} className={`block w-full p-2 rounded border ${inputBg}`}>
+                        {(i.unidadStock === 'GR' ? ['GR','KG'] : i.unidadStock === 'ML' ? ['ML','LT'] : ['UN']).map(u => <option key={u} value={u}>{u}</option>)}
+                      </select><input type="number" min="0" step="0.0001" value={i.cantidad} onChange={e => setConsumosReales(rows => rows.map((r,n) => n === index ? { ...r, cantidad: e.target.value } : r))} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
                     <label className="text-xs">Documento / motivo<input value={i.documentoSoporte} onChange={e => setConsumosReales(rows => rows.map((r,n) => n === index ? { ...r, documentoSoporte: e.target.value } : r))} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
                   </div>)}
                 </div>}
                 {stockUnit(selectedLote.unidadMedida) === 'ML' && (
                   <div className="space-y-2">
-                    <p className="text-xs">Pesaje del lote en litros: registra el peso bruto y la tara en KG para calcular su peso neto.</p>
+                    <p className="text-xs">Peso final obtenido (opcional): bruto menos tara. Se guarda por separado y no recalcula los insumos consumidos.</p>
                     {selectedLote.conversionPendiente && <p className="text-xs text-amber-500">{selectedLote.conversionPendiente}</p>}
                     <div className="grid grid-cols-2 gap-2">
                       <label className="text-xs">Peso bruto KG<input type="number" min="0" step="0.0001" value={pesoBrutoKg} onChange={e => setPesoBrutoKg(e.target.value)} className={`block w-full p-2 rounded border ${inputBg}`} /></label>

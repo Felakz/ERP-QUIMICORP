@@ -15,6 +15,7 @@ export interface InsumoAditivo {
 }
 
 export interface AditivoSeleccionado {
+  nombreCliente?: string;
   insumoId: string;
   nombre: string;
   codigo: string;
@@ -389,8 +390,14 @@ export function SelectAditivos({
                   <span className={`font-bold text-xs ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{ad.nombre}</span>
                   <span className={`text-[10px] font-mono font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>[{ad.codigo}]</span>
                   <span className="text-[9px] font-semibold text-amber-400/90 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                    Pigmento seleccionado
+                    Pigmento seleccionado (uso interno)
                   </span>
+                  <label className="w-full text-xs">Nombre para el cliente
+                    <input type="text" maxLength={120} disabled={disabled} value={ad.nombreCliente || ''}
+                      placeholder="Ej.: Azul cielo (si queda vacío: Color personalizado)"
+                      onChange={e => onChange(value.map(a => a.insumoId === ad.insumoId ? { ...a, nombreCliente: e.target.value } : a))}
+                      className={`mt-1 block w-full rounded border p-2 ${isDark ? 'bg-[#0B0F17] border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-900'}`} />
+                  </label>
                 </div>
 
                 {!disabled && (

@@ -1,4 +1,5 @@
 'use client';
+import { colorParaCliente } from '@/lib/customerColor';
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -307,6 +308,7 @@ export function CommercialOrderForm({
       varianteId: initialData.varianteId || '',
       aroma: initialData.aroma || '',
       color: initialData.color || '',
+      aditivos: initialData.aditivos || [],
       cantidad: initialData.cantidadSolicitada || 100,
       unidadMedida: initialData.unidadMedida || 'KG',
       precioUnitario: initialData.precioUnitario || 34.50,
@@ -720,7 +722,7 @@ export function CommercialOrderForm({
           formulaCodigo: mainItem.codigoFM,
           varianteNombre: mainItem.varianteId || null,
           aroma: mainItem.aroma || null,
-          color: mainItem.color || null,
+          color: colorParaCliente(mainItem),
           cantidad: mainItem.cantidad,
           unidad: mainItem.unidadMedida,
           precioUnitario: mainItem.precioUnitario,
@@ -735,7 +737,7 @@ export function CommercialOrderForm({
               descripcion: it.productoNombre,
               variante: it.varianteId,
               aroma: it.aroma,
-              color: it.color,
+              color: colorParaCliente(it),
               cantidad: it.cantidad,
               unidad: it.unidadMedida,
               precioUnitario: it.precioUnitario,
@@ -1406,7 +1408,7 @@ export function CommercialOrderForm({
 
                 {['LT', 'L', 'ML'].includes(item.unidadMedida) && (
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="text-xs">Peso neto del lote (KG), si está medido
+                    <label className="text-xs">Masa para planificar (KG), con soporte; no es el consumo real
                       <input type="number" min="0.0001" step="0.0001" value={item.pesoNetoKg ?? ''}
                         onChange={(e) => handleUpdateItem(idx, 'pesoNetoKg', e.target.value ? Number(e.target.value) : undefined)}
                         className={`mt-1 w-full rounded-xl border p-2 ${inputBg}`} />
@@ -1635,7 +1637,7 @@ export function CommercialOrderForm({
                     formulaCodigo: mainItem.codigoFM,
                     varianteNombre: mainItem.varianteId || null,
                     aroma: mainItem.aroma || null,
-                    color: mainItem.color || null,
+                    color: colorParaCliente(mainItem),
                     cantidad: mainItem.cantidad,
                     unidad: mainItem.unidadMedida,
                     precioUnitario: mainItem.precioUnitario,
@@ -1650,7 +1652,7 @@ export function CommercialOrderForm({
                         descripcion: it.productoNombre,
                         variante: it.varianteId,
                         aroma: it.aroma,
-                        color: it.color,
+                        color: colorParaCliente(it),
                         cantidad: it.cantidad,
                         unidad: it.unidadMedida,
                         precioUnitario: it.precioUnitario,

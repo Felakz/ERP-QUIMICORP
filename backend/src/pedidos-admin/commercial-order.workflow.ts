@@ -94,7 +94,10 @@ export class CommercialOrderWorkflow {
         const porcentaje = cantidadPositiva(aditivo.porcentaje, 'Porcentaje de aditivo');
         if (porcentaje > 100) throw new BadRequestException('El porcentaje no puede superar 100.');
         const { kg } = masaLoteOpcional(metadata);
-        aditivos.push({ insumoId: ingredient.id, tipo: aditivo.tipo || ingredient.tipo, porcentaje,
+        if (aditivo.nombreCliente != null && (typeof aditivo.nombreCliente !== 'string' || aditivo.nombreCliente.trim().length > 120)) throw new BadRequestException('El nombre del color para el cliente debe tener como máximo 120 caracteres.');
+        aditivos.push({ insumoId: ingredient.id, nombre: ingredient.nombre, codigo: ingredient.codigo,
+          nombreCliente: ingredient.tipo === 'PIGMENTO' ? aditivo.nombreCliente?.trim() || null : null,
+          tipo: ingredient.tipo, porcentaje,
           gramosCalculados: kg == null ? null : new Prisma.Decimal(kg).mul(1000).mul(porcentaje).div(100).toDecimalPlaces(4).toNumber() });
       }
       metadata.aditivos = aditivos;
@@ -164,7 +167,7 @@ export class CommercialOrderWorkflow {
     await tx.pedidoAditivo.deleteMany({ where: { pedidoId } });
     await tx.pedidoAdicional.deleteMany({ where: { pedidoId } });
     for (const line of normalized.lines) for (const additive of line.metadata.aditivos) {
-      await tx.pedidoAditivo.create({ data: { pedidoId, ...additive } });
+      await tx.pedidoAditivo.create({ data: { pedidoId, insumoId: additive.insumoId, tipo: additive.tipo, porcentaje: additive.porcentaje, gramosCalculados: additive.gramosCalculados } });
     }
     for (const extra of normalized.extras) await tx.pedidoAdicional.create({ data: { pedidoId, ...extra } });
   }

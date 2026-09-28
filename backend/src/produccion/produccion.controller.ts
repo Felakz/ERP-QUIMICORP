@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ProduccionService } from './produccion.service';
 import {
   AsignarOperariosDto,
@@ -80,8 +80,8 @@ export class ProduccionController {
 
   @Patch('qa/aprobar')
   @Roles(Role.GERENCIA, Role.PRODUCCION_ALMACEN, Role.ADMINISTRACION)
-  aprobar(@Body() dto: DecidirQADto) {
-    return this.produccionService.aprobarLote(dto);
+  aprobar(@Body() dto: DecidirQADto, @Req() req: any) {
+    return this.produccionService.aprobarLote(dto, req.user.id);
   }
 
   @Patch('qa/rechazar')
@@ -105,8 +105,12 @@ export class ProduccionController {
   @Post('etiquetas/despachar')
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.PRODUCCION_ALMACEN)
   despacharEtiqueta(
+    @Req() req: any,
     @Body()
     body: {
+      cantidadEntregada: number;
+      unidadEntrega: string;
+      adicionales?: Array<{ id: string; cantidad: number }>;
       colaId: string;
       numeroGuia?: string;
       envaseSku?: string;
@@ -120,6 +124,10 @@ export class ProduccionController {
     },
   ) {
     return this.produccionService.despacharEtiqueta(body?.colaId, body?.numeroGuia, {
+      actorId: req.user.id,
+      cantidadEntregada: body?.cantidadEntregada,
+      unidadEntrega: body?.unidadEntrega,
+      adicionales: body?.adicionales,
       envaseSku: body?.envaseSku,
       envaseCantidad: body?.envaseCantidad,
       envaseSku2: body?.envaseSku2,

@@ -1,4 +1,5 @@
-import { IsArray, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested, IsNotEmpty } from 'class-validator';
 
 export class CrearOrdenDto {
   @IsString()
@@ -79,6 +80,13 @@ export class RegistrarAjusteFinoDto {
   registradoPorId: string;
 }
 
+export class ConsumoRealDto {
+  @IsUUID() insumoId: string;
+  @IsNumber() @Min(0) cantidad: number;
+  @IsString() @IsNotEmpty() unidadMedida: string;
+  @IsString() @IsNotEmpty() documentoSoporte: string;
+}
+
 export class DecidirQADto {
   @IsOptional()
   @IsNumber()
@@ -113,7 +121,9 @@ export class DecidirQADto {
 
   @IsOptional()
   @IsArray()
-  consumosReales?: Array<{ insumoId: string; cantidad: number; unidadMedida: string; documentoSoporte: string }>;
+  @ValidateNested({ each: true })
+  @Type(() => ConsumoRealDto)
+  consumosReales?: ConsumoRealDto[];
 
   @IsOptional()
   @IsString()

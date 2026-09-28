@@ -1,3 +1,4 @@
+import { consumoRegistrado, consumoPendiente } from './actual-consumption';
 import { despacharLote } from './production-dispatch';
 import { recetaLote } from './production-recipe';
 import { cantidadEnStock, cantidadLoteKg, consumoFormulaGramos, costoPorUnidadStock, unidadStock } from '../common/stock-units';
@@ -270,19 +271,17 @@ export class ProduccionService {
   }
 
   async registrarAjusteFino(dto: RegistrarAjusteFinoDto) {
-    const orden = await this.prisma.ordenProduccion.findUnique({
-      where: { id: dto.ordenProduccionId },
-    });
-    if (!orden) {
-      throw new NotFoundException('Orden de producción no encontrada.');
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM ordenes_produccion WHERE id = ${dto.ordenProduccionId} FOR UPDATE`;
+      const orden = await tx.ordenProduccion.findUnique({ where: { id: dto.ordenProduccionId } });
+      if (!orden) throw new NotFoundException('Orden de producción no encontrada.');
+      if (!['EN_PROCESO', 'QA_PENDIENTE'].includes(orden.estado) || orden.pasoProceso === 'LIBERADO_QA') throw new BadRequestException('Solo puede ajustar insumos antes de liberar el lote.');
+      const ingredient = await tx.insumo.findUniqueOrThrow({ where: { id: dto.insumoId } });
       const ajuste = await tx.ajusteFino.create({
         data: {
           ordenProduccionId: dto.ordenProduccionId,
           insumoId: dto.insumoId,
-          cantidadAgregada: cantidadEnStock(dto.cantidadAgregada, dto.unidadMedida || 'GR', dto.unidadMedida || 'GR'),
+          cantidadAgregada: Math.sign(dto.cantidadAgregada) * cantidadEnStock(Math.abs(dto.cantidadAgregada), dto.unidadMedida || 'GR', ingredient),
           registradoPorId: dto.registradoPorId,
         },
       });
@@ -329,11 +328,11 @@ export class ProduccionService {
    * Al APROBAR & LIBERAR un Lote en Control de Producción & QA:
    * 1. Cambia el estado a APROBADO y pasoProceso a LIBERADO_QA.
    * 2. Registra automáticamente en el KardexMovimiento:
-   *    - Salida por consumo (SALIDA_CONSUMO_PRODUCCION) de cada Materia Prima / Insumo según receta.
+   *    - Salida por consumo (SALIDA_CONSUMO_PRODUCCION) de cada Materia Prima / Insumo según consumo real documentado, menos movimientos previos.
    *    - Entrada de Producto Terminado (ENTRADA_PRODUCCION) en PRODUCTO_TERMINADO con el nombre del Cliente y los KG/L.
    * 3. Emite evento WebSocket en tiempo real para Administración y Logística.
    */
-  async aprobarLote(dto: DecidirQADto) {
+  async aprobarLote(dto: DecidirQADto, actorId?: string) {
     if (dto.pesoBrutoKg != null || dto.taraKg != null) {
       const gross = cantidadPositiva(dto.pesoBrutoKg, 'Peso bruto KG');
       if (dto.taraKg == null || !Number.isFinite(dto.taraKg) || dto.taraKg < 0) throw new BadRequestException('La tara debe ser una cantidad no negativa.');
@@ -353,15 +352,17 @@ export class ProduccionService {
       if (!['EN_PROCESO', 'QA_PENDIENTE'].includes(orden.estado)) throw new BadRequestException('El lote no está en un estado que permita liberarlo.');
       const produced = cantidadPositiva(dto.cantidadObtenida ?? orden.cantidadObtenida ?? orden.cantidadPlanificada, 'Cantidad obtenida');
       const unit = unidadComercial(orden.unidadMedida || orden.pedidoItem?.unidadMedida || orden.pedidoComercial?.unidadMedida || '');
-      const evidence = dto.fuenteConversion ? { pesoNetoKg: dto.pesoNetoKg, densidadKgL: dto.densidadKgL, fuenteConversion: dto.fuenteConversion } : orden;
+      if (!Array.isArray(dto.consumosReales) || !dto.consumosReales.length) throw new BadRequestException('Registre las cantidades realmente utilizadas de todos los insumos para liberar el lote.');
       if ((dto.pesoNetoKg != null || dto.densidadKgL != null) && !dto.fuenteConversion?.trim()) throw new BadRequestException('Indique la fuente del peso neto o densidad.');
-      const loteKg = dto.consumosReales ? masaLoteOpcional({ ...orden, ...evidence }).kg : masaLoteKg(orden, evidence);
+      const loteKg = masaLoteOpcional(orden).kg; // Planning only; final yield never determines ingredient consumption.
       const recipe = await recetaLote(tx, orden);
+      const prior = await tx.kardexMovimiento.findMany({ where: { numero: orden.codigoLote, insumoId: { not: null } } });
+      if (prior.some(m => !recipe.details.some(d => d.insumoId === m.insumoId))) throw new BadRequestException('Hay insumos adicionales consumidos fuera de la receta. Concilie la receta antes de liberar el lote.');
       let actual: Map<string, any> | null = null;
       if (dto.consumosReales) {
         actual = new Map(dto.consumosReales.map(d => [d.insumoId, d]));
         if (actual.size !== recipe.details.length || actual.size !== dto.consumosReales.length || recipe.details.some(d => !actual.has(d.insumoId))) throw new BadRequestException('Registre los consumos reales de todos los ingredientes, sin duplicados.');
-        for (const d of actual.values()) if (!Number.isFinite(d.cantidad) || d.cantidad < 0 || !d.documentoSoporte?.trim()) throw new BadRequestException('Cada consumo real requiere cantidad no negativa y documento de soporte.');
+        for (const d of actual.values()) if (!d || !Number.isFinite(d.cantidad) || d.cantidad < 0 || typeof d.documentoSoporte !== 'string' || !d.documentoSoporte.trim()) throw new BadRequestException('Cada consumo real requiere cantidad no negativa y documento de soporte.');
       }
       let materialCost = new Prisma.Decimal(0);
       let pendingValuation = false;
@@ -371,7 +372,9 @@ export class ProduccionService {
         await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${detail.insumoId} FOR UPDATE`;
         const ingredient = await tx.insumo.findUniqueOrThrow({ where: { id: detail.insumoId }, include: { familia: true } });
         const declared = actual?.get(detail.insumoId);
-        const consumed = declared ? cantidadEnStock(declared.cantidad, declared.unidadMedida, ingredient) : consumoFormulaGramos(loteKg, detail.porcentaje, ingredient);
+        const totalConsumed = cantidadEnStock(declared.cantidad, declared.unidadMedida, ingredient);
+        const registered = consumoRegistrado(prior, ingredient);
+        const consumed = consumoPendiente(totalConsumed, registered);
         const previous = Number(ingredient.stockReal);
         if (previous < consumed) throw new BadRequestException(`Stock insuficiente de ${ingredient.nombre}: disponible ${previous} ${unidadStock(ingredient)}, requerido ${consumed}.`);
         const next = new Prisma.Decimal(previous).minus(consumed).toDecimalPlaces(4).toNumber();
@@ -379,21 +382,23 @@ export class ProduccionService {
         try { cost = costoPorUnidadStock(Number(ingredient.costoUnitario || 0), ingredient); } catch { costPending = true; }
         if (!cost && consumed > 0) costPending = true;
         pendingValuation ||= costPending;
-        materialCost = materialCost.plus(new Prisma.Decimal(consumed).mul(cost));
+        materialCost = materialCost.plus(new Prisma.Decimal(totalConsumed).mul(cost));
         const category = ingredient.tipo === 'ENVASE' ? CategoriaKardex.ENVASE : ingredient.tipo === 'BASE' ? CategoriaKardex.MATERIA_PRIMA : CategoriaKardex.INSUMO;
-        await tx.insumo.update({ where: { id: ingredient.id }, data: { stockReal: next } });
-        await tx.kardexMovimiento.create({ data: { categoriaKardex: category, productoNombre: ingredient.nombre,
-          familia: ingredient.familia?.nombre || 'General', categoriaNombre: ingredient.familia?.nombre || 'Químicos Base',
-          proveedorCliente: `Consumo Planta - Lote ${orden.codigoLote} (${orden.clienteNombre || 'Cliente pendiente'})`,
-          unidadMedida: unidadStock(ingredient), fecha: new Date(), tipoDoc: 'OP', serie: 'LOTE', numero: orden.codigoLote,
-          otp: `OTP-${orden.codigoLote}`, tipoOperacion: TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,
-          cantidadEntrada: 0, cantidadSalida: consumed, saldoFinal: next, costoUnitario: cost, valoracionPendiente: costPending,
-          montoSalidaPen: new Prisma.Decimal(consumed).mul(cost).toDecimalPlaces(2).toNumber(),
-          montoSaldoPen: new Prisma.Decimal(next).mul(cost).toDecimalPlaces(2).toNumber(), insumoId: ingredient.id } });
-        await tx.kardexInmutable.create({ data: { insumoId: ingredient.id, tipoMovimiento: TipoMovimientoKardex.SALIDA,
-          cantidad: consumed, stockAnterior: previous, stockNuevo: next, documentoReferencia: `OP-${orden.codigoLote}`, usuarioId: orden.supervisorId } });
-        movements.push({ insumoId: ingredient.id, cantidad: consumed, unidad: unidadStock(ingredient),
-          modo: declared ? 'CONSUMO_REAL_DOCUMENTADO' : 'TEORICO_SEGUN_RECETA', documentoSoporte: declared?.documentoSoporte || null });
+        if (consumed > 0) {
+          await tx.insumo.update({ where: { id: ingredient.id }, data: { stockReal: next } });
+          await tx.kardexMovimiento.create({ data: { categoriaKardex: category, productoNombre: ingredient.nombre,
+            familia: ingredient.familia?.nombre || 'General', categoriaNombre: ingredient.familia?.nombre || 'Químicos Base',
+            proveedorCliente: `Consumo Planta - Lote ${orden.codigoLote} (${orden.clienteNombre || 'Cliente pendiente'})`,
+            unidadMedida: unidadStock(ingredient), fecha: new Date(), tipoDoc: 'OP', serie: 'LOTE', numero: orden.codigoLote,
+            otp: `OTP-${orden.codigoLote}`, tipoOperacion: TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,
+            usuarioId: actorId || orden.supervisorId, cantidadEntrada: 0, cantidadSalida: consumed, saldoFinal: next, costoUnitario: cost, valoracionPendiente: costPending,
+            montoSalidaPen: new Prisma.Decimal(consumed).mul(cost).toDecimalPlaces(2).toNumber(),
+            montoSaldoPen: new Prisma.Decimal(next).mul(cost).toDecimalPlaces(2).toNumber(), insumoId: ingredient.id } });
+          await tx.kardexInmutable.create({ data: { insumoId: ingredient.id, tipoMovimiento: TipoMovimientoKardex.SALIDA,
+            cantidad: consumed, stockAnterior: previous, stockNuevo: next, documentoReferencia: `OP-${orden.codigoLote}`, usuarioId: actorId || orden.supervisorId } });
+        }
+        movements.push({ insumoId: ingredient.id, cantidad: totalConsumed, descontadoPreviamente: registered, descontadoEnQA: consumed, unidad: unidadStock(ingredient),
+          modo: 'CONSUMO_REAL_DOCUMENTADO', documentoSoporte: declared?.documentoSoporte || null });
       }
       const outputBase = cantidadEnStock(produced, unit, unit);
       // Sale revenue is never treated as manufacturing cost. Raw-material valuation
@@ -409,9 +414,8 @@ export class ProduccionService {
       const approved = await tx.ordenProduccion.update({ where: { id: orden.id }, data: {
         estado: EstadoOrdenProduccion.EN_ETIQUETADO, pasoProceso: 'LIBERADO_QA', fechaCierre: new Date(),
         cantidadObtenida: produced, unidadMedida: unit, observacionesQA: dto.observacionesQA || orden.observacionesQA,
-        ...(dto.fuenteConversion ? { pesoNetoKg: dto.pesoNetoKg || null, densidadKgL: dto.densidadKgL || null, fuenteConversion: dto.fuenteConversion } : {}),
-        recetaSnapshot: JSON.parse(JSON.stringify({ ...recipe.snapshot, baseMasaKg: loteKg, consumos: movements, valoracionMaterialesPendiente: pendingValuation,
-          ...(dto.pesoBrutoKg != null ? { pesaje: { brutoKg: dto.pesoBrutoKg, taraKg: dto.taraKg, netoKg: dto.pesoNetoKg, fuente: dto.fuenteConversion, recordedAt: new Date().toISOString() } } : {}) })),
+        recetaSnapshot: JSON.parse(JSON.stringify({ ...recipe.snapshot, baseMasaKg: loteKg, liberadoPorId: actorId || orden.supervisorId, consumos: movements, valoracionMaterialesPendiente: pendingValuation,
+          ...(dto.pesoNetoKg != null ? { pesaje: { brutoKg: dto.pesoBrutoKg, taraKg: dto.taraKg, netoKg: dto.pesoNetoKg, fuente: dto.fuenteConversion, recordedAt: new Date().toISOString() } } : {}) })),
       } });
       const existing = await tx.colaDespacho.findFirst({ where: { loteCodigo: orden.codigoLote } });
       if (!existing) await tx.colaDespacho.create({ data: { loteCodigo: orden.codigoLote,
@@ -426,16 +430,28 @@ export class ProduccionService {
   }
 
 
-  obtenerColaDespacho() {
-    return (this.prisma as any).colaDespacho.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+  async obtenerColaDespacho() {
+    const queues = await this.prisma.colaDespacho.findMany({ orderBy: { createdAt: 'desc' } });
+    return Promise.all(queues.map(async queue => {
+      const movements = await this.prisma.kardexMovimiento.findMany({ where: { categoriaKardex: 'PRODUCTO_TERMINADO', OR: [{ numero: queue.loteCodigo, tipoOperacion: 'ENTRADA_PRODUCCION' }, { otp: `OTP-${queue.loteCodigo}`, tipoOperacion: 'SALIDA_VENTA' }] } });
+      const output = movements.filter(m => m.tipoOperacion === 'ENTRADA_PRODUCCION');
+      const unit = output.length === 1 ? output[0].unidadMedida : null;
+      const remaining = output.length === 1 ? movements.reduce((sum, m) => sum.plus(m.cantidadEntrada).minus(m.cantidadSalida), new Prisma.Decimal(0)).toNumber() : null;
+      const lot = await this.prisma.ordenProduccion.findUnique({ where: { codigoLote: queue.loteCodigo }, include: { pedidoItem: true } });
+      const extras = lot?.pedidoComercialId && lot.pedidoItem ? await this.prisma.pedidoAdicional.findMany({ where: { pedidoId: lot.pedidoComercialId, itemIndex: lot.pedidoItem.indice, kardexDescontado: false }, include: { insumo: { select: { nombre: true } } } }) : [];
+      const finalWeight = (lot?.recetaSnapshot as any)?.pesaje?.netoKg ?? null;
+      return { ...queue, pesoFinalKg: finalWeight, saldoPendiente: remaining, unidadSaldo: unit, adicionalesPendientes: extras.map(e => ({ id: e.id, nombre: e.insumo?.nombre || e.categoria, unidadMedida: e.unidadMedida, pendiente: new Prisma.Decimal(e.cantidad).minus(e.cantidadDespachada).toNumber() })) };
+    }));
   }
 
   async despacharEtiqueta(
     colaId: string,
     numeroGuia?: string,
     opciones?: {
+      actorId?: string;
+      cantidadEntregada?: number;
+      unidadEntrega?: string;
+      adicionales?: Array<{ id: string; cantidad: number }>;
       envaseSku?: string;
       envaseCantidad?: number;
       envaseSku2?: string;
@@ -448,7 +464,7 @@ export class ProduccionService {
   ) {
     const result = await despacharLote(this.prisma, colaId, numeroGuia, opciones);
     if (!result.repetido) this.produccionGateway.emitirEstadoActualizado({ ordenId: result.ordenId, codigoLote: result.loteCodigo,
-      clienteNombre: result.clienteNombre, nuevoEstado: 'DESPACHADO', pasoProceso: 'DESPACHADO', timestamp: new Date().toISOString() });
+      clienteNombre: result.clienteNombre, nuevoEstado: result.estado === 'DESPACHADO' ? 'DESPACHADO' : 'EN_ETIQUETADO', pasoProceso: result.estado === 'DESPACHADO' ? 'DESPACHADO' : 'LIBERADO_QA', timestamp: new Date().toISOString() });
     return result;
   }
   private async descontarAdicionalesDespacho(
@@ -746,6 +762,7 @@ export class ProduccionService {
 
     const conversion = masaLoteOpcional(orden);
     const recipe = await recetaLote(this.prisma, orden);
+    const prior = await this.prisma.kardexMovimiento.findMany({ where: { numero: orden.codigoLote, insumoId: { not: null } } });
     const ingredientes = recipe.details.map(d => {
       const grams = conversion.kg == null ? null : new Prisma.Decimal(conversion.kg).mul(1000).mul(d.porcentaje).div(100).toDecimalPlaces(4).toNumber();
       let cantidadStock: number | null = null, calculoStockPendiente: string | null = conversion.pendiente;
@@ -753,7 +770,7 @@ export class ProduccionService {
         try { cantidadStock = cantidadEnStock(grams, 'GR', d.insumo); }
         catch (error) { calculoStockPendiente = error.message; }
       }
-      return { insumoId: d.insumoId, codigo: d.insumo.codigo, nombre: d.insumo.nombre,
+      return { consumoRegistrado: consumoRegistrado(prior, d.insumo), insumoId: d.insumoId, codigo: d.insumo.codigo, nombre: d.insumo.nombre,
         familia: d.insumo.familia?.nombre || 'General', tipo: d.insumo.tipo || 'BASE', porcentaje: d.porcentaje,
         gramosCalculados: grams, unidadMedida: 'GR', unidadStock: unidadStock(d.insumo), cantidadStock, calculoStockPendiente, stockReal: Number(d.insumo.stockReal),
         suficiente: cantidadStock == null ? null : Number(d.insumo.stockReal) >= cantidadStock,

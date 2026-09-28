@@ -17,7 +17,7 @@ function fixture(stock = 98640.65, unit = 'KG') {
     $queryRaw: async () => [],
     insumo: { findUnique: async ({where}) => where.id === 'rest' ? carrier : item, findUniqueOrThrow: async ({where}) => where.id === 'rest' ? carrier : item, update: async ({where, data}) => Object.assign(where.id === 'rest' ? carrier : item, data) },
     ordenProduccion: { findUnique: async () => order, findUniqueOrThrow: async () => order, update: async ({data}) => Object.assign(order, data) },
-    kardexMovimiento: { create: async ({data}) => { moves.push(data); return data; } },
+    kardexMovimiento: { findMany: async () => [], create: async ({data}) => { moves.push(data); return data; } },
     kardexInmutable: { create: async ({data}) => { traces.push(data); return data; } },
     colaDespacho: { findFirst: async () => null, create: async ({data}) => data },
     usuario: { findUnique: async () => ({ id: 'user' }), findFirst: async () => ({ id: 'user' }) },
@@ -62,7 +62,7 @@ test('documented density applies only when crossing dimensions; weighed stock is
 
 for (const unit of ['KG', 'GR']) test(`QA consumes 7,860 GR from the screenshot balance with ${unit} metadata`, async () => {
   const f = fixture(98640.65, unit);
-  await f.service.aprobarLote({ ordenProduccionId: 'order' });
+  await f.service.aprobarLote({ ordenProduccionId: 'order', consumosReales: [{ insumoId: 'item', cantidad: 7860, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }, { insumoId: 'rest', cantidad: 2140, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }] });
   assert.equal(Number(f.item.stockReal), 90780.65);
   assert.equal(f.moves[0].cantidadSalida, 7860);
   assert.equal(f.moves[0].unidadMedida, 'GR');
@@ -77,15 +77,15 @@ for (const unit of ['KG', 'GR']) test(`QA consumes 7,860 GR from the screenshot 
 
 test('QA refuses insufficient stock instead of clamping the balance to zero', async () => {
   const f = fixture(100);
-  await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order' }), /Stock insuficiente/);
+  await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order', consumosReales: [{ insumoId: 'item', cantidad: 7860, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }, { insumoId: 'rest', cantidad: 2140, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }] }), /Stock insuficiente/);
   assert.equal(Number(f.item.stockReal), 100);
   assert.equal(f.moves.length, 0);
 });
 
 test('a second QA release cannot consume stock twice', async () => {
   const f = fixture();
-  await f.service.aprobarLote({ ordenProduccionId: 'order' });
-  await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order' }), /ya fue liberado/);
+  await f.service.aprobarLote({ ordenProduccionId: 'order', consumosReales: [{ insumoId: 'item', cantidad: 7860, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }, { insumoId: 'rest', cantidad: 2140, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }] });
+  await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order', consumosReales: [{ insumoId: 'item', cantidad: 7860, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }, { insumoId: 'rest', cantidad: 2140, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }] }), /ya fue liberado/);
   assert.equal(Number(f.item.stockReal), 90780.65);
   assert.equal(f.moves.length, 3);
 });
@@ -172,7 +172,7 @@ test('additional dispatch in KG consumes base grams; envases remain units', asyn
 test('volume ingredients cannot silently be consumed as if liters were kilograms', async () => {
   const f = fixture(10000, 'L');
   f.item.unidadStock = 'ML';
-  await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order' }), /densidad específica/);
+  await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order', consumosReales: [{ insumoId: 'item', cantidad: 7860, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }, { insumoId: 'rest', cantidad: 2140, unidadMedida: 'GR', documentoSoporte: 'HOJA TEST' }] }), /densidad específica/);
   assert.equal(Number(f.item.stockReal), 10000);
   assert.equal(f.moves.length, 0);
 });
@@ -203,4 +203,26 @@ test('kardex UI totals convert compatible units, separate dimensions and exclude
   assert.match(total, /3.00 UN/);
   assert.match(total, /1,000.00 ML/);
   assert.doesNotMatch(total, /9999/);
+});
+
+const { consumoPendiente, consumoRegistrado } = require('../dist/produccion/actual-consumption');
+test('actual total includes previous adjustments without deducting them twice', async () => {
+  const f = fixture(95000);
+  f.tx.kardexMovimiento.findMany = async () => [{ insumoId: 'item', cantidadSalida: 1000, cantidadEntrada: 0, unidadMedida: 'GR' }];
+  await f.service.aprobarLote({ ordenProduccionId: 'order', cantidadObtenida: 8, pesoBrutoKg: 9, taraKg: 1, fuenteConversion: 'BALANZA', consumosReales: [{insumoId:'item', cantidad:5, unidadMedida:'KG', documentoSoporte:'HOJA'}, {insumoId:'rest',cantidad:2000,unidadMedida:'GR',documentoSoporte:'HOJA'}] });
+  assert.equal(Number(f.item.stockReal), 91000);
+  assert.equal(f.moves[0].cantidadSalida, 4000);
+  assert.equal(f.order.recetaSnapshot.consumos[0].cantidad, 5000);
+  assert.equal(f.order.recetaSnapshot.pesaje.netoKg, 8);
+  assert.equal(f.order.pesoNetoKg, undefined);
+});
+test('release requires actual quantities even when the planned mass is known', async () => {
+  const f = fixture();
+  await assert.rejects(f.service.aprobarLote({ordenProduccionId:'order'}), /realmente utilizadas/);
+  assert.equal(f.moves.length, 0);
+});
+test('legacy units and unrecorded returns require reconciliation', () => {
+  assert.throws(() => consumoPendiente(100, 200), /devolución/);
+  assert.throws(() => consumoRegistrado([{insumoId:'item',unidadMedida:'KG',cantidadSalida:1,cantidadEntrada:0}], fixture().item), /Concilie/);
+  assert.equal(consumoPendiente(5000,5000),0);
 });
