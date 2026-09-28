@@ -1,4 +1,7 @@
+import { despacharLote } from './production-dispatch';
+import { recetaLote } from './production-recipe';
 import { cantidadEnStock, cantidadLoteKg, consumoFormulaGramos, costoPorUnidadStock, unidadStock } from '../common/stock-units';
+import { cantidadPositiva, masaLoteKg, masaLoteOpcional, unidadComercial } from '../common/order-quantity';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EstadoOrdenProduccion, Prisma, TipoMovimientoKardex, CategoriaKardex, TipoMovimiento } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
@@ -50,8 +53,10 @@ export class ProduccionService {
       throw new BadRequestException('La fórmula no tiene insumos configurados.');
     }
 
+    const loteKg = masaLoteKg({ ...dto, unidadMedida: dto.unidadMedida || 'KG' });
     const requerimientos: RequerimientoInsumo[] = formula.detalles.map((detalle) => {
-      const cantidadRequerida = new Prisma.Decimal(consumoFormulaGramos(dto.cantidadPlanificada, Number(detalle.porcentaje), detalle.insumo.unidadMedida));
+      if (!detalle.insumo) throw new BadRequestException('La fórmula contiene un ingrediente sin inventario.');
+      const cantidadRequerida = new Prisma.Decimal(consumoFormulaGramos(loteKg, Number(detalle.porcentaje), detalle.insumo));
       const stockDisponible = new Prisma.Decimal(detalle.insumo.stockReal);
       const suficiente = stockDisponible.gte(cantidadRequerida);
       const faltante = suficiente
@@ -62,7 +67,7 @@ export class ProduccionService {
         insumoId: detalle.insumoId,
         codigo: detalle.insumo.codigo,
         nombre: detalle.insumo.nombre,
-        unidadMedida: unidadStock(detalle.insumo.unidadMedida),
+        unidadMedida: unidadStock(detalle.insumo),
         cantidadRequerida: cantidadRequerida.toFixed(4),
         stockDisponible: stockDisponible.toFixed(4),
         suficiente,
@@ -79,12 +84,19 @@ export class ProduccionService {
   }
 
   async crearOrden(dto: CrearOrdenDto) {
+    cantidadPositiva(dto.cantidadPlanificada);
+    const unit = unidadComercial(dto.unidadMedida || 'KG');
+    if ((dto.pesoNetoKg != null || dto.densidadKgL != null) && !dto.fuenteConversion?.trim()) throw new BadRequestException('El pesaje o densidad requiere documento de soporte.');
+    const master = await this.prisma.formulaMaster.findUnique({ where: { id: dto.formulaId }, include: { detalles: { include: { insumo: true } } } });
+    if (!master) throw new BadRequestException('Seleccione una fórmula existente.');
+    const recipe = await recetaLote(this.prisma, { formulaId: master.id, formula: master });
     // Idempotencia: evita duplicados por doble clic (misma fórmula/cliente/cantidad en <30s)
     const reciente = await this.prisma.ordenProduccion.findFirst({
       where: {
         formulaId: dto.formulaId,
         clienteNombre: dto.clienteNombre || undefined,
         cantidadPlanificada: dto.cantidadPlanificada as any,
+        unidadMedida: unidadComercial(dto.unidadMedida || 'KG'),
         createdAt: { gte: new Date(Date.now() - 30_000) },
       },
       orderBy: { createdAt: 'desc' },
@@ -95,6 +107,10 @@ export class ProduccionService {
     const validacion = await this.validarStockDisponible({
       formulaId: dto.formulaId,
       cantidadPlanificada: dto.cantidadPlanificada,
+      unidadMedida: dto.unidadMedida || 'KG',
+      pesoNetoKg: dto.pesoNetoKg,
+      densidadKgL: dto.densidadKgL,
+      fuenteConversion: dto.fuenteConversion,
     }).catch(() => null);
 
     const ultimoCodigo = await this.prisma.ordenProduccion.count();
@@ -132,6 +148,11 @@ export class ProduccionService {
         codigoLote,
         formulaId: dto.formulaId,
         cantidadPlanificada: dto.cantidadPlanificada,
+        unidadMedida: unidadComercial(dto.unidadMedida || 'KG'),
+        pesoNetoKg: dto.pesoNetoKg,
+        densidadKgL: dto.densidadKgL,
+        fuenteConversion: dto.fuenteConversion,
+        recetaSnapshot: JSON.parse(JSON.stringify({ ...recipe.snapshot, fuente: 'FORMULA_AL_CREAR_ORDEN' })),
         supervisorId: supervisorId,
         clienteNombre: dto.clienteNombre || 'Sin cliente asignado',
         estado: EstadoOrdenProduccion.EN_PROCESO,
@@ -177,6 +198,7 @@ export class ProduccionService {
     }
 
     const operariosStr = dto.operarios.join(', ');
+    if (!['EN_PROCESO', 'QA_PENDIENTE', 'PENDIENTE'].includes(orden.estado) || ['LIBERADO_QA','DESPACHADO','RECHAZADO'].includes(orden.pasoProceso)) throw new BadRequestException('No se pueden reasignar operarios de un lote cerrado.');
     const nuevoPaso = dto.operarios.length > 0 ? 'ELABORANDO' : 'PENDIENTE_ASIGNACION';
 
     const ordenActualizada = await this.prisma.ordenProduccion.update({
@@ -202,6 +224,7 @@ export class ProduccionService {
   }
 
   async cambiarPasoProceso(dto: CambiarPasoDto) {
+    if (!['PENDIENTE_ASIGNACION', 'ELABORANDO', 'EN_MUESTREO_QA'].includes(dto.pasoProceso)) throw new BadRequestException('Use la liberación QA o el despacho para cerrar el lote y registrar sus movimientos.');
     const orden = await this.prisma.ordenProduccion.findUnique({
       where: { id: dto.ordenProduccionId },
     });
@@ -210,6 +233,7 @@ export class ProduccionService {
     }
 
     // Regla de negocio: no se puede pasar a ELABORANDO ni EN_MUESTREO_QA sin operarios
+    if (!['EN_PROCESO', 'QA_PENDIENTE', 'PENDIENTE'].includes(orden.estado) || ['LIBERADO_QA','DESPACHADO','RECHAZADO'].includes(orden.pasoProceso)) throw new BadRequestException('El lote está cerrado.');
     const operariosList = orden.operariosAsignados ? orden.operariosAsignados.split(', ') : [];
     if ((dto.pasoProceso === 'ELABORANDO' || dto.pasoProceso === 'EN_MUESTREO_QA') && operariosList.length === 0) {
       throw new BadRequestException('⚠️ Asigna al menos un operario para habilitar la fabricación.');
@@ -310,180 +334,97 @@ export class ProduccionService {
    * 3. Emite evento WebSocket en tiempo real para Administración y Logística.
    */
   async aprobarLote(dto: DecidirQADto) {
-    const orden = await this.prisma.ordenProduccion.findUnique({
-      where: { id: dto.ordenProduccionId },
-      include: {
-        formula: {
-          include: {
-            detalles: {
-              include: {
-                insumo: {
-                  include: { familia: true },
-                },
-              },
-            },
-          },
-        },
-        pedidoComercial: {
-          select: { montoTotal: true, codigoOrden: true, productoNombre: true, unidadMedida: true },
-        },
-      },
-    });
-
-    if (!orden) {
-      throw new NotFoundException('Orden de producción no encontrada.');
+    if (dto.pesoBrutoKg != null || dto.taraKg != null) {
+      const gross = cantidadPositiva(dto.pesoBrutoKg, 'Peso bruto KG');
+      if (dto.taraKg == null || !Number.isFinite(dto.taraKg) || dto.taraKg < 0) throw new BadRequestException('La tara debe ser una cantidad no negativa.');
+      const net = new Prisma.Decimal(gross).minus(dto.taraKg).toDecimalPlaces(4);
+      cantidadPositiva(net, 'Peso neto KG');
+      if (dto.pesoNetoKg != null && !net.equals(dto.pesoNetoKg)) throw new BadRequestException('El peso neto debe coincidir con peso bruto menos tara.');
+      dto.pesoNetoKg = net.toNumber();
     }
-
-    return this.prisma.$transaction(async (tx) => {
-      // Serialize release of this order and consume each stock from its current value.
+    const released = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM ordenes_produccion WHERE id = ${dto.ordenProduccionId} FOR UPDATE`;
-      const estadoActual = await tx.ordenProduccion.findUniqueOrThrow({ where: { id: dto.ordenProduccionId } });
-      if (['APROBADO', 'EN_ETIQUETADO', 'DESPACHADO'].includes(estadoActual.estado) || estadoActual.pasoProceso === 'LIBERADO_QA') {
-        throw new BadRequestException('El lote ya fue liberado; no se volverá a descontar stock.');
+      const orden = await tx.ordenProduccion.findUnique({ where: { id: dto.ordenProduccionId }, include: {
+        formula: { include: { detalles: { include: { insumo: { include: { familia: true } } } } } },
+        pedidoItem: true, pedidoComercial: { select: { unidadMedida: true, codigoOrden: true, productoNombre: true, notasAdmin: true } },
+      } });
+      if (!orden) throw new NotFoundException('Orden de producción no encontrada.');
+      if (['APROBADO', 'EN_ETIQUETADO', 'DESPACHADO'].includes(orden.estado) || orden.pasoProceso === 'LIBERADO_QA') throw new BadRequestException('El lote ya fue liberado; no se volverá a descontar stock.');
+      if (!['EN_PROCESO', 'QA_PENDIENTE'].includes(orden.estado)) throw new BadRequestException('El lote no está en un estado que permita liberarlo.');
+      const produced = cantidadPositiva(dto.cantidadObtenida ?? orden.cantidadObtenida ?? orden.cantidadPlanificada, 'Cantidad obtenida');
+      const unit = unidadComercial(orden.unidadMedida || orden.pedidoItem?.unidadMedida || orden.pedidoComercial?.unidadMedida || '');
+      const evidence = dto.fuenteConversion ? { pesoNetoKg: dto.pesoNetoKg, densidadKgL: dto.densidadKgL, fuenteConversion: dto.fuenteConversion } : orden;
+      if ((dto.pesoNetoKg != null || dto.densidadKgL != null) && !dto.fuenteConversion?.trim()) throw new BadRequestException('Indique la fuente del peso neto o densidad.');
+      const loteKg = dto.consumosReales ? masaLoteOpcional({ ...orden, ...evidence }).kg : masaLoteKg(orden, evidence);
+      const recipe = await recetaLote(tx, orden);
+      let actual: Map<string, any> | null = null;
+      if (dto.consumosReales) {
+        actual = new Map(dto.consumosReales.map(d => [d.insumoId, d]));
+        if (actual.size !== recipe.details.length || actual.size !== dto.consumosReales.length || recipe.details.some(d => !actual.has(d.insumoId))) throw new BadRequestException('Registre los consumos reales de todos los ingredientes, sin duplicados.');
+        for (const d of actual.values()) if (!Number.isFinite(d.cantidad) || d.cantidad < 0 || !d.documentoSoporte?.trim()) throw new BadRequestException('Cada consumo real requiere cantidad no negativa y documento de soporte.');
       }
-      const ordenAprobada = await tx.ordenProduccion.update({
-        where: { id: dto.ordenProduccionId },
-        data: {
-          estado: EstadoOrdenProduccion.EN_ETIQUETADO,
-          pasoProceso: 'LIBERADO_QA',
-          observacionesQA: dto.observacionesQA || orden.observacionesQA,
-          fechaCierre: new Date(),
-        } as any,
-      });
-
-      const cantidadProducida = Number(dto.cantidadObtenida || orden.cantidadObtenida || orden.cantidadPlanificada);
-      const clienteFinal = orden.clienteNombre || 'Cliente Quimicorp SAC';
-
-      // 1. Salidas por Consumo de Materia Prima / Insumos
-      for (const detalle of orden.formula.detalles) {
-        // Saltar detalles comodín sin insumo real vinculado (p.ej. "FRAGANCIA REFERENCIA")
-        if (!detalle.insumo) continue;
-        const porcentaje = Number(detalle.porcentaje);
-        const loteKg = cantidadLoteKg(Number(orden.cantidadPlanificada), orden.pedidoComercial?.unidadMedida || 'KG', Number(orden.formula.densidadTeorica));
-        const consumoCalculado = consumoFormulaGramos(loteKg, porcentaje, detalle.insumo.unidadMedida);
-        await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${detalle.insumoId} FOR UPDATE`;
-        const insumoActual = await tx.insumo.findUniqueOrThrow({ where: { id: detalle.insumoId } });
-        const stockActual = Number(insumoActual.stockReal);
-        if (stockActual < consumoCalculado) throw new BadRequestException(`Stock insuficiente de ${detalle.insumo.nombre}: disponible ${stockActual} ${unidadStock(detalle.insumo.unidadMedida)}, requerido ${consumoCalculado}.`);
-        const nuevoSaldo = new Prisma.Decimal(stockActual).minus(consumoCalculado).toNumber();
-
-        await tx.insumo.update({
-          where: { id: detalle.insumoId },
-          data: { stockReal: nuevoSaldo },
-        });
-
-        // Categorización por tipo real del insumo (provenance), no por nombre de familia
-        const fam = detalle.insumo.familia?.nombre?.toLowerCase() || '';
-        const tipo = detalle.insumo.tipo as string;
-        let categoriaKardex: CategoriaKardex = CategoriaKardex.INSUMO;
-        if (tipo === 'BASE') categoriaKardex = CategoriaKardex.MATERIA_PRIMA;
-        else if (tipo === 'ENVASE') categoriaKardex = CategoriaKardex.ENVASE;
-        else if (tipo === 'OTRO' && (fam.includes('embalaje') || fam.includes('caja') || fam.includes('etiqueta') || fam.includes('embal'))) categoriaKardex = CategoriaKardex.EMBALAJE;
-        else if (tipo === 'FRAGANCIA' || tipo === 'PIGMENTO') categoriaKardex = CategoriaKardex.INSUMO;
-
-        // Costo unitario del insumo (0 mientras no se cargue la ficha de costos)
-        const costoUnitarioInsumo = costoPorUnidadStock(Number(insumoActual.costoUnitario || 0), insumoActual.unidadMedida);
-
-        await tx.kardexMovimiento.create({
-          data: {
-            categoriaKardex,
-            productoNombre: detalle.insumo.nombre,
-            familia: detalle.insumo.familia?.nombre || 'General',
-            categoriaNombre: detalle.insumo.familia?.nombre || 'Químicos Base',
-            proveedorCliente: `Consumo Planta - Lote ${orden.codigoLote} (${clienteFinal})`,
-            unidadMedida: unidadStock(detalle.insumo.unidadMedida),
-            fecha: new Date(),
-            tipoDoc: 'OP',
-            serie: 'LOTE',
-            numero: orden.codigoLote,
-            otp: `OTP-${orden.codigoLote}`,
-            tipoOperacion: TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,
-            cantidadEntrada: 0,
-            cantidadSalida: consumoCalculado,
-            saldoFinal: nuevoSaldo,
-            costoUnitario: costoUnitarioInsumo,
-            montoSalidaPen: consumoCalculado * costoUnitarioInsumo,
-            montoSaldoPen: nuevoSaldo * costoUnitarioInsumo,
-            insumoId: detalle.insumoId,
-          },
-        });
-
-        // Trazabilidad inmutable (append-only) del stock del insumo
-        await tx.kardexInmutable.create({
-          data: {
-            insumoId: detalle.insumoId,
-            tipoMovimiento: TipoMovimientoKardex.SALIDA,
-            cantidad: consumoCalculado,
-            stockAnterior: stockActual,
-            stockNuevo: nuevoSaldo,
-            documentoReferencia: `OP-${orden.codigoLote}`,
-            usuarioId: orden.supervisorId,
-          },
-        });
+      let materialCost = new Prisma.Decimal(0);
+      let pendingValuation = false;
+      const movements = [];
+      // Stable lock order prevents two recipes locking shared ingredients in opposite order.
+      for (const detail of [...recipe.details].sort((a, b) => a.insumoId.localeCompare(b.insumoId))) {
+        await tx.$queryRaw`SELECT id FROM insumos WHERE id = ${detail.insumoId} FOR UPDATE`;
+        const ingredient = await tx.insumo.findUniqueOrThrow({ where: { id: detail.insumoId }, include: { familia: true } });
+        const declared = actual?.get(detail.insumoId);
+        const consumed = declared ? cantidadEnStock(declared.cantidad, declared.unidadMedida, ingredient) : consumoFormulaGramos(loteKg, detail.porcentaje, ingredient);
+        const previous = Number(ingredient.stockReal);
+        if (previous < consumed) throw new BadRequestException(`Stock insuficiente de ${ingredient.nombre}: disponible ${previous} ${unidadStock(ingredient)}, requerido ${consumed}.`);
+        const next = new Prisma.Decimal(previous).minus(consumed).toDecimalPlaces(4).toNumber();
+        let cost = 0, costPending = false;
+        try { cost = costoPorUnidadStock(Number(ingredient.costoUnitario || 0), ingredient); } catch { costPending = true; }
+        if (!cost && consumed > 0) costPending = true;
+        pendingValuation ||= costPending;
+        materialCost = materialCost.plus(new Prisma.Decimal(consumed).mul(cost));
+        const category = ingredient.tipo === 'ENVASE' ? CategoriaKardex.ENVASE : ingredient.tipo === 'BASE' ? CategoriaKardex.MATERIA_PRIMA : CategoriaKardex.INSUMO;
+        await tx.insumo.update({ where: { id: ingredient.id }, data: { stockReal: next } });
+        await tx.kardexMovimiento.create({ data: { categoriaKardex: category, productoNombre: ingredient.nombre,
+          familia: ingredient.familia?.nombre || 'General', categoriaNombre: ingredient.familia?.nombre || 'Químicos Base',
+          proveedorCliente: `Consumo Planta - Lote ${orden.codigoLote} (${orden.clienteNombre || 'Cliente pendiente'})`,
+          unidadMedida: unidadStock(ingredient), fecha: new Date(), tipoDoc: 'OP', serie: 'LOTE', numero: orden.codigoLote,
+          otp: `OTP-${orden.codigoLote}`, tipoOperacion: TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,
+          cantidadEntrada: 0, cantidadSalida: consumed, saldoFinal: next, costoUnitario: cost, valoracionPendiente: costPending,
+          montoSalidaPen: new Prisma.Decimal(consumed).mul(cost).toDecimalPlaces(2).toNumber(),
+          montoSaldoPen: new Prisma.Decimal(next).mul(cost).toDecimalPlaces(2).toNumber(), insumoId: ingredient.id } });
+        await tx.kardexInmutable.create({ data: { insumoId: ingredient.id, tipoMovimiento: TipoMovimientoKardex.SALIDA,
+          cantidad: consumed, stockAnterior: previous, stockNuevo: next, documentoReferencia: `OP-${orden.codigoLote}`, usuarioId: orden.supervisorId } });
+        movements.push({ insumoId: ingredient.id, cantidad: consumed, unidad: unidadStock(ingredient),
+          modo: declared ? 'CONSUMO_REAL_DOCUMENTADO' : 'TEORICO_SEGUN_RECETA', documentoSoporte: declared?.documentoSoporte || null });
       }
-
-      // 2. Entrada del Producto Terminado Aprobado
-      //    Monto de costo del PT = monto fijado (cotización) y aprobado en la venta (PedidoComercial.montoTotal)
-      const montoVenta = Number(orden.pedidoComercial?.montoTotal || 0);
-      const unidadPT = orden.pedidoComercial?.unidadMedida || 'KG';
-      const cantidadProducidaBase = cantidadEnStock(cantidadProducida, unidadPT, unidadPT);
-      const costoUnitarioPT = montoVenta > 0 && cantidadProducidaBase > 0 ? montoVenta / cantidadProducidaBase : 0;
-
-      await tx.kardexMovimiento.create({
-        data: {
-          categoriaKardex: CategoriaKardex.PRODUCTO_TERMINADO,
-          productoNombre: orden.formula.nombreProducto,
-          familia: orden.pedidoComercial?.productoNombre || 'Productos Terminados',
-          categoriaNombre: 'Producto Terminado Aprobado',
-          proveedorCliente: clienteFinal,
-          unidadMedida: unidadStock(unidadPT),
-          fecha: new Date(),
-          tipoDoc: 'OP',
-          serie: 'LOTE',
-          numero: orden.codigoLote,
-          otp: `OTP-${orden.codigoLote}`,
-          tipoOperacion: TipoMovimiento.ENTRADA_PRODUCCION,
-          cantidadEntrada: cantidadProducidaBase,
-          cantidadSalida: 0,
-          saldoFinal: cantidadProducidaBase,
-          costoUnitario: costoUnitarioPT,
-          montoEntradaPen: montoVenta,
-          montoSaldoPen: montoVenta,
-        },
-      });
-
-      // 3. Enviar a la Cola de Etiquetas & Despacho (/produccion/etiquetas) — idempotente
-      const colaExistente = await (tx as any).colaDespacho.findFirst({ where: { loteCodigo: orden.codigoLote } });
-      if (!colaExistente) {
-        await (tx as any).colaDespacho.create({
-          data: {
-            loteCodigo: orden.codigoLote,
-            productoNombre: orden.formula.nombreProducto,
-            clienteNombre: clienteFinal,
-            cantidad: `${cantidadProducida} ${unidadPT}`,
-            fechaFabricacion: new Date(),
-            codigoQR: `QR-QUIMICORP-${orden.codigoLote}`,
-            codigoBarras: `7759000${orden.codigoLote.replace(/\D/g, '') || '1001'}`,
-            estado: 'LISTO_PARA_IMPRIMIR',
-            ruc: '20612434124',
-          },
-        });
-      }
-
-      // 4. Emisión de Evento WebSocket
-      this.produccionGateway.emitirEstadoActualizado({
-        ordenId: ordenAprobada.id,
-        codigoLote: ordenAprobada.codigoLote,
-        clienteNombre: clienteFinal,
-        nuevoEstado: 'APROBADO',
-        pasoProceso: 'LIBERADO_QA',
-        observaciones: dto.observacionesQA,
-        timestamp: new Date().toISOString(),
-      });
-
-      return ordenAprobada;
-    });
+      const outputBase = cantidadEnStock(produced, unit, unit);
+      // Sale revenue is never treated as manufacturing cost. Raw-material valuation
+      // is explicit and remains pending until other manufacturing costs are documented.
+      await tx.kardexMovimiento.create({ data: { categoriaKardex: CategoriaKardex.PRODUCTO_TERMINADO,
+        productoNombre: recipe.snapshot.nombreProducto || orden.formula.nombreProducto, familia: 'Productos Terminados',
+        categoriaNombre: 'Producto terminado; valorización de materias primas', proveedorCliente: orden.clienteNombre || 'Cliente pendiente',
+        unidadMedida: unidadStock(unit), fecha: new Date(), tipoDoc: 'OP', serie: 'LOTE', numero: orden.codigoLote,
+        otp: `OTP-${orden.codigoLote}`, tipoOperacion: TipoMovimiento.ENTRADA_PRODUCCION,
+        cantidadEntrada: outputBase, cantidadSalida: 0, saldoFinal: outputBase,
+        costoUnitario: materialCost.div(outputBase).toNumber(), montoEntradaPen: materialCost.toDecimalPlaces(2).toNumber(),
+        montoSaldoPen: materialCost.toDecimalPlaces(2).toNumber(), valoracionPendiente: true } });
+      const approved = await tx.ordenProduccion.update({ where: { id: orden.id }, data: {
+        estado: EstadoOrdenProduccion.EN_ETIQUETADO, pasoProceso: 'LIBERADO_QA', fechaCierre: new Date(),
+        cantidadObtenida: produced, unidadMedida: unit, observacionesQA: dto.observacionesQA || orden.observacionesQA,
+        ...(dto.fuenteConversion ? { pesoNetoKg: dto.pesoNetoKg || null, densidadKgL: dto.densidadKgL || null, fuenteConversion: dto.fuenteConversion } : {}),
+        recetaSnapshot: JSON.parse(JSON.stringify({ ...recipe.snapshot, baseMasaKg: loteKg, consumos: movements, valoracionMaterialesPendiente: pendingValuation,
+          ...(dto.pesoBrutoKg != null ? { pesaje: { brutoKg: dto.pesoBrutoKg, taraKg: dto.taraKg, netoKg: dto.pesoNetoKg, fuente: dto.fuenteConversion, recordedAt: new Date().toISOString() } } : {}) })),
+      } });
+      const existing = await tx.colaDespacho.findFirst({ where: { loteCodigo: orden.codigoLote } });
+      if (!existing) await tx.colaDespacho.create({ data: { loteCodigo: orden.codigoLote,
+        productoNombre: recipe.snapshot.nombreProducto || orden.formula.nombreProducto, clienteNombre: orden.clienteNombre || 'Cliente pendiente',
+        cantidad: `${produced} ${unit}`, fechaFabricacion: new Date(), codigoQR: `QR-QUIMICORP-${orden.codigoLote}`,
+        codigoBarras: `7759000${orden.codigoLote.replace(/\D/g, '') || '1001'}`, estado: 'LISTO_PARA_IMPRIMIR', ruc: '20612434124' } });
+      return approved;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10000, timeout: 30000 });
+    this.produccionGateway.emitirEstadoActualizado({ ordenId: released.id, codigoLote: released.codigoLote,
+      clienteNombre: released.clienteNombre, nuevoEstado: 'APROBADO', pasoProceso: 'LIBERADO_QA', timestamp: new Date().toISOString() });
+    return released;
   }
+
 
   obtenerColaDespacho() {
     return (this.prisma as any).colaDespacho.findMany({
@@ -505,236 +446,11 @@ export class ProduccionService {
       envaseClienteCantidad?: number;
     },
   ) {
-    if (!colaId) {
-      throw new BadRequestException('Se requiere colaId para registrar el despacho.');
-    }
-
-    const cola = await (this.prisma as any).colaDespacho.findUnique({ where: { id: colaId } });
-    if (!cola) {
-      throw new NotFoundException('No se encontró el registro de despacho de la cola.');
-    }
-
-    // Envase provisto por el cliente: no descuenta stock interno. Se registra la
-    // referencia en ColaDespacho.tipoEnvase para trazabilidad del contenedor.
-    const usaEnvaseDelCliente = opciones?.envaseCliente === true;
-    const tipoEnvaseTotal = usaEnvaseDelCliente
-      ? `${opciones?.tipoEnvaseCliente?.trim() || 'ENVASE PROVISTO POR CLIENTE'}${Number(opciones?.envaseClienteCantidad) > 0 ? ` x${Number(opciones.envaseClienteCantidad)}` : ''} (PROVISTO POR CLIENTE)`
-      : cola.tipoEnvase || null;
-
-    const colaActualizada = await (this.prisma as any).colaDespacho.update({
-      where: { id: colaId },
-      data: {
-        estado: 'DESPACHADO',
-        numeroGuia: numeroGuia?.trim() ? numeroGuia.trim() : null,
-        ...(tipoEnvaseTotal ? { tipoEnvase: tipoEnvaseTotal } : {}),
-      },
-    });
-
-    // Marcar la Orden de Producción asociada como DESPACHADA (vínculo por código de lote).
-    const orden = await this.prisma.ordenProduccion.findFirst({
-      where: { codigoLote: cola.loteCodigo },
-    });
-    if (orden) {
-      await this.prisma.ordenProduccion.update({
-        where: { id: orden.id },
-        data: {
-          estado: EstadoOrdenProduccion.DESPACHADO,
-          pasoProceso: 'DESPACHADO',
-          fechaCierre: new Date(),
-        },
-      });
-
-      // Propagar el estado ENTREGADO al Pedido Comercial vinculado. Se usa la FK
-      // `pedidoComercialId` (relación directa creada en la migración) como fuente
-      // principal; se conserva la coincidencia por dígitos solo como fallback para
-      // órdenes legacy sin relación.
-      let pedidoVinculado: { id: string } | null = null;
-      if (orden.pedidoComercialId) {
-        pedidoVinculado = await (this.prisma as any).pedidoComercial
-          .findFirst({ where: { id: orden.pedidoComercialId } })
-          .catch(() => null);
-      }
-      if (!pedidoVinculado) {
-        const numPart = (orden.codigoLote || '').replace(/\D/g, '');
-        pedidoVinculado = await (this.prisma as any).pedidoComercial
-          .findFirst({
-            where: {
-              OR: numPart
-                ? [
-                    { codigoOrden: { contains: numPart } },
-                    { codigoRefAdmin: { contains: numPart } },
-                  ]
-                : [],
-              clienteNombre: orden.clienteNombre || undefined,
-            },
-            orderBy: { createdAt: 'desc' },
-          })
-          .catch(() => null);
-      }
-
-      if (pedidoVinculado) {
-        await (this.prisma as any).pedidoComercial.update({
-          where: { id: pedidoVinculado.id },
-          data: { estado: 'ENTREGADO', fechaEntrega: new Date() },
-        });
-      }
-
-      this.produccionGateway.emitirEstadoActualizado({
-        ordenId: orden.id,
-        codigoLote: orden.codigoLote,
-        clienteNombre: orden.clienteNombre || '',
-        nuevoEstado: 'DESPACHADO',
-        pasoProceso: 'DESPACHADO',
-        observaciones: 'Lote despachado y entregado al cliente.',
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Descuento de envases consumidos en el despacho (1 etiqueta = 1 envase).
-    // Soporta hasta dos envases diferentes por despacho; cada uno genera su
-    // SALIDA_VENTA en kardex (KardexMovimiento + KardexInmutable) y actualiza su stock.
-    const opcionesEnvases: { sku: string; cantidad: number }[] = [];
-    if (!usaEnvaseDelCliente && opciones?.envaseSku) {
-      opcionesEnvases.push({ sku: opciones.envaseSku, cantidad: Number(opciones.envaseCantidad || 0) });
-    }
-    // Soporte múltiple: envasesSecundarios (hasta 5) + compatibilidad con envaseSku2 legacy
-    if (Array.isArray(opciones?.envasesSecundarios) && opciones.envasesSecundarios.length > 0) {
-      for (const s of opciones.envasesSecundarios) {
-        if (s?.sku) opcionesEnvases.push({ sku: String(s.sku), cantidad: Number(s.cantidad || 0) });
-      }
-    } else if (!usaEnvaseDelCliente && opciones?.envaseSku2) {
-      opcionesEnvases.push({ sku: opciones.envaseSku2, cantidad: Number(opciones.envaseCantidad2 || 0) });
-    }
-
-    if (opcionesEnvases.length > 6) {
-      throw new BadRequestException('Máximo 5 envases secundarios por despacho.');
-    }
-
-    let envaseDescontado: { sku: string; nombre: string; cantidad: number; saldo: number }[] = [];
-    if (opcionesEnvases.length > 0) {
-      for (const opt of opcionesEnvases) {
-        if (!(opt.cantidad > 0)) {
-          throw new BadRequestException('Indica la cantidad de envases consumidos en el despacho.');
-        }
-      }
-
-      // usuarioId es obligatorio en kardex_inmutable: se usa el supervisor del lote
-      // o, en su defecto, el usuario de sistema de importación (dni 70000000).
-      let usuarioRegistro: string = orden?.supervisorId || '';
-      if (!usuarioRegistro) {
-        const usrSistema = await this.prisma.usuario.findFirst({ where: { dni: '70000000' } });
-        usuarioRegistro = usrSistema?.id || '';
-      }
-      if (!usuarioRegistro) {
-        throw new BadRequestException('No se pudo determinar el usuario responsable del despacho.');
-      }
-
-      const documentoRef = numeroGuia?.trim() || `LOTE-${cola.loteCodigo}`;
-
-      const envasesResueltos = await Promise.all(
-        opcionesEnvases.map(async (opt) => {
-          const envase = await this.prisma.insumo.findFirst({
-            where: { codigo: opt.sku },
-            include: { familia: true },
-          });
-          if (!envase) {
-            throw new NotFoundException(`Envase ${opt.sku} no encontrado en el maestro de insumos.`);
-          }
-          if (unidadStock(envase.unidadMedida) !== 'UN') throw new BadRequestException('El envase debe estar registrado en UN.');
-          return { sku: opt.sku, cantidad: opt.cantidad, envase };
-        }),
-      );
-
-      // Descuento atómico: stock + KardexMovimiento + KardexInmutable en una sola transacción
-      await this.prisma.$transaction(async (tx) => {
-        for (const { cantidad, envase } of envasesResueltos) {
-          const envaseTx = await tx.insumo.findFirstOrThrow({
-            where: { id: envase.id },
-          });
-          const stockActual = Number(envaseTx.stockReal);
-          if (stockActual < cantidad) {
-            throw new BadRequestException(
-              `Stock insuficiente de ${envase.codigo} (${envase.nombre}): hay ${stockActual} ${envase.unidadMedida} y el despacho consume ${cantidad}.`,
-            );
-          }
-          const nuevoSaldo = stockActual - cantidad;
-
-          await tx.insumo.update({
-            where: { id: envase.id },
-            data: { stockReal: nuevoSaldo },
-          });
-
-          await tx.kardexMovimiento.create({
-            data: {
-              categoriaKardex: CategoriaKardex.ENVASE,
-              productoNombre: envase.nombre,
-              familia: envase.familia?.nombre || 'ENVASES Y EMBALAJES',
-              categoriaNombre: envase.familia?.nombre || 'Envases y Embalajes',
-              proveedorCliente: `Despacho ${cola.loteCodigo} (${cola.clienteNombre || 'Cliente Quimicorp'})`,
-              unidadMedida: envase.unidadMedida,
-              fecha: new Date(),
-              tipoDoc: 'GUIA',
-              serie: 'REG',
-              numero: documentoRef,
-              otp: `OTP-${cola.loteCodigo}`,
-              tipoOperacion: TipoMovimiento.SALIDA_VENTA,
-              cantidadEntrada: 0,
-              cantidadSalida: cantidad,
-              saldoFinal: nuevoSaldo,
-              costoUnitario: Number(envase.costoUnitario || 0),
-              montoSalidaPen: cantidad * Number(envase.costoUnitario || 0),
-              montoSaldoPen: nuevoSaldo * Number(envase.costoUnitario || 0),
-              insumoId: envase.id,
-            },
-          });
-
-          await tx.kardexInmutable.create({
-            data: {
-              insumoId: envase.id,
-              tipoMovimiento: TipoMovimientoKardex.SALIDA,
-              cantidad,
-              stockAnterior: stockActual,
-              stockNuevo: nuevoSaldo,
-              documentoReferencia: documentoRef,
-              usuarioId: usuarioRegistro,
-            },
-          });
-
-          envaseDescontado.push({ sku: envase.codigo, nombre: envase.nombre, cantidad, saldo: nuevoSaldo });
-        }
-      });
-    }
-
-    // Adicionales de la línea del pedido: se descuentan una sola vez al despacho.
-    if (orden?.pedidoComercialId) {
-      const pedidoAdicionales = await this.prisma.pedidoAdicional.findMany({
-        where: { pedidoId: orden.pedidoComercialId, kardexDescontado: false },
-        include: { insumo: { include: { familia: true } } },
-      });
-      const ultimoSegmento = cola.loteCodigo.split('-').pop() || '';
-      const itemIndex = /^\d+$/.test(ultimoSegmento) ? Math.max(0, Number(ultimoSegmento) - 1) : 0;
-      const adicionalesDeLinea = pedidoAdicionales.filter((adicional) => adicional.itemIndex === itemIndex);
-      if (adicionalesDeLinea.length > 0) {
-        const usuarioId = orden.supervisorId || (await this.prisma.usuario.findFirst({ where: { dni: '70000000' } }))?.id;
-        if (!usuarioId) throw new BadRequestException('No se pudo determinar el usuario responsable del despacho.');
-        await this.descontarAdicionalesDespacho(adicionalesDeLinea, cola.loteCodigo, numeroGuia, usuarioId);
-      }
-    }
-
-    return {
-      ...colaActualizada,
-      envaseDescontado,
-      ...(usaEnvaseDelCliente
-        ? {
-            envaseCliente: {
-              tipo: opciones?.tipoEnvaseCliente?.trim() || 'ENVASE PROVISTO POR CLIENTE',
-              cantidad: Number(opciones?.envaseClienteCantidad) || 0,
-            },
-          }
-        : {}),
-    };
+    const result = await despacharLote(this.prisma, colaId, numeroGuia, opciones);
+    if (!result.repetido) this.produccionGateway.emitirEstadoActualizado({ ordenId: result.ordenId, codigoLote: result.loteCodigo,
+      clienteNombre: result.clienteNombre, nuevoEstado: 'DESPACHADO', pasoProceso: 'DESPACHADO', timestamp: new Date().toISOString() });
+    return result;
   }
-
   private async descontarAdicionalesDespacho(
     adicionales: Array<{
       id: string;
@@ -756,13 +472,13 @@ export class ProduccionService {
         const cantidadPendiente = Number(adicional.cantidad) - Number(adicional.cantidadDespachada);
         if (cantidadPendiente <= 0) continue;
         const insumo = await tx.insumo.findUniqueOrThrow({ where: { id: adicional.insumoId }, include: { familia: true } });
-        const consumoBase = cantidadEnStock(cantidadPendiente, adicional.unidadMedida, insumo.unidadMedida);
+        const consumoBase = cantidadEnStock(cantidadPendiente, adicional.unidadMedida, insumo);
         const stockAnterior = Number(insumo.stockReal);
         if (stockAnterior < consumoBase) {
           throw new BadRequestException(`Stock insuficiente de ${insumo.codigo} (${insumo.nombre}).`);
         }
         const stockNuevo = new Prisma.Decimal(stockAnterior).minus(consumoBase).toNumber();
-        const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo.unidadMedida);
+        const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo);
         const categoria = adicional.categoria === 'ENVASES' ? CategoriaKardex.ENVASE : CategoriaKardex.INSUMO;
         await tx.insumo.update({ where: { id: insumo.id }, data: { stockReal: stockNuevo } });
         await tx.kardexMovimiento.create({
@@ -772,7 +488,7 @@ export class ProduccionService {
             familia: insumo.familia.nombre,
             categoriaNombre: insumo.familia.nombre,
             proveedorCliente: `Adicional pedido - ${loteCodigo}`,
-            unidadMedida: unidadStock(insumo.unidadMedida),
+            unidadMedida: unidadStock(insumo),
             fecha: new Date(),
             tipoDoc: 'GUIA',
             numero: documentoRef,
@@ -867,11 +583,19 @@ export class ProduccionService {
       include: {
         formula: { include: { detalles: { include: { insumo: { include: { familia: true } } } } } },
         supervisor: { select: { nombres: true, apellidos: true } },
-        pedidoComercial: { select: { unidadMedida: true } },
+        pedidoItem: true,
+        pedidoComercial: { select: { unidadMedida: true, notasAdmin: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
-    return ordenes.map(o => ({ ...o, cantidadPlanificadaKg: cantidadLoteKg(Number(o.cantidadPlanificada), o.pedidoComercial?.unidadMedida || 'KG', Number(o.formula.densidadTeorica)) }));
+    const capturedIds = [...new Set(ordenes.flatMap(o => ((o.recetaSnapshot as any)?.componentes || []).map((d: any) => d.insumoId)))].filter(Boolean) as string[];
+    const ingredients = capturedIds.length ? await this.prisma.insumo.findMany({ where: { id: { in: capturedIds } }, include: { familia: true } }) : [];
+    return ordenes.map(o => {
+      const conversion = masaLoteOpcional(o);
+      const captured = o.recetaSnapshot as any;
+      const recetaDetalles = captured?.componentes?.map((d: any) => ({ ...d, insumo: ingredients.find(i => i.id === d.insumoId) })) || o.formula?.detalles || [];
+      return { ...o, recetaDetalles, cantidadPlanificadaKg: conversion.kg, conversionPendiente: conversion.pendiente };
+    });
   }
 
   async obtenerProgramacionDiaria(fechaStr?: string) {
@@ -887,7 +611,8 @@ export class ProduccionService {
       include: {
         formula: { include: { detalles: { include: { insumo: { include: { familia: true } } } } } },
         supervisor: { select: { nombres: true, apellidos: true } },
-        pedidoComercial: { select: { cantidadSolicitada: true, unidadMedida: true } },
+        pedidoItem: true,
+        pedidoComercial: { select: { cantidadSolicitada: true, unidadMedida: true, notasAdmin: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -900,11 +625,12 @@ export class ProduccionService {
     const listaFormatted = ordenesDelDia.map((oItem) => {
       const o = oItem as any;
       const cantidadPlanificada = Number(o.cantidadPlanificada) || 0;
-      totalKgProgramados += cantidadLoteKg(cantidadPlanificada, o.pedidoComercial?.unidadMedida || 'KG', Number(o.formula?.densidadTeorica));
+      const conversion = masaLoteOpcional(o);
+      totalKgProgramados += conversion.kg || 0;
 
       // Resolver unidad y cantidad de presentación desde el pedido comercial vinculado
       const pedido = o.pedidoComercial;
-      const unidadPedido = pedido?.unidadMedida || 'KG';
+      const unidadPedido = o.unidadMedida || o.pedidoItem?.unidadMedida || pedido?.unidadMedida || 'PENDIENTE';
       const cantidadVisual = cantidadPlanificada;
 
       const esTerminado =
@@ -966,6 +692,7 @@ export class ProduccionService {
         fraganciaEspecificada: fraganciaResuelta || 'SIN FRAGANCIA',
         cantidad: cantidadVisual,
         unidadMedida: unidadPedido,
+        conversionPendiente: conversion.pendiente,
         estado: estadoCalculado,
         operarios: o.operariosAsignados || nombreSupervisor || 'Sin Asignar',
         prioridad: o.prioridad || 'NORMAL',
@@ -979,6 +706,7 @@ export class ProduccionService {
       resumen: {
         totalOrdenes: listaFormatted.length,
         totalKgProgramados: totalKgProgramados.toFixed(2),
+        totalConversionesPendientes: listaFormatted.filter(o => o.conversionPendiente).length,
         totalTerminados: terminadosCount,
         totalEnProceso: enProcesoCount,
         totalPendientes: pendientesCount,
@@ -996,7 +724,8 @@ export class ProduccionService {
     const orden = await this.prisma.ordenProduccion.findUnique({
       where: { id: loteId },
       include: {
-        pedidoComercial: { select: { unidadMedida: true } },
+        pedidoItem: true,
+        pedidoComercial: { select: { unidadMedida: true, notasAdmin: true } },
         formula: {
           include: {
             detalles: {
@@ -1015,98 +744,27 @@ export class ProduccionService {
       throw new NotFoundException('Orden de producción no encontrada.');
     }
 
-    const cantidadPlanificadaKg = cantidadLoteKg(Number(orden.cantidadPlanificada), orden.pedidoComercial?.unidadMedida || 'KG', Number(orden.formula.densidadTeorica));
-
-    // 1. Componentes base de la fórmula
-    const ingredientesBase = orden.formula.detalles.map((d) => {
-      const pct = Number(d.porcentaje);
-      const gramos = cantidadPlanificadaKg * 1000 * (pct / 100);
-      return {
-        insumoId: d.insumoId,
-        codigo: d.insumo.codigo,
-        nombre: d.insumo.nombre,
-        familia: d.insumo.familia?.nombre || 'General',
-        tipo: 'BASE',
-        porcentaje: pct,
-        gramosCalculados: Math.round(gramos * 100) / 100,
-        unidadMedida: unidadStock(d.insumo.unidadMedida),
-        stockReal: Number(d.insumo.stockReal),
-        suficiente: unidadStock(d.insumo.unidadMedida) === 'GR' && Number(d.insumo.stockReal) >= gramos,
-        esAditivo: false,
+    const conversion = masaLoteOpcional(orden);
+    const recipe = await recetaLote(this.prisma, orden);
+    const ingredientes = recipe.details.map(d => {
+      const grams = conversion.kg == null ? null : new Prisma.Decimal(conversion.kg).mul(1000).mul(d.porcentaje).div(100).toDecimalPlaces(4).toNumber();
+      let cantidadStock: number | null = null, calculoStockPendiente: string | null = conversion.pendiente;
+      if (grams != null) {
+        try { cantidadStock = cantidadEnStock(grams, 'GR', d.insumo); }
+        catch (error) { calculoStockPendiente = error.message; }
+      }
+      return { insumoId: d.insumoId, codigo: d.insumo.codigo, nombre: d.insumo.nombre,
+        familia: d.insumo.familia?.nombre || 'General', tipo: d.insumo.tipo || 'BASE', porcentaje: d.porcentaje,
+        gramosCalculados: grams, unidadMedida: 'GR', unidadStock: unidadStock(d.insumo), cantidadStock, calculoStockPendiente, stockReal: Number(d.insumo.stockReal),
+        suficiente: cantidadStock == null ? null : Number(d.insumo.stockReal) >= cantidadStock,
+        esAditivo: ['FRAGANCIA', 'PIGMENTO'].includes(d.insumo.tipo),
       };
     });
-
-    // 2. Aditivos del pedido comercial asociado
-    let aditivos: any[] = [];
-    let pedidoConVariante: any = null;
-    if (orden.codigoLote) {
-      const numPart = (orden.codigoLote || '').replace(/\D/g, '');
-
-      const pedido = await (this.prisma as any).pedidoComercial.findFirst({
-        where: numPart
-          ? {
-              OR: [
-                { codigoOrden: { contains: numPart } },
-                { codigoRefAdmin: { contains: numPart } },
-                { clienteNombre: orden.clienteNombre },
-              ],
-            }
-          : { clienteNombre: orden.clienteNombre },
-        include: {
-          aditivos: {
-            include: {
-              insumo: {
-                include: { familia: true },
-              },
-            },
-          },
-          variante: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      if (pedido && pedido.aditivos && pedido.aditivos.length > 0) {
-        pedidoConVariante = pedido;
-        aditivos = pedido.aditivos.map((ad: any) => {
-          const pct = Number(ad.porcentaje) || (ad.tipo === 'PIGMENTO' ? 0.5 : 1.0);
-          const gramos = Number(ad.gramosCalculados) || (cantidadPlanificadaKg * 1000 * (pct / 100));
-          return {
-            insumoId: ad.insumoId,
-            codigo: ad.insumo?.codigo || 'AD-001',
-            nombre: ad.insumo?.nombre || 'Aditivo Personalizado',
-            familia: ad.insumo?.familia?.nombre || (ad.tipo === 'FRAGANCIA' ? 'Fragancias' : 'Pigmentos'),
-            tipo: ad.tipo || 'FRAGANCIA',
-            porcentaje: pct,
-            gramosCalculados: Math.round(gramos * 100) / 100,
-            unidadMedida: unidadStock(ad.insumo?.unidadMedida || 'GR'),
-            stockReal: Number(ad.insumo?.stockReal || 0),
-            suficiente: !!ad.insumo && unidadStock(ad.insumo.unidadMedida) === 'GR' && Number(ad.insumo.stockReal) >= gramos,
-            esAditivo: true,
-          };
-        });
-      }
-    }
-
-    const mergeReceta = [...ingredientesBase, ...aditivos];
-    const totalGramos = mergeReceta.reduce((sum, item) => sum + item.gramosCalculados, 0);
-
-    // Prioriza los pasos de elaboración de la VARIANTE (cliente específico) si existen;
-    // si no, usa los pasos de la fórmula maestra.
-    const pasosVariant = pedidoConVariante?.variante?.pasosElaboracion;
-    const pasosEfectivos = Array.isArray(pasosVariant) && pasosVariant.length > 0
-      ? pasosVariant
-      : (Array.isArray(orden.formula.pasosElaboracion) ? orden.formula.pasosElaboracion : []);
-
-    return {
-      ordenId: orden.id,
-      codigoLote: orden.codigoLote,
-      clienteNombre: orden.clienteNombre,
-      productoNombre: orden.formula.nombreProducto,
-      cantidadPlanificadaKg,
-      totalGramos: Math.round(totalGramos * 100) / 100,
-      ingredientes: mergeReceta,
-      pasosElaboracion: pasosEfectivos,
+    return { ordenId: orden.id, codigoLote: orden.codigoLote, clienteNombre: orden.clienteNombre,
+      productoNombre: recipe.snapshot.nombreProducto || orden.formula.nombreProducto,
+      cantidadPlanificadaKg: conversion.kg, conversionPendiente: conversion.pendiente,
+      totalGramos: conversion.kg == null ? null : ingredientes.reduce((sum, d) => sum + d.gramosCalculados, 0),
+      ingredientes, pasosElaboracion: recipe.snapshot.pasosElaboracion || [],
     };
   }
 }
-

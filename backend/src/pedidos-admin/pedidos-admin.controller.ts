@@ -33,8 +33,8 @@ export class PedidosAdminController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.VENTAS_ATENCION_DIGITAL, Role.PRODUCCION_ALMACEN)
-  crearPedido(@Body() dto: any) {
-    return this.pedidosAdminService.crearPedido(dto);
+  crearPedido(@Body() dto: any, @Req() req: any) {
+    return this.pedidosAdminService.crearPedido(dto, req.user?.id);
   }
 
   @Put(':id')
@@ -43,8 +43,9 @@ export class PedidosAdminController {
   actualizarPedido(
     @Param('id') id: string,
     @Body() dto: any,
+    @Req() req: any,
   ) {
-    return this.pedidosAdminService.actualizarPedido(id, dto);
+    return this.pedidosAdminService.actualizarPedido(id, dto, req.user?.id);
   }
 
   @Delete(':id')
@@ -64,8 +65,8 @@ export class PedidosAdminController {
   @Post(':id/aprobar')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.GERENCIA, Role.ADMINISTRACION, Role.ASISTENTE_ADMINISTRATIVO, Role.PRODUCCION_ALMACEN)
-  aprobarPedido(@Param('id') id: string) {
-    return this.pedidosAdminService.aprobarPedido(id);
+  aprobarPedido(@Param('id') id: string, @Req() req: any) {
+    return this.pedidosAdminService.aprobarPedido(id, req.user?.id);
   }
 
   @Post(':id/devolver')
@@ -84,8 +85,9 @@ export class PedidosAdminController {
   convertirCotizacionAPedido(
     @Param('id') id: string,
     @Body() dto: any,
+    @Req() req: any,
   ) {
-    return this.pedidosAdminService.convertirCotizacionAPedido(id, dto);
+    return this.pedidosAdminService.convertirCotizacionAPedido(id, dto, req.user?.id);
   }
 
   @Post(':id/emitir-comprobante')

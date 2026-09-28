@@ -29,13 +29,15 @@ export class DashboardInventarioService {
     const totalInsumos = insumos.length;
     let valorizacionTotal = 0;
     let insumosCriticosCount = 0;
+    let valorizacionesPendientes = 0;
 
     for (const insumo of insumos) {
       const stockReal = Number(insumo.stockReal);
-      const costoUnitario = costoPorUnidadStock(Number(insumo.costoUnitario), insumo.unidadMedida);
+      const costoUnitario = costoPorUnidadStock(Number(insumo.costoUnitario), insumo);
       const stockMinimo = Number(insumo.stockMinimo);
 
-      valorizacionTotal += stockReal * costoUnitario;
+      if (!insumo.unidadStock && unidadStock(insumo) === 'ML') valorizacionesPendientes++;
+      else valorizacionTotal += stockReal * costoUnitario;
       if (stockReal <= stockMinimo) {
         insumosCriticosCount++;
       }
@@ -44,6 +46,7 @@ export class DashboardInventarioService {
     return {
       totalInsumos,
       valorizacionTotal: valorizacionTotal.toFixed(2),
+      valorizacionesPendientes,
       insumosCriticosCount,
       sobrantesCount,
       movimientosMesCount,
@@ -64,10 +67,10 @@ export class DashboardInventarioService {
         codigo: i.codigo,
         nombre: i.nombre,
         familia: i.familia.nombre,
-        unidadMedida: unidadStock(i.unidadMedida),
+        unidadMedida: unidadStock(i),
         stockReal: Number(i.stockReal),
         stockMinimo: Number(i.stockMinimo),
-        costoUnitario: costoPorUnidadStock(Number(i.costoUnitario), i.unidadMedida),
+        costoUnitario: costoPorUnidadStock(Number(i.costoUnitario), i),
         deficit: (Number(i.stockMinimo) - Number(i.stockReal)).toFixed(2),
         nivelPorcentaje:
           Number(i.stockMinimo) > 0
@@ -91,7 +94,7 @@ export class DashboardInventarioService {
 
       for (const insumo of f.insumos) {
         const stock = Number(insumo.stockReal);
-        const costo = costoPorUnidadStock(Number(insumo.costoUnitario), insumo.unidadMedida);
+        const costo = costoPorUnidadStock(Number(insumo.costoUnitario), insumo);
         stockTotal += stock;
         valorizacion += stock * costo;
       }
@@ -114,14 +117,14 @@ export class DashboardInventarioService {
 
     const insumosValorizados = insumos.map((i) => {
       const stockReal = Number(i.stockReal);
-      const costoUnitario = costoPorUnidadStock(Number(i.costoUnitario), i.unidadMedida);
+      const costoUnitario = costoPorUnidadStock(Number(i.costoUnitario), i);
       const valorTotal = stockReal * costoUnitario;
       return {
         id: i.id,
         codigo: i.codigo,
         nombre: i.nombre,
         familia: i.familia.nombre,
-        unidadMedida: unidadStock(i.unidadMedida),
+        unidadMedida: unidadStock(i),
         stockReal,
         stockMinimo: Number(i.stockMinimo),
         costoUnitario,
@@ -175,7 +178,7 @@ export class DashboardInventarioService {
     const insumosFormatted = insumos.map((i) => {
       const stockReal = Number(i.stockReal);
       const stockMinimo = Number(i.stockMinimo);
-      const unidadBase = unidadStock(i.unidadMedida);
+      const unidadBase = unidadStock(i);
       const unidadVisual = i.unidadMedidaVisual && unidadStock(i.unidadMedidaVisual) === unidadBase ? i.unidadMedidaVisual : unidadBase;
 
       // Cantidad física exacta en la unidad visual correspondiente
@@ -226,7 +229,7 @@ export class DashboardInventarioService {
     const totalFisicoKgLt = insumos.reduce((acc, i) => {
       const u = i.unidadMedidaVisual || i.unidadMedida;
       const s = Number(i.stockReal);
-      return acc + (unidadStock(i.unidadMedida) === 'GR' ? s / 1000 : 0);
+      return acc + (unidadStock(i) === 'GR' ? s / 1000 : 0);
     }, 0);
 
     return {

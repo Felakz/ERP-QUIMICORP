@@ -9,12 +9,13 @@ const { InventarioService } = require('../dist/inventario/inventario.service');
 
 function fixture(stock = 98640.65, unit = 'KG') {
   const item = { id: 'item', codigo: 'AGUA', nombre: 'AGUA DESIONIZADA', unidadMedida: unit, stockReal: new Prisma.Decimal(stock), costoUnitario: 10, familia: { nombre: 'BASES' }, tipo: 'BASE' };
+  const carrier = { ...item, id: 'rest', nombre: 'RESTO DE FORMULA', stockReal: new Prisma.Decimal(1000000), costoUnitario: 0 };
   const moves = [], traces = [];
   const order = { id: 'order', codigoLote: 'LOTE-TEST', estado: 'QA_PENDIENTE', cantidadPlanificada: 10, supervisorId: 'user',
-    formula: { nombreProducto: 'PRODUCTO', densidadTeorica: 1, detalles: [{ insumoId: item.id, porcentaje: 78.6, insumo: item }] }, pedidoComercial: { unidadMedida: 'KG', montoTotal: 100 } };
+    formula: { nombreProducto: 'PRODUCTO', densidadTeorica: 1, detalles: [{ insumoId: item.id, porcentaje: 78.6, insumo: item }, { insumoId: carrier.id, porcentaje: 21.4, insumo: carrier }] }, pedidoComercial: { unidadMedida: 'KG', montoTotal: 100 } };
   const tx = {
     $queryRaw: async () => [],
-    insumo: { findUnique: async () => item, findUniqueOrThrow: async () => item, update: async ({data}) => Object.assign(item, data) },
+    insumo: { findUnique: async ({where}) => where.id === 'rest' ? carrier : item, findUniqueOrThrow: async ({where}) => where.id === 'rest' ? carrier : item, update: async ({where, data}) => Object.assign(where.id === 'rest' ? carrier : item, data) },
     ordenProduccion: { findUnique: async () => order, findUniqueOrThrow: async () => order, update: async ({data}) => Object.assign(order, data) },
     kardexMovimiento: { create: async ({data}) => { moves.push(data); return data; } },
     kardexInmutable: { create: async ({data}) => { traces.push(data); return data; } },
@@ -42,6 +43,23 @@ test('KG, GR, L, ML and UN convert only once and incompatible dimensions fail', 
   assert.throws(() => cantidadLoteKg(10, 'L'));
 });
 
+test('a liquid commercial label cannot silently reinterpret an unverified legacy stock as ML', () => {
+  const ambiguous = { unidadMedida: 'L', unidadStock: null };
+  assert.throws(() => cantidadEnStock(5, 'L', ambiguous), /unidad base/);
+  assert.throws(() => cantidadEnStock(5, 'KG', ambiguous), /unidad base/);
+  assert.equal(cantidadEnStock(5, 'L', { ...ambiguous, unidadStock: 'ML' }), 5000);
+});
+
+test('documented density applies only when crossing dimensions; weighed stock is not multiplied again', () => {
+  const ingredient = { unidadMedida: 'L', unidadStock: 'GR', densidadKgL: 0.78924, fuenteDensidad: 'DOCUMENTO FICTICIO DE PRUEBA' };
+  assert.equal(cantidadEnStock(5, 'L', ingredient), 3946.2);
+  assert.equal(cantidadEnStock(5, 'KG', ingredient), 5000);
+  assert.equal(cantidadEnStock(5000, 'GR', ingredient), 5000);
+  const { costoPorUnidadStock } = require('../dist/common/stock-units');
+  assert.ok(Math.abs(costoPorUnidadStock(20, ingredient) * 3946.2 - 100) < 1e-8);
+  assert.throws(() => cantidadEnStock(5, 'L', { ...ingredient, fuenteDensidad: '' }), /densidad/);
+});
+
 for (const unit of ['KG', 'GR']) test(`QA consumes 7,860 GR from the screenshot balance with ${unit} metadata`, async () => {
   const f = fixture(98640.65, unit);
   await f.service.aprobarLote({ ordenProduccionId: 'order' });
@@ -50,9 +68,10 @@ for (const unit of ['KG', 'GR']) test(`QA consumes 7,860 GR from the screenshot 
   assert.equal(f.moves[0].unidadMedida, 'GR');
   assert.equal(f.moves[0].saldoFinal, 90780.65);
   assert.equal(Number(f.traces[0].cantidad), 7860);
-  assert.equal(f.moves[1].cantidadEntrada, 10000);
-  assert.equal(f.moves[1].unidadMedida, 'GR');
-  assert.equal(f.moves[1].montoEntradaPen, 100);
+  assert.equal(f.moves[2].cantidadEntrada, 10000);
+  assert.equal(f.moves[2].unidadMedida, 'GR');
+  assert.equal(f.moves[2].montoEntradaPen, unit === 'KG' ? 78.6 : 78600);
+  assert.equal(f.moves[2].valoracionPendiente, true);
   if (unit === 'KG') assert.ok(Math.abs(f.moves[0].montoSalidaPen - 78.6) < 1e-8);
 });
 
@@ -68,7 +87,7 @@ test('a second QA release cannot consume stock twice', async () => {
   await f.service.aprobarLote({ ordenProduccionId: 'order' });
   await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order' }), /ya fue liberado/);
   assert.equal(Number(f.item.stockReal), 90780.65);
-  assert.equal(f.moves.length, 2);
+  assert.equal(f.moves.length, 3);
 });
 
 test('manual kardex converts explicit KG and records both ledgers in GR', async () => {
@@ -152,6 +171,7 @@ test('additional dispatch in KG consumes base grams; envases remain units', asyn
 
 test('volume ingredients cannot silently be consumed as if liters were kilograms', async () => {
   const f = fixture(10000, 'L');
+  f.item.unidadStock = 'ML';
   await assert.rejects(f.service.aprobarLote({ ordenProduccionId: 'order' }), /densidad específica/);
   assert.equal(Number(f.item.stockReal), 10000);
   assert.equal(f.moves.length, 0);

@@ -1,7 +1,19 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsIn, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { TipoInsumo, UnidadMedida } from '@prisma/client';
 
 export class CrearInsumoDto {
+  @IsOptional()
+  @IsIn(['GR', 'ML', 'UN'])
+  unidadStock?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.000001)
+  densidadKgL?: number;
+
+  @IsOptional()
+  @IsString()
+  fuenteDensidad?: string;
   @IsString()
   codigo: string;
 
@@ -43,6 +55,18 @@ export class CrearInsumoDto {
 }
 
 export class ActualizarInsumoDto {
+  @IsOptional()
+  @IsIn(['GR', 'ML', 'UN'])
+  unidadStock?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.000001)
+  densidadKgL?: number;
+
+  @IsOptional()
+  @IsString()
+  fuenteDensidad?: string;
   @IsOptional()
   @IsString()
   codigo?: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   Send,
@@ -45,6 +45,8 @@ export interface FormItem {
   unidadMedida: string;
   precioUnitario: number;
   adicionales?: PedidoAdicionalForm[];
+  pesoNetoKg?: number;
+  fuenteConversion?: string;
 }
 
 interface PedidoAdicionalForm {
@@ -323,6 +325,8 @@ export function CommercialOrderForm({
 
   // Action & Modal states
   const [isSaving, setIsSaving] = useState(false);
+  const operationKey = useRef('');
+  const operationFingerprint = useRef('');
   const [stockValidationModal, setStockValidationModal] = useState(false);
   const [stockValidationData, setStockValidationData] = useState<any>(null);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
@@ -574,9 +578,9 @@ export function CommercialOrderForm({
   };
 
   const totalGeneral = items.reduce(
-    (acc, item) => acc + item.cantidad * item.precioUnitario + (item.adicionales || []).reduce((sum, adicional) => sum + adicional.cantidad * adicional.precioUnitarioVenta, 0),
+    (acc, item) => acc + Math.round((item.cantidad * item.precioUnitario + Number.EPSILON) * 100) + (item.adicionales || []).reduce((sum, adicional) => sum + Math.round((adicional.cantidad * adicional.precioUnitarioVenta + Number.EPSILON) * 100), 0),
     0,
-  );
+  ) / 100;
 
   // Submit Order / Quotation
   const handleSubmit = async (bypassStockCheck = false) => {
@@ -639,11 +643,13 @@ export function CommercialOrderForm({
       return;
     }
 
+    if (isSaving) return;
     setIsSaving(true);
     try {
       const mainItem = items[0];
       const payload: any = {
         mode,
+        moneda: moneda.includes('USD') ? 'USD' : 'PEN',
         clienteId: effectiveClient.id || null,
         clienteInline: {
           razonSocial: effectiveClient.razonSocial,
@@ -677,6 +683,12 @@ export function CommercialOrderForm({
         observacionesAdmin: observaciones.trim() || (mode === 'COTIZACION' ? 'Cotización comercial emitida para cliente.' : 'Orden de producción formal emitida a Planta.'),
         itemsJson: items,
       };
+      const fingerprint = JSON.stringify(payload);
+      if (!operationKey.current || operationFingerprint.current !== fingerprint) {
+        operationKey.current = crypto.randomUUID();
+        operationFingerprint.current = fingerprint;
+      }
+      payload.claveOperacion = operationKey.current;
 
       const { data: responseData, ok, error } = await apiFetch<any>('/pedidos-admin', {
         method: 'POST',
@@ -758,7 +770,7 @@ export function CommercialOrderForm({
       }
     } catch (err: any) {
       console.error('Error al procesar orden:', err);
-      setToastMessage('Operación registrada.');
+      setToastMessage('No se pudo confirmar el registro. Reintenta con los mismos datos o revisa el pedido antes de cambiarlo.');
     } finally {
       setIsSaving(false);
     }
@@ -1373,7 +1385,8 @@ export function CommercialOrderForm({
                     >
                       <option value="KG">KG</option>
                       <option value="LT">LT</option>
-                      <option value="UN">UN</option>
+                      <option value="GR">GR</option>
+                      <option value="ML">ML</option>
                     </select>
                   </div>
 
@@ -1390,6 +1403,22 @@ export function CommercialOrderForm({
                     />
                   </div>
                 </div>
+
+                {['LT', 'L', 'ML'].includes(item.unidadMedida) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-xs">Peso neto del lote (KG), si está medido
+                      <input type="number" min="0.0001" step="0.0001" value={item.pesoNetoKg ?? ''}
+                        onChange={(e) => handleUpdateItem(idx, 'pesoNetoKg', e.target.value ? Number(e.target.value) : undefined)}
+                        className={`mt-1 w-full rounded-xl border p-2 ${inputBg}`} />
+                    </label>
+                    <label className="text-xs">Referencia del pesaje
+                      <input value={item.fuenteConversion ?? ''} placeholder="Hoja o registro de pesaje"
+                        onChange={(e) => handleUpdateItem(idx, 'fuenteConversion', e.target.value)}
+                        className={`mt-1 w-full rounded-xl border p-2 ${inputBg}`} />
+                    </label>
+                    <p className="col-span-2 text-xs text-amber-500">Si falta el pesaje, podrá registrarse el pedido; los consumos en gramos quedarán pendientes hasta medirlo en planta.</p>
+                  </div>
+                )}
 
                 <div className="border-t border-slate-800/40 pt-3">
                   <label className="flex items-center gap-2 text-xs font-bold text-slate-300 cursor-pointer">
@@ -1543,7 +1572,7 @@ export function CommercialOrderForm({
                 </span>
               </div>
               <div className="text-2xl font-black font-mono text-amber-400">
-                S/ {totalGeneral.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                {moneda.includes('USD') ? 'USD' : 'S/'} {totalGeneral.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
               </div>
             </div>
 

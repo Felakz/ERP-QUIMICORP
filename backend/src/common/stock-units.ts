@@ -19,22 +19,32 @@ function definition(unit: string) {
   return result;
 }
 
-export const unidadStock = (unit: string): string => definition(unit).base;
+export type StockUnit = string | { unidadMedida: string; unidadStock?: string | null; densidadKgL?: unknown; fuenteDensidad?: string | null };
+export const unidadStock = (unit: StockUnit): string => typeof unit === 'string' ? definition(unit).base : definition(unit.unidadStock || unit.unidadMedida).base;
 export const factorUnidad = (unit: string): number => definition(unit).factor;
 
-export function cantidadEnStock(quantity: number, source: string, target: string): number {
+export function cantidadEnStock(quantity: number, source: string, target: StockUnit, allowInferredVolume = false): number {
   if (!Number.isFinite(quantity)) throw new BadRequestException('Cantidad inválida.');
+  if (!allowInferredVolume && typeof target === 'object' && !target.unidadStock && definition(target.unidadMedida).base === 'ML') throw new BadRequestException('Confirme la unidad base del stock del insumo líquido antes de registrar movimientos. Su unidad comercial en litros no acredita que el saldo existente esté medido en ML.');
+  let amount = new Prisma.Decimal(quantity).mul(factorUnidad(source));
   if (unidadStock(source) !== unidadStock(target)) {
-    throw new BadRequestException(`No se puede convertir ${source} a ${target}. Para masa y volumen se requiere la densidad específica del insumo.`);
+    const density = typeof target === 'object' && target.fuenteDensidad?.trim() ? Number(target.densidadKgL) : NaN;
+    if (!Number.isFinite(density) || density <= 0 || !['GR', 'ML'].includes(unidadStock(source)) || !['GR', 'ML'].includes(unidadStock(target))) {
+      throw new BadRequestException(`No se puede convertir ${source} a la unidad de stock. Para masa y volumen se requiere la densidad específica del insumo documentada.`);
+    }
+    amount = unidadStock(source) === 'ML' ? amount.mul(density) : amount.div(density);
   }
-  return new Prisma.Decimal(quantity).mul(factorUnidad(source)).toDecimalPlaces(4).toNumber();
+  return amount.toDecimalPlaces(4).toNumber();
 }
 
-export function costoPorUnidadStock(cost: number, commercialUnit: string): number {
-  return new Prisma.Decimal(cost).div(factorUnidad(commercialUnit)).toNumber();
+export function costoPorUnidadStock(cost: number, commercialUnit: StockUnit): number {
+  if (!Number.isFinite(cost) || cost < 0) throw new BadRequestException('Costo inválido.');
+  if (cost === 0) return 0;
+  const source = typeof commercialUnit === 'string' ? commercialUnit : commercialUnit.unidadMedida;
+  return new Prisma.Decimal(cost).div(cantidadEnStock(1, source, commercialUnit, true)).toNumber();
 }
 
-export function consumoFormulaGramos(batchKg: number, percentage: number, ingredientUnit: string): number {
+export function consumoFormulaGramos(batchKg: number, percentage: number, ingredientUnit: StockUnit): number {
   return cantidadEnStock(new Prisma.Decimal(batchKg).mul(percentage).div(100).toNumber(), 'KG', ingredientUnit);
 }
 

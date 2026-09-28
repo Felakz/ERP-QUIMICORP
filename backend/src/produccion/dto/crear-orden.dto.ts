@@ -14,6 +14,24 @@ export class CrearOrdenDto {
   @IsOptional()
   @IsString()
   clienteNombre?: string;
+
+  @IsOptional()
+  @IsString()
+  unidadMedida?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  pesoNetoKg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.000001)
+  densidadKgL?: number;
+
+  @IsOptional()
+  @IsString()
+  fuenteConversion?: string;
 }
 
 export class ValidarStockDto {
@@ -23,6 +41,24 @@ export class ValidarStockDto {
   @IsNumber()
   @Min(0.0001)
   cantidadPlanificada: number;
+
+  @IsOptional()
+  @IsString()
+  unidadMedida?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  pesoNetoKg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.000001)
+  densidadKgL?: number;
+
+  @IsOptional()
+  @IsString()
+  fuenteConversion?: string;
 }
 
 export class RegistrarAjusteFinoDto {
@@ -44,12 +80,40 @@ export class RegistrarAjusteFinoDto {
 }
 
 export class DecidirQADto {
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  pesoBrutoKg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  taraKg?: number;
   @IsString()
   ordenProduccionId: string;
 
   @IsOptional()
   @IsNumber()
+  @Min(0.0001)
   cantidadObtenida?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0001)
+  pesoNetoKg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.000001)
+  densidadKgL?: number;
+
+  @IsOptional()
+  @IsString()
+  fuenteConversion?: string;
+
+  @IsOptional()
+  @IsArray()
+  consumosReales?: Array<{ insumoId: string; cantidad: number; unidadMedida: string; documentoSoporte: string }>;
 
   @IsOptional()
   @IsString()

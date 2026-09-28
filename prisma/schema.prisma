@@ -156,23 +156,23 @@ model User {
 }
 
 model SolicitudAutorizacion {
-  id                String   @id @default(uuid())
-  solicitanteId     String   @map("solicitante_id")
-  solicitanteEmail  String   @map("solicitante_email")
-  solicitanteNombre String   @map("solicitante_nombre")
-  
-  modulo            String
-  accion            String   // 'FORMULA_EDIT', 'FORMULA_CLONE', 'CLIENTE_EDIT', 'CLIENTE_DELETE'
-  recursoId         String?  @map("recurso_id")
-  recursoNombre     String?  @map("recurso_nombre")
-  motivo            String?
-  estado            String   @default("PENDIENTE") // PENDIENTE, APROBADO, RECHAZADO
-  
-  aprobadorEmail    String?  @map("aprobador_email")
-  respuestaMotivo   String?  @map("respuesta_motivo")
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                String @id @default(uuid())
+  solicitanteId     String @map("solicitante_id")
+  solicitanteEmail  String @map("solicitante_email")
+  solicitanteNombre String @map("solicitante_nombre")
+
+  modulo        String
+  accion        String // 'FORMULA_EDIT', 'FORMULA_CLONE', 'CLIENTE_EDIT', 'CLIENTE_DELETE'
+  recursoId     String? @map("recurso_id")
+  recursoNombre String? @map("recurso_nombre")
+  motivo        String?
+  estado        String  @default("PENDIENTE") // PENDIENTE, APROBADO, RECHAZADO
+
+  aprobadorEmail  String? @map("aprobador_email")
+  respuestaMotivo String? @map("respuesta_motivo")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("solicitudes_autorizacion")
 }
@@ -193,11 +193,11 @@ model FamiliaInsumo {
 }
 
 model Insumo {
-  id            String         @id @default(uuid())
-  codigo        String         @unique
-  nombre        String
-  familiaId     String
-  familia       FamiliaInsumo  @relation(fields: [familiaId], references: [id])
+  id                 String         @id @default(uuid())
+  codigo             String         @unique
+  nombre             String
+  familiaId          String
+  familia            FamiliaInsumo  @relation(fields: [familiaId], references: [id])
   unidadMedida       UnidadMedida
   unidadMedidaVisual String?
   categoria          String?
@@ -210,6 +210,9 @@ model Insumo {
   tipo               TipoInsumo?    @default(OTRO)
   estadoFisico       String?        @map("estado_fisico")
   esSoloFormula      Boolean        @default(false) @map("es_solo_formula")
+  unidadStock        String?        @map("unidad_stock")
+  densidadKgL        Decimal?       @map("densidad_kg_l") @db.Decimal(12, 6)
+  fuenteDensidad     String?        @map("fuente_densidad")
 
   formulaDetalles     FormulaDetalle[]
   ajustesFinos        AjusteFino[]
@@ -217,9 +220,9 @@ model Insumo {
   kardexCategorizados KardexMovimiento[]
   subAlmacenSobrantes SubAlmacenSobrante[]
   pedidoAditivos      PedidoAditivo[]
-  pedidoAdicionales    PedidoAdicional[]
+  pedidoAdicionales   PedidoAdicional[]
   cotizaciones        CotizacionProveedor[]
-  ordenCompraItems  OrdenCompraItem[]
+  ordenCompraItems    OrdenCompraItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -231,18 +234,19 @@ model Insumo {
 }
 
 model FormulaMaster {
-  id              String        @id @default(uuid())
-  codigoFormula   String        @unique
-  nombreProducto  String
-  version         Int           @default(1)
-  densidadTeorica Decimal       @db.Decimal(10, 4)
-  estado          EstadoFormula @default(EN_REVISION)
-  pasosElaboracion Json?        @map("pasos_elaboracion")
+  id               String        @id @default(uuid())
+  codigoFormula    String        @unique
+  nombreProducto   String
+  version          Int           @default(1)
+  densidadTeorica  Decimal       @db.Decimal(10, 4)
+  estado           EstadoFormula @default(EN_REVISION)
+  pasosElaboracion Json?         @map("pasos_elaboracion")
 
-  detalles          FormulaDetalle[]
-  ordenesProduccion OrdenProduccion[]
+  detalles           FormulaDetalle[]
+  ordenesProduccion  OrdenProduccion[]
   pedidosComerciales PedidoComercial[]
-  variants          FormulaVariant[]
+  variants           FormulaVariant[]
+  itemsComerciales   PedidoComercialItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -271,28 +275,38 @@ model FormulaDetalle {
 }
 
 model OrdenProduccion {
-  id                  String                @id @default(uuid())
-  codigoLote          String                @unique
-  clienteNombre       String?               @default("Cliente Quimicorp SAC")
-  operariosAsignados  String?
-  colorEspecificado   String?
+  id                    String                @id @default(uuid())
+  codigoLote            String                @unique
+  clienteNombre         String?               @default("Cliente Quimicorp SAC")
+  operariosAsignados    String?
+  colorEspecificado     String?
   fraganciaEspecificada String?
-  prioridad           String?               @default("NORMAL")
-  observacionesQA     String?
-  motivoRechazo       String?
-  pasoProceso         String?               @default("PENDIENTE_ASIGNACION")
-  formulaId           String
-  formula             FormulaMaster         @relation(fields: [formulaId], references: [id])
-  cantidadPlanificada Decimal               @db.Decimal(14, 4)
-  cantidadObtenida    Decimal?              @db.Decimal(14, 4)
-  mermaCalculada      Decimal?              @db.Decimal(14, 4)
-  estado              EstadoOrdenProduccion @default(PENDIENTE)
-  supervisorId        String
-  supervisor          Usuario               @relation("SupervisorOrdenes", fields: [supervisorId], references: [id])
-  fechaCierre         DateTime?
+  prioridad             String?               @default("NORMAL")
+  observacionesQA       String?
+  motivoRechazo         String?
+  pasoProceso           String?               @default("PENDIENTE_ASIGNACION")
+  formulaId             String
+  formula               FormulaMaster         @relation(fields: [formulaId], references: [id])
+  cantidadPlanificada   Decimal               @db.Decimal(14, 4)
+  cantidadObtenida      Decimal?              @db.Decimal(14, 4)
+  mermaCalculada        Decimal?              @db.Decimal(14, 4)
+  estado                EstadoOrdenProduccion @default(PENDIENTE)
+  supervisorId          String
+  supervisor            Usuario               @relation("SupervisorOrdenes", fields: [supervisorId], references: [id])
+  fechaCierre           DateTime?
 
-  pedidoComercialId  String?        @map("pedido_comercial_id")
-  pedidoComercial    PedidoComercial? @relation(fields: [pedidoComercialId], references: [id])
+  pedidoComercialId  String?              @map("pedido_comercial_id")
+  pedidoComercial    PedidoComercial?     @relation(fields: [pedidoComercialId], references: [id])
+  pedidoItemId       String?              @map("pedido_item_id")
+  pedidoItem         PedidoComercialItem? @relation(fields: [pedidoItemId], references: [id])
+  clienteId          String?              @map("cliente_id")
+  cliente            Cliente?             @relation(fields: [clienteId], references: [id])
+  unidadMedida       String?              @map("unidad_medida")
+  pesoNetoKg         Decimal?             @map("peso_neto_kg") @db.Decimal(14, 4)
+  densidadKgL        Decimal?             @map("densidad_kg_l") @db.Decimal(12, 6)
+  fuenteConversion   String?              @map("fuente_conversion")
+  recetaSnapshot     Json?                @map("receta_snapshot")
+  conciliacionEstado String?              @map("conciliacion_estado")
 
   ajustesFinos     AjusteFino[]
   subAlmacenOrigen SubAlmacenSobrante[]
@@ -382,10 +396,11 @@ model KardexMovimiento {
   cantidadSalida  Float          @default(0) @map("cantidad_salida")
   saldoFinal      Float          @map("saldo_final")
 
-  costoUnitario   Float?         @default(0) @map("costo_unitario")
-  montoEntradaPen Float?         @default(0) @map("monto_entrada_pen")
-  montoSalidaPen  Float?         @default(0) @map("monto_salida_pen")
-  montoSaldoPen   Float?         @default(0) @map("monto_saldo_pen")
+  costoUnitario       Float?  @default(0) @map("costo_unitario")
+  montoEntradaPen     Float?  @default(0) @map("monto_entrada_pen")
+  montoSalidaPen      Float?  @default(0) @map("monto_salida_pen")
+  montoSaldoPen       Float?  @default(0) @map("monto_saldo_pen")
+  valoracionPendiente Boolean @default(false) @map("valoracion_pendiente")
 
   insumoId  String?  @map("insumo_id")
   insumo    Insumo?  @relation(fields: [insumoId], references: [id])
@@ -429,10 +444,10 @@ model Usuario {
   codigoBiometrico String?        @unique
   estado           EstadoGenerico @default(ACTIVO)
 
-  sucursalId String?  @map("sucursal_id")
+  sucursalId String?   @map("sucursal_id")
   sucursal   Sucursal? @relation(fields: [sucursalId], references: [id], onDelete: SetNull)
-  turnoId    String?  @map("turno_id")
-  turno      Turno?   @relation(fields: [turnoId], references: [id], onDelete: SetNull)
+  turnoId    String?   @map("turno_id")
+  turno      Turno?    @relation(fields: [turnoId], references: [id], onDelete: SetNull)
 
   ordenesSupervisadas     OrdenProduccion[]      @relation("SupervisorOrdenes")
   ajustesFinosRegistrados AjusteFino[]           @relation("RegistroAjustesFinos")
@@ -476,11 +491,11 @@ model Asistencia {
   minutosTardanza  Int              @default(0)
   estadoAsistencia EstadoAsistencia @default(PUNTUAL)
 
-  turnoId       String? @map("turno_id")
-  turno         Turno?  @relation(fields: [turnoId], references: [id], onDelete: SetNull)
-  horaEntrada   String? @map("hora_entrada") // HH:mm
-  horaSalida    String? @map("hora_salida")  // HH:mm
-  estadoAlmuerzo String @default("PENDIENTE") @map("estado_almuerzo") // PENDIENTE, EN_ALMUERZO, OBLIGADO_ALMORZAR, COMPLETO, EXCEDIDO
+  turnoId        String? @map("turno_id")
+  turno          Turno?  @relation(fields: [turnoId], references: [id], onDelete: SetNull)
+  horaEntrada    String? @map("hora_entrada") // HH:mm
+  horaSalida     String? @map("hora_salida") // HH:mm
+  estadoAlmuerzo String  @default("PENDIENTE") @map("estado_almuerzo") // PENDIENTE, EN_ALMUERZO, OBLIGADO_ALMORZAR, COMPLETO, EXCEDIDO
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -492,12 +507,12 @@ model Asistencia {
 }
 
 model Sucursal {
-  id            String   @id @default(uuid())
-  nombre        String   @unique
+  id            String  @id @default(uuid())
+  nombre        String  @unique
   direccion     String?
-  dispositivoId String?  @unique @map("dispositivo_id") // serial del huellero ZKTeco
-  ip            String?  @map("ip")                    // IP fija LAN del huellero
-  port          Int      @default(4370)
+  dispositivoId String? @unique @map("dispositivo_id") // serial del huellero ZKTeco
+  ip            String? @map("ip") // IP fija LAN del huellero
+  port          Int     @default(4370)
 
   usuarios Usuario[]
 
@@ -508,12 +523,12 @@ model Sucursal {
 }
 
 model Turno {
-  id               String   @id @default(uuid())
-  nombre           String   @unique
-  horaInicio       String   @map("hora_inicio")    // HH:mm
-  horaFin          String   @map("hora_fin")       // HH:mm
-  toleranciaMinutos Int     @default(15) @map("tolerancia_minutos")
-  almuerzoTope     String   @default("14:00") @map("almuerzo_tope") // HH:mm — pasada esta hora se obliga a comer
+  id                String @id @default(uuid())
+  nombre            String @unique
+  horaInicio        String @map("hora_inicio") // HH:mm
+  horaFin           String @map("hora_fin") // HH:mm
+  toleranciaMinutos Int    @default(15) @map("tolerancia_minutos")
+  almuerzoTope      String @default("14:00") @map("almuerzo_tope") // HH:mm — pasada esta hora se obliga a comer
 
   usuarios    Usuario[]
   asistencias Asistencia[]
@@ -618,16 +633,16 @@ model ColaDespacho {
   estado           String   @default("LISTO_PARA_IMPRIMIR")
   numeroGuia       String?  @map("numero_guia")
 
-  ruc              String?  @map("ruc")
-  sku              String?
-  advertenciaGHS   String?  @map("advertencia_ghs")
-  codigoGHS        String?  @map("codigo_ghs")
-  tipoPeligro      String?  @map("tipo_peligro")
-  tipoEnvase       String?  @map("tipo_envase")
-  taraGramos       Int?     @map("tara_gramos")
+  ruc            String? @map("ruc")
+  sku            String?
+  advertenciaGHS String? @map("advertencia_ghs")
+  codigoGHS      String? @map("codigo_ghs")
+  tipoPeligro    String? @map("tipo_peligro")
+  tipoEnvase     String? @map("tipo_envase")
+  taraGramos     Int?    @map("tara_gramos")
 
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([loteCodigo])
   @@index([estado])
@@ -764,20 +779,26 @@ model PedidoComercial {
   motivoDevolucion   String?                  @map("motivo_devolucion")
 
   // Campos nuevos (opcionales para compatibilidad con payloads antiguos)
-  docType            String?                  @default("OP") @map("doc_type")   // "COT" | "OP"
-  tipoComprobante    String?                  @map("tipo_comprobante")          // "BOLETA" | "FACTURA" | "NOTA_VENTA" (emitido)
-  aroma              String?
-  color              String?
-  aromaText          String?                  @map("aroma_text")
-  colorText          String?                  @map("color_text")
-  varianteId         String?                  @map("variante_id")
-  variante           FormulaVariant?          @relation(fields: [varianteId], references: [id])
-  clienteId          String?                  @map("cliente_id")
-  clienteRef         Cliente?                 @relation(fields: [clienteId], references: [id])
+  docType         String?         @default("OP") @map("doc_type") // "COT" | "OP"
+  tipoComprobante String?         @map("tipo_comprobante") // "BOLETA" | "FACTURA" | "NOTA_VENTA" (emitido)
+  aroma           String?
+  color           String?
+  aromaText       String?         @map("aroma_text")
+  colorText       String?         @map("color_text")
+  varianteId      String?         @map("variante_id")
+  variante        FormulaVariant? @relation(fields: [varianteId], references: [id])
+  clienteId       String?         @map("cliente_id")
+  clienteRef      Cliente?        @relation(fields: [clienteId], references: [id])
+  claveOperacion  String?         @unique @map("clave_operacion")
+  huellaOperacion String?         @map("huella_operacion")
+  moneda          String          @default("PEN")
+  origenRegistro  String?         @map("origen_registro")
+  importeValidado Boolean         @default(true) @map("importe_validado")
 
-  aditivos           PedidoAditivo[]
-  adicionales        PedidoAdicional[]
-  ordenesProduccion  OrdenProduccion[]
+  aditivos          PedidoAditivo[]
+  adicionales       PedidoAdicional[]
+  ordenesProduccion OrdenProduccion[]
+  items             PedidoComercialItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -786,6 +807,30 @@ model PedidoComercial {
   @@index([clienteRuc])
   @@index([docType])
   @@map("pedidos_comerciales")
+}
+
+model PedidoComercialItem {
+  id             String            @id @default(uuid())
+  pedidoId       String            @map("pedido_id")
+  pedido         PedidoComercial   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  indice         Int
+  codigoLinea    String            @map("codigo_linea")
+  productoNombre String            @map("producto_nombre")
+  formulaId      String            @map("formula_id")
+  formula        FormulaMaster     @relation(fields: [formulaId], references: [id])
+  varianteId     String?           @map("variante_id")
+  cantidad       Decimal           @db.Decimal(14, 4)
+  unidadMedida   String            @map("unidad_medida")
+  precioUnitario Decimal?          @map("precio_unitario") @db.Decimal(14, 4)
+  subtotal       Decimal?          @db.Decimal(14, 2)
+  metadata       Json?
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  lotes          OrdenProduccion[]
+
+  @@unique([pedidoId, indice])
+  @@unique([pedidoId, codigoLinea])
+  @@map("pedido_comercial_items")
 }
 
 model PedidoAditivo {
@@ -798,8 +843,8 @@ model PedidoAditivo {
   porcentaje       Decimal         @default(1.00) @db.Decimal(5, 2)
   gramosCalculados Decimal?        @map("gramos_calculados") @db.Decimal(14, 4)
 
-  createdAt        DateTime        @default(now()) @map("created_at")
-  updatedAt        DateTime        @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([pedidoId])
   @@index([insumoId])
@@ -838,20 +883,21 @@ model PedidoAdicional {
 // ============================================================================
 
 model Cliente {
-  id            String   @id @default(uuid())
-  razonSocial   String
-  ruc           String   @unique
-  telefono      String?
-  direccion     String?
-  contacto      String?
-  metodoEnvio   String?
-  condicionPago String?  @default("Contado")
-  limiteCredito Decimal? @map("limite_credito") @db.Decimal(12, 2)
-  diasCreditoMax Int?    @map("dias_credito_max")
+  id             String   @id @default(uuid())
+  razonSocial    String
+  ruc            String   @unique
+  telefono       String?
+  direccion      String?
+  contacto       String?
+  metodoEnvio    String?
+  condicionPago  String?  @default("Contado")
+  limiteCredito  Decimal? @map("limite_credito") @db.Decimal(12, 2)
+  diasCreditoMax Int?     @map("dias_credito_max")
 
-  contactos    ContactoRepresentante[]
-  pedidos      PedidoComercial[]
-  variantes    FormulaVariant[]
+  contactos     ContactoRepresentante[]
+  pedidos       PedidoComercial[]
+  lotes         OrdenProduccion[]
+  variantes     FormulaVariant[]
   cuentasCobrar CuentaCobrar[]
 
   createdAt DateTime @default(now())
@@ -862,40 +908,40 @@ model Cliente {
 }
 
 model ContactoRepresentante {
-  id          String   @id @default(uuid())
-  clienteId   String   @map("cliente_id")
-  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
   nombre      String
-  cargo       String?  // Dueño, Compras, Asistente, Recepción, Supervisión
+  cargo       String? // Dueño, Compras, Asistente, Recepción, Supervisión
   telefono    String?
   email       String?
-  esPrincipal Boolean  @default(false) @map("es_principal")
+  esPrincipal Boolean @default(false) @map("es_principal")
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([clienteId])
   @@map("contacto_representantes")
 }
 
 model FormulaVariant {
-  id            String        @id @default(uuid())
-  nombre        String
-  formulaId     String        @map("formula_id")
-  formula       FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
-  clienteId     String?       @map("cliente_id")
-  cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  id        String        @id @default(uuid())
+  nombre    String
+  formulaId String        @map("formula_id")
+  formula   FormulaMaster @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  clienteId String?       @map("cliente_id")
+  cliente   Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
-  nombreMarca   String?       @map("nombre_marca")
-  aroma         String?
-  color         String?
-  phObjetivo    Float?        @map("ph_objetivo")
-  viscosidad    String?
-  instrucciones   String?
-  notas           String?
-  ajustesJson     Json?               @map("ajustes_json")
-  pasosElaboracion Json?              @map("pasos_elaboracion")
+  nombreMarca      String? @map("nombre_marca")
+  aroma            String?
+  color            String?
+  phObjetivo       Float?  @map("ph_objetivo")
+  viscosidad       String?
+  instrucciones    String?
+  notas            String?
+  ajustesJson      Json?   @map("ajustes_json")
+  pasosElaboracion Json?   @map("pasos_elaboracion")
 
   pedidos PedidoComercial[]
 
@@ -908,23 +954,23 @@ model FormulaVariant {
 }
 
 model Proveedor {
-  id              String   @id @default(uuid())
-  ruc             String   @unique
-  razonSocial     String   @map("razon_social")
+  id              String  @id @default(uuid())
+  ruc             String  @unique
+  razonSocial     String  @map("razon_social")
   contacto        String?
   telefono        String?
   correo          String?
   direccion       String?
-  insumoPrincipal String?  @map("insumo_principal")
-  calificacion    Float    @default(5.0)
-  estado          String   @default("HOMOLOGADO")
+  insumoPrincipal String? @map("insumo_principal")
+  calificacion    Float   @default(5.0)
+  estado          String  @default("HOMOLOGADO")
 
   cuentasBancarias CuentaBancariaProveedor[]
   cotizaciones     CotizacionProveedor[]
   ordenesCompra    OrdenCompra[]
 
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("proveedores")
 }
@@ -938,8 +984,8 @@ model CuentaBancariaProveedor {
   numeroCuenta String    @map("numero_cuenta")
   cci          String?
 
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([proveedorId])
   @@map("cuentas_bancarias_proveedores")
@@ -951,17 +997,17 @@ model CotizacionProveedor {
   proveedor           Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
   insumoId            String    @map("insumo_id")
   insumo              Insumo    @relation(fields: [insumoId], references: [id], onDelete: Cascade)
-  precioUnitario      Decimal   @db.Decimal(14, 4) @map("precio_unitario")
+  precioUnitario      Decimal   @map("precio_unitario") @db.Decimal(14, 4)
   moneda              String    @default("SOLES")
   unidadMedida        String    @default("KG") @map("unidad_medida")
   numCotizacion       String?   @map("num_cotizacion")
   fechaCotizacion     DateTime  @default(now()) @map("fecha_cotizacion")
-  variacionPorcentual Decimal?  @db.Decimal(8, 2) @map("variacion_porcentual")
+  variacionPorcentual Decimal?  @map("variacion_porcentual") @db.Decimal(8, 2)
   observaciones       String?
   estado              String    @default("VIGENTE")
 
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([proveedorId])
   @@index([insumoId])
@@ -970,21 +1016,21 @@ model CotizacionProveedor {
 }
 
 model OrdenCompra {
-  id                    String               @id @default(uuid())
-  codigoOC              String               @unique @map("codigo_oc")
-  proveedorId           String               @map("proveedor_id")
-  proveedor             Proveedor            @relation(fields: [proveedorId], references: [id])
-  ruc                   String
-  proveedorNombre       String               @map("proveedor_nombre")
-  fechaEmision          DateTime             @map("fecha_emision")
-  fechaEntregaEstimada  DateTime             @map("fecha_entrega_estimada")
-  estado                String               @default("PENDIENTE") // PENDIENTE, EN_TRANSITO, RECIBIDO, ANULADA
-  totalPEN              Decimal              @db.Decimal(14, 2) @map("total_pen")
-  moneda                String               @default("PEN")
-  condicionPago         String?              @map("condicion_pago")
-  comprador             String?
-  observaciones         String?
-  items                 OrdenCompraItem[]
+  id                   String            @id @default(uuid())
+  codigoOC             String            @unique @map("codigo_oc")
+  proveedorId          String            @map("proveedor_id")
+  proveedor            Proveedor         @relation(fields: [proveedorId], references: [id])
+  ruc                  String
+  proveedorNombre      String            @map("proveedor_nombre")
+  fechaEmision         DateTime          @map("fecha_emision")
+  fechaEntregaEstimada DateTime          @map("fecha_entrega_estimada")
+  estado               String            @default("PENDIENTE") // PENDIENTE, EN_TRANSITO, RECIBIDO, ANULADA
+  totalPEN             Decimal           @map("total_pen") @db.Decimal(14, 2)
+  moneda               String            @default("PEN")
+  condicionPago        String?           @map("condicion_pago")
+  comprador            String?
+  observaciones        String?
+  items                OrdenCompraItem[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -995,16 +1041,16 @@ model OrdenCompra {
 }
 
 model OrdenCompraItem {
-  id              String       @id @default(uuid())
-  ordenCompraId   String       @map("orden_compra_id")
-  ordenCompra     OrdenCompra  @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
-  insumoId        String?      @map("insumo_id")
-  insumo          Insumo?      @relation(fields: [insumoId], references: [id])
-  insumoNombre    String       @map("insumo_nombre")
-  cantidad        Decimal      @db.Decimal(14, 4)
-  unidadMedida    String       @map("unidad_medida")
-  precioUnitario  Decimal      @db.Decimal(14, 4) @map("precio_unitario")
-  subtotal        Decimal      @db.Decimal(14, 2)
+  id             String      @id @default(uuid())
+  ordenCompraId  String      @map("orden_compra_id")
+  ordenCompra    OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  insumoId       String?     @map("insumo_id")
+  insumo         Insumo?     @relation(fields: [insumoId], references: [id])
+  insumoNombre   String      @map("insumo_nombre")
+  cantidad       Decimal     @db.Decimal(14, 4)
+  unidadMedida   String      @map("unidad_medida")
+  precioUnitario Decimal     @map("precio_unitario") @db.Decimal(14, 4)
+  subtotal       Decimal     @db.Decimal(14, 2)
 
   @@index([ordenCompraId])
   @@map("orden_compra_items")
@@ -1012,52 +1058,52 @@ model OrdenCompraItem {
 
 // Parámetros aprobados por Finanzas para distribuir costos indirectos por unidad.
 model CostoOperativoPeriodo {
-  id                 String   @id @default(uuid())
-  periodo            String   @unique // YYYY-MM
-  cantidadBase       Decimal  @map("cantidad_base") @db.Decimal(14, 4)
-  manoObraLote       Decimal  @map("mano_obra_lote") @db.Decimal(14, 4)
-  supervisionLote    Decimal  @map("supervision_lote") @db.Decimal(14, 4)
-  depreciacionLote   Decimal  @map("depreciacion_lote") @db.Decimal(14, 4)
-  energiaLote        Decimal  @map("energia_lote") @db.Decimal(14, 4)
-  usoLocalLote       Decimal  @map("uso_local_lote") @db.Decimal(14, 4)
-  alquilerMensual    Decimal? @map("alquiler_mensual") @db.Decimal(14, 4)
-  energiaMensual     Decimal? @map("energia_mensual") @db.Decimal(14, 4)
-  horasProductivas   Decimal? @map("horas_productivas") @db.Decimal(14, 4)
-  valorMaquinaria    Decimal? @map("valor_maquinaria") @db.Decimal(14, 4)
-  depreciacionAnual  Decimal? @map("depreciacion_anual") @db.Decimal(8, 4)
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                String   @id @default(uuid())
+  periodo           String   @unique // YYYY-MM
+  cantidadBase      Decimal  @map("cantidad_base") @db.Decimal(14, 4)
+  manoObraLote      Decimal  @map("mano_obra_lote") @db.Decimal(14, 4)
+  supervisionLote   Decimal  @map("supervision_lote") @db.Decimal(14, 4)
+  depreciacionLote  Decimal  @map("depreciacion_lote") @db.Decimal(14, 4)
+  energiaLote       Decimal  @map("energia_lote") @db.Decimal(14, 4)
+  usoLocalLote      Decimal  @map("uso_local_lote") @db.Decimal(14, 4)
+  alquilerMensual   Decimal? @map("alquiler_mensual") @db.Decimal(14, 4)
+  energiaMensual    Decimal? @map("energia_mensual") @db.Decimal(14, 4)
+  horasProductivas  Decimal? @map("horas_productivas") @db.Decimal(14, 4)
+  valorMaquinaria   Decimal? @map("valor_maquinaria") @db.Decimal(14, 4)
+  depreciacionAnual Decimal? @map("depreciacion_anual") @db.Decimal(8, 4)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@index([periodo])
   @@map("costos_operativos_periodo")
 }
 
 model CuentaCobrar {
-  id               String      @id @default(uuid())
-  codigoDoc        String      @unique @map("codigo_doc")
-  clienteId        String?     @map("cliente_id")
-  cliente          Cliente?    @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  clienteNombre    String      @map("cliente_nombre")
-  clienteRuc       String      @map("cliente_ruc")
-  pedidoId         String?     @map("pedido_id")
-  ordenProd        String?     @map("orden_prod")
+  id               String    @id @default(uuid())
+  codigoDoc        String    @unique @map("codigo_doc")
+  clienteId        String?   @map("cliente_id")
+  cliente          Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  clienteNombre    String    @map("cliente_nombre")
+  clienteRuc       String    @map("cliente_ruc")
+  pedidoId         String?   @map("pedido_id")
+  ordenProd        String?   @map("orden_prod")
   producto         String?
-  montoTotal       Decimal     @db.Decimal(14, 2) @map("monto_total")
-  saldoPendiente   Decimal     @db.Decimal(14, 2) @map("saldo_pendiente")
-  condicionPago    String      @default("Contado") @map("condicion_pago")
-  diasPlazo        Int         @default(0) @map("dias_plazo")
-  fechaEmision     DateTime    @default(now()) @map("fecha_emision")
-  fechaVencimiento DateTime    @map("fecha_vencimiento")
-  fechaPago        DateTime?   @map("fecha_pago")
-  estado           String      @default("PENDIENTE") // PAGADO, PENDIENTE, VENCIDO
-  medioPago        String?     @map("medio_pago")
-  canalBanco       String?     @map("canal_banco")
-  emitidoPor       String?     @map("emitido_por")
+  montoTotal       Decimal   @map("monto_total") @db.Decimal(14, 2)
+  saldoPendiente   Decimal   @map("saldo_pendiente") @db.Decimal(14, 2)
+  condicionPago    String    @default("Contado") @map("condicion_pago")
+  diasPlazo        Int       @default(0) @map("dias_plazo")
+  fechaEmision     DateTime  @default(now()) @map("fecha_emision")
+  fechaVencimiento DateTime  @map("fecha_vencimiento")
+  fechaPago        DateTime? @map("fecha_pago")
+  estado           String    @default("PENDIENTE") // PAGADO, PENDIENTE, VENCIDO
+  medioPago        String?   @map("medio_pago")
+  canalBanco       String?   @map("canal_banco")
+  emitidoPor       String?   @map("emitido_por")
 
-  pagos            PagoAbono[]
+  pagos PagoAbono[]
 
-  createdAt        DateTime    @default(now()) @map("created_at")
-  updatedAt        DateTime    @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([clienteRuc])
   @@index([estado])
@@ -1069,18 +1115,15 @@ model PagoAbono {
   id             String       @id @default(uuid())
   cuentaCobrarId String       @map("cuenta_cobrar_id")
   cuentaCobrar   CuentaCobrar @relation(fields: [cuentaCobrarId], references: [id], onDelete: Cascade)
-  montoAbonado   Decimal      @db.Decimal(14, 2) @map("monto_abonado")
+  montoAbonado   Decimal      @map("monto_abonado") @db.Decimal(14, 2)
   fechaAbono     DateTime     @default(now()) @map("fecha_abono")
   medio          String?
   banco          String?
   numOperacion   String?      @map("num_operacion")
   observaciones  String?
 
-  createdAt      DateTime     @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@index([cuentaCobrarId])
   @@map("pagos_abonos")
 }
-
-
-

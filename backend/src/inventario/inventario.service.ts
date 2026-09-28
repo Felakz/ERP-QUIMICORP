@@ -66,7 +66,9 @@ export class InventarioService {
       throw new ConflictException(`El código ${codigo} ya existe. Usa un SKU distinto o edita el existente.`);
     }
 
-    const stockInicial = cantidadEnStock(Number(dto.stockInicial || 0), dto.unidadMedida, dto.unidadMedida);
+    if (dto.densidadKgL != null && (!Number.isFinite(dto.densidadKgL) || dto.densidadKgL <= 0 || !dto.fuenteDensidad?.trim())) throw new BadRequestException('La densidad requiere un valor positivo y su documento de soporte.');
+    const newItemUnits = { ...dto, unidadStock: dto.unidadStock || unidadStock(dto.unidadMedida) };
+    const stockInicial = cantidadEnStock(Number(dto.stockInicial || 0), dto.unidadMedida, newItemUnits);
     if (stockInicial < 0) throw new BadRequestException('El stock inicial no puede ser negativo.');
     const esSoloFormula = Boolean(dto.esSoloFormula);
 
@@ -77,9 +79,12 @@ export class InventarioService {
           nombre,
           familiaId: dto.familiaId,
           unidadMedida: dto.unidadMedida,
+          unidadStock: dto.unidadStock || unidadStock(dto.unidadMedida),
+          densidadKgL: dto.densidadKgL,
+          fuenteDensidad: dto.fuenteDensidad,
           tipo: dto.tipo ?? 'OTRO',
           estadoFisico: dto.estadoFisico ?? null,
-          stockMinimo: cantidadEnStock(Number(dto.stockMinimo || 0), dto.unidadMedida, dto.unidadMedida),
+          stockMinimo: cantidadEnStock(Number(dto.stockMinimo || 0), dto.unidadMedida, newItemUnits),
           costoUnitario: dto.costoUnitario ?? 0,
           stockReal: stockInicial,
           stockTeorico: stockInicial,
@@ -91,7 +96,7 @@ export class InventarioService {
       if (stockInicial > 0) {
         const user = await tx.usuario.findFirst({ where: { dni: '70000000' } });
         const categoria = this.categoriaKardexSegunTipo(insumo.tipo, insumo.familia?.nombre);
-        const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo.unidadMedida);
+        const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo);
 
         await tx.kardexMovimiento.create({
           data: {
@@ -100,7 +105,7 @@ export class InventarioService {
             familia: insumo.familia?.nombre || 'General',
             categoriaNombre: insumo.familia?.nombre || 'Químicos Base',
             proveedorCliente: 'ALTA INICIAL - ADMINISTRACION',
-            unidadMedida: unidadStock(insumo.unidadMedida),
+            unidadMedida: unidadStock(insumo),
             fecha: new Date(),
             tipoDoc: 'ALTA',
             tipoOperacion: TipoMovimiento.ENTRADA_COMPRA,
@@ -144,7 +149,7 @@ export class InventarioService {
       });
       if (!insumo) throw new NotFoundException('Insumo no encontrado.');
 
-      cantidad = cantidadEnStock(cantidad, insumo.unidadMedida, insumo.unidadMedida);
+      cantidad = cantidadEnStock(cantidad, insumo.unidadMedida, insumo);
       const stockAnterior = Number(insumo.stockReal || 0);
       const stockNuevo = new Prisma.Decimal(stockAnterior).plus(cantidad).toDecimalPlaces(4).toNumber();
 
@@ -158,7 +163,7 @@ export class InventarioService {
         : await tx.usuario.findFirst({ where: { dni: '70000000' } });
 
       const categoria = this.categoriaKardexSegunTipo(insumo.tipo, insumo.familia?.nombre);
-      const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo.unidadMedida);
+      const costo = costoPorUnidadStock(Number(insumo.costoUnitario || 0), insumo);
 
       await tx.kardexMovimiento.create({
         data: {
@@ -167,7 +172,7 @@ export class InventarioService {
           familia: insumo.familia?.nombre || 'General',
           categoriaNombre: insumo.familia?.nombre || 'Químicos Base',
           proveedorCliente: documentoReferencia || 'REPOSICION STOCK - ADMINISTRACION',
-          unidadMedida: unidadStock(insumo.unidadMedida),
+          unidadMedida: unidadStock(insumo),
           fecha: new Date(),
           tipoDoc: 'REPO',
           tipoOperacion: TipoMovimiento.ENTRADA_COMPRA,
@@ -214,6 +219,16 @@ export class InventarioService {
       if (!insumoActual) throw new NotFoundException(`Insumo con ID ${id} no encontrado.`);
 
       const data: any = {};
+      if (dto.unidadStock !== undefined) {
+        if (!['GR', 'ML', 'UN'].includes(dto.unidadStock) || unidadStock(insumoActual) !== dto.unidadStock) throw new BadRequestException('Cambiar la base del stock existente requiere conciliación documentada; esta edición no convierte saldos históricos.');
+        data.unidadStock = dto.unidadStock;
+      }
+      if (dto.densidadKgL !== undefined || dto.fuenteDensidad !== undefined) {
+        const density = Number(dto.densidadKgL ?? insumoActual.densidadKgL);
+        const source = String(dto.fuenteDensidad ?? insumoActual.fuenteDensidad ?? '').trim();
+        if (!Number.isFinite(density) || density <= 0 || !source) throw new BadRequestException('Indique una densidad positiva y el documento de soporte.');
+        data.densidadKgL = density; data.fuenteDensidad = source;
+      }
       if (dto.nombre !== undefined) data.nombre = String(dto.nombre).trim();
       if (dto.codigo !== undefined) {
         const codigoLimpio = String(dto.codigo).trim().toUpperCase();
@@ -227,9 +242,9 @@ export class InventarioService {
       }
       if (dto.familiaId) data.familiaId = dto.familiaId;
       if (dto.unidadMedida) {
-        if (unidadStock(dto.unidadMedida) !== unidadStock(insumoActual.unidadMedida)) throw new BadRequestException('No se puede cambiar la dimensión de un insumo con historial.');
+        if (unidadStock(dto.unidadMedida) !== unidadStock(insumoActual.unidadMedida)) throw new BadRequestException('Cambiar la unidad comercial entre masa y volumen requiere conciliación documentada.');
         data.unidadMedida = dto.unidadMedida;
-        if (dto.costoUnitario === undefined) data.costoUnitario = costoPorUnidadStock(Number(insumoActual.costoUnitario), insumoActual.unidadMedida) * factorUnidad(dto.unidadMedida);
+        if (dto.costoUnitario === undefined) data.costoUnitario = costoPorUnidadStock(Number(insumoActual.costoUnitario), insumoActual) * cantidadEnStock(1, dto.unidadMedida, { ...insumoActual, ...data });
       }
       if (dto.tipo) data.tipo = dto.tipo;
       if (dto.estadoFisico !== undefined) data.estadoFisico = dto.estadoFisico ? String(dto.estadoFisico).trim() : null;
@@ -238,6 +253,7 @@ export class InventarioService {
       if (dto.esSoloFormula !== undefined) data.esSoloFormula = Boolean(dto.esSoloFormula);
 
       if (dto.stockReal !== undefined) {
+        if (unidadStock(insumoActual) === 'ML' && !insumoActual.unidadStock) throw new BadRequestException('La unidad real del saldo líquido requiere conciliación previa; no se ajustará por una unidad inferida.');
         const nuevoStock = Number(dto.stockReal);
         if (!Number.isFinite(nuevoStock) || nuevoStock < 0) throw new BadRequestException('El stock debe ser un número no negativo en la unidad base.');
         data.stockReal = nuevoStock;
@@ -259,7 +275,7 @@ export class InventarioService {
           const usuarioRegistro = user?.id && await tx.usuario.findUnique({ where: { id: user.id } }) || await tx.usuario.findFirst({ where: { dni: '70000000' } });
           if (!usuarioRegistro) throw new BadRequestException('No se encontró el usuario responsable del ajuste.');
           const categoria = this.categoriaKardexSegunTipo(data.tipo || insumoActual.tipo, insumoActual.familia?.nombre);
-          const costo = costoPorUnidadStock(Number(data.costoUnitario !== undefined ? data.costoUnitario : insumoActual.costoUnitario || 0), data.unidadMedida || insumoActual.unidadMedida);
+          const costo = costoPorUnidadStock(Number(data.costoUnitario !== undefined ? data.costoUnitario : insumoActual.costoUnitario || 0), { ...insumoActual, ...data });
 
           await tx.kardexMovimiento.create({
             data: {
@@ -268,7 +284,7 @@ export class InventarioService {
               familia: insumoActual.familia?.nombre || 'General',
               categoriaNombre: insumoActual.familia?.nombre || 'Químicos Base',
               proveedorCliente: 'AJUSTE MANUAL - CRUD ADMINISTRACION',
-              unidadMedida: unidadStock(data.unidadMedida || insumoActual.unidadMedida),
+              unidadMedida: unidadStock({ ...insumoActual, ...data }),
               fecha: new Date(),
               tipoDoc: 'AJUSTE',
               tipoOperacion: diff >= 0 ? TipoMovimiento.ENTRADA_AJUSTE : TipoMovimiento.SALIDA_CONSUMO_PRODUCCION,

@@ -1,4 +1,7 @@
-import { cantidadLoteKg, unidadStock } from '../common/stock-units';
+import { CommercialOrderWorkflow } from './commercial-order.workflow';
+import { masaLoteKg } from '../common/order-quantity';
+import { Prisma } from '@prisma/client';
+import { cantidadLoteKg, consumoFormulaGramos, unidadStock } from '../common/stock-units';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { ProduccionGateway } from '../produccion/produccion.gateway';
@@ -79,215 +82,9 @@ export class PedidosAdminService {
 
 
   // 1.5 Crear pedido/cotización — bifurcado por mode: 'COTIZACION'|'PEDIDO'
-  async crearPedido(dto: any) {
-    const db = this.prisma as any;
-    const mode: 'COTIZACION' | 'PEDIDO' = dto.mode === 'COTIZACION' ? 'COTIZACION' : 'PEDIDO';
-
-    // ── Generar código de orden único ──
-    let codigoOrden: string;
-    if (mode === 'COTIZACION') {
-      const year = new Date().getFullYear();
-      let seq = (await db.pedidoComercial.count({ where: { docType: 'COT' } })) + 1;
-      codigoOrden = `COT-${year}-${String(seq).padStart(3, '0')}`;
-      while (await db.pedidoComercial.findUnique({ where: { codigoOrden } })) {
-        seq++;
-        codigoOrden = `COT-${year}-${String(seq).padStart(3, '0')}`;
-      }
-    } else {
-      // Código OP secuencial y trazable (válido para cotizaciones convertidas a pedido
-      // o pedidos directos). Si dto.code viene vacío se genera OP-YYYY-NNN.
-      const year = new Date().getFullYear();
-      let seq = (await db.pedidoComercial.count({ where: { docType: 'OP' } })) + 1;
-      let poCode = dto.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
-      while (await db.pedidoComercial.findUnique({ where: { codigoOrden: poCode } })) {
-        seq++;
-        poCode = dto.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
-      }
-      codigoOrden = poCode;
-    }
-
-
-    // ── Fecha prometida ──
-    let fechaPrometida = new Date(Date.now() + 7 * 86400000);
-    if (dto.fechaPrometida) {
-      const parsed = new Date(dto.fechaPrometida);
-      if (!isNaN(parsed.getTime())) fechaPrometida = parsed;
-    }
-
-    // ── Resolver formulaId de manera 100% segura contra foreign key constraint ──
-    let validFormulaId: string | null = null;
-    if (dto.formulaId) {
-      const foundById = await this.prisma.formulaMaster.findUnique({
-        where: { id: dto.formulaId },
-      }).catch(() => null);
-      if (foundById) {
-        validFormulaId = foundById.id;
-      }
-    }
-
-    if (!validFormulaId) {
-      const matchCode = (dto.producto || dto.formulaId || '').match(/FM-\d+[\w-]*/i)?.[0];
-      if (matchCode) {
-        const foundByCode = await this.prisma.formulaMaster.findFirst({
-          where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
-        }).catch(() => null);
-        if (foundByCode) {
-          validFormulaId = foundByCode.id;
-        } else {
-          const nuevaFormula = await this.prisma.formulaMaster.create({
-            data: {
-              codigoFormula: matchCode,
-              nombreProducto: dto.producto?.replace(matchCode, '').replace(/^[\s-]+/, '').trim() || `Fórmula ${matchCode}`,
-              estado: 'ACTIVA',
-              densidadTeorica: 1.0,
-            },
-          }).catch(() => null);
-          if (nuevaFormula) {
-            validFormulaId = nuevaFormula.id;
-          }
-        }
-      }
-    }
-
-    // ── Resolver clienteId seguro ──
-    let validClienteId: string | null = null;
-    if (dto.clienteId) {
-      const cFound = await db.cliente.findUnique({ where: { id: dto.clienteId } }).catch(() => null);
-      if (cFound) validClienteId = cFound.id;
-    }
-
-    const targetRuc = dto.ruc || dto.clienteInline?.ruc;
-    if (!validClienteId && targetRuc) {
-      const existing = await db.cliente.findUnique({ where: { ruc: targetRuc } }).catch(() => null);
-      if (existing) {
-        validClienteId = existing.id;
-      } else {
-        const nuevo = await db.cliente.create({
-          data: {
-            razonSocial: dto.cliente || dto.clienteInline?.razonSocial || 'Cliente General',
-            ruc: targetRuc,
-            telefono: dto.telefono || dto.clienteInline?.telefono || null,
-            direccion: dto.direccion || dto.clienteInline?.direccion || null,
-            condicionPago: dto.condicionPago || dto.clienteInline?.condicionPago || 'Contado',
-          },
-        }).catch(() => null);
-        if (nuevo) validClienteId = nuevo.id;
-      }
-    }
-
-    // ── Resolver varianteId seguro ──
-    let validVarianteId: string | null = null;
-    if (dto.varianteId) {
-      const vFound = await db.formulaVariant.findUnique({ where: { id: dto.varianteId } }).catch(() => null);
-      if (vFound) validVarianteId = vFound.id;
-    }
-
-    // ── Crear el registro ──
-    const nuevoPedido = await db.pedidoComercial.create({
-      data: {
-        codigoOrden,
-        docType: mode === 'COTIZACION' ? 'COT' : 'OP',
-        clienteNombre: dto.cliente || dto.clienteInline?.razonSocial || '',
-        clienteRuc: targetRuc || '',
-        contactoNombre: dto.contacto || null,
-        contactoTelefono: dto.telefono || null,
-        direccionDespacho: dto.direccion || null,
-        repComercial: dto.repComercial || null,
-        condicionPago: dto.condicionPago || 'Contado',
-        productoNombre: dto.producto || dto.productoNombre || '',
-        cantidadSolicitada: parseFloat(dto.cantidad) || 1.0,
-        unidadMedida: dto.unidad || dto.unidadMedida || 'KG',
-        prioridad: dto.prioridad || 'NORMAL',
-        montoTotal: parseFloat(dto.precioTotal || dto.montoTotal) || 0,
-        fechaPrometida,
-        estado: mode === 'COTIZACION' ? 'NUEVO' : 'PENDIENTE_REVISION',
-        formulaId: validFormulaId,
-        clienteId: validClienteId,
-        varianteId: validVarianteId,
-        aroma: dto.aroma || null,
-        color: dto.color || null,
-        aromaText: dto.aromaText || dto.aroma || null,
-        colorText: dto.colorText || dto.color || null,
-        notasAdmin: dto.itemsJson
-          ? JSON.stringify({
-              items: dto.itemsJson,
-              observaciones: dto.observacionesAdmin || dto.notasAdmin || '',
-            })
-          : typeof dto.recetaCalculada === 'object'
-          ? JSON.stringify(dto.recetaCalculada)
-          : dto.observacionesAdmin || dto.notasAdmin || null,
-      },
-    });
-
-    // ── Persistir PedidoAditivos si vienen en el payload ──
-    const kg = parseFloat(dto.cantidad) || 1.0;
-    if (dto.aditivos && Array.isArray(dto.aditivos) && dto.aditivos.length > 0) {
-      for (const adit of dto.aditivos) {
-        if (!adit.insumoId) continue;
-        const insumo = await db.insumo.findUnique({ where: { id: adit.insumoId } }).catch(() => null);
-        if (!insumo) continue;
-
-        const tipoAditivo = adit.tipo || insumo.tipo || (insumo.nombre.toLowerCase().includes('fragancia') ? 'FRAGANCIA' : 'PIGMENTO');
-        let pct = Number(adit.porcentaje);
-        if (!pct || pct <= 0) {
-          pct = tipoAditivo === 'PIGMENTO' ? 0.5 : 1.0;
-        }
-
-        const gramos = kg * 1000 * (pct / 100);
-
-        await db.pedidoAditivo.create({
-          data: {
-            pedidoId: nuevoPedido.id,
-            insumoId: insumo.id,
-            tipo: tipoAditivo,
-            porcentaje: pct,
-            gramosCalculados: gramos,
-          },
-        }).catch(() => null);
-      }
-    }
-
-    // Los adicionales pertenecen a una línea concreta de la cotización,
-    // no a la fórmula. El descuento físico se realiza únicamente al despachar.
-    if (Array.isArray(dto.adicionales)) {
-      for (const adicional of dto.adicionales) {
-        const cantidad = Number(adicional.cantidad);
-        const precioVenta = Number(adicional.precioUnitarioVenta);
-        if (!['ENVASES', 'BALDES_HERRAMIENTAS'].includes(adicional.categoria) || cantidad <= 0 || precioVenta < 0) {
-          throw new BadRequestException('Adicional inválido: categoría, cantidad o precio no válidos.');
-        }
-        const insumo = adicional.insumoId
-          ? await db.insumo.findUnique({ where: { id: adicional.insumoId } })
-          : null;
-        if (adicional.categoria === 'ENVASES' && !insumo) {
-          throw new BadRequestException('Todo envase debe estar enlazado a un insumo real del inventario.');
-        }
-        await db.pedidoAdicional.create({
-          data: {
-            pedidoId: nuevoPedido.id,
-            itemIndex: Number(adicional.itemIndex) || 0,
-            productoNombre: String(adicional.productoNombre || dto.producto || '').trim(),
-            categoria: adicional.categoria,
-            insumoId: insumo?.id || null,
-            descripcion: String(adicional.descripcion || '').trim(),
-            unidadMedida: String(adicional.unidadMedida || 'UN').toUpperCase(),
-            cantidad,
-            precioUnitarioVenta: precioVenta,
-            costoUnitario: Number(insumo?.costoUnitario || 0),
-            subtotal: cantidad * precioVenta,
-          },
-        });
-      }
-    }
-
-    // ── Emitir WebSocket SOLO para pedidos OP ──
-    if (mode === 'PEDIDO' && this.produccionGateway && this.produccionGateway.server) {
-      this.produccionGateway.server.emit('order:created_to_plant', nuevoPedido);
-    }
-
-    return { ...nuevoPedido, isCotizacion: mode === 'COTIZACION' };
+  async crearPedido(dto: any, actorId?: string) {
+    return new CommercialOrderWorkflow(this.prisma, this.produccionGateway).create(dto, actorId);
   }
-
 
   // 2. Listar pedidos con búsqueda, filtros y cálculo automático de stock en Kardex
   async listar(search?: string, estado?: string, prioridad?: string, docType?: string, fecha?: string) {
@@ -333,6 +130,7 @@ export class PedidosAdminService {
     const pedidos = await db.pedidoComercial.findMany({
       where: whereCondition,
       include: {
+        items: { include: { formula: { include: { detalles: { include: { insumo: true } } } } }, orderBy: { indice: 'asc' } },
         formula: {
           include: {
             detalles: {
@@ -387,10 +185,11 @@ export class PedidosAdminService {
         let stockValidacion: any;
         try {
           stockValidacion = await this.calcularStockPedido(ped);
-        } catch {
+        } catch (error) {
           stockValidacion = {
-            stockCompleto: true,
+            stockCompleto: false,
             insumosFaltantesCount: 0,
+            calculoPendiente: error.message,
             detalles: [],
           };
         }
@@ -407,6 +206,9 @@ export class PedidosAdminService {
             }
           } catch {}
         }
+        if (ped.items?.length) itemsList = ped.items.map((line: any) => ({ ...line.metadata, id: line.codigoLinea,
+          formulaId: line.formulaId, productoNombre: line.productoNombre, cantidad: Number(line.cantidad),
+          unidadMedida: line.unidadMedida, precioUnitario: line.precioUnitario == null ? null : Number(line.precioUnitario) }));
 
         // Estado de pago real desde la cuenta por cobrar vinculada (con VENCIDO derivado)
         const cc = ccPorPedido.get(ped.id) || ccPorOrden.get(ped.codigoOrden) || null;
@@ -447,6 +249,7 @@ export class PedidosAdminService {
     const pedido = await db.pedidoComercial.findUnique({
       where: { id: pedidoId },
       include: {
+        items: { include: { formula: { include: { detalles: { include: { insumo: true } } } } }, orderBy: { indice: 'asc' } },
         formula: {
           include: {
             detalles: {
@@ -465,188 +268,8 @@ export class PedidosAdminService {
   }
 
   // 3.1 Actualizar Pedido / Cotización (Edición de datos comerciales)
-  async actualizarPedido(id: string, dto: any) {
-    const db = this.prisma as any;
-    const pedidoExistente = await db.pedidoComercial.findUnique({
-      where: { id },
-      include: { formula: true, clienteRef: true },
-    });
-
-    if (!pedidoExistente) {
-      throw new NotFoundException(`Pedido comercial con ID ${id} no encontrado.`);
-    }
-
-    const dataToUpdate: any = {};
-
-    // 1. Cliente & RUC
-    const nuevoClienteNombre = dto.clienteNombre !== undefined ? dto.clienteNombre : dto.cliente;
-    if (nuevoClienteNombre !== undefined && nuevoClienteNombre !== null) {
-      dataToUpdate.clienteNombre = String(nuevoClienteNombre).trim();
-    }
-
-    const nuevoRuc = dto.clienteRuc !== undefined ? dto.clienteRuc : dto.ruc;
-    if (nuevoRuc !== undefined && nuevoRuc !== null) {
-      const rucLimpio = String(nuevoRuc).trim();
-      dataToUpdate.clienteRuc = rucLimpio;
-
-      if (rucLimpio) {
-        let clienteEnDb = await db.cliente.findUnique({ where: { ruc: rucLimpio } }).catch(() => null);
-        if (!clienteEnDb && nuevoClienteNombre) {
-          clienteEnDb = await db.cliente.create({
-            data: {
-              ruc: rucLimpio,
-              razonSocial: String(nuevoClienteNombre).trim(),
-              condicionPago: dto.condicionPago || pedidoExistente.condicionPago || 'Contado',
-            },
-          }).catch(() => null);
-        }
-        if (clienteEnDb) {
-          dataToUpdate.clienteId = clienteEnDb.id;
-        }
-      }
-    }
-
-    // 2. Producto
-    const nuevoProducto = dto.productoNombre !== undefined ? dto.productoNombre : dto.producto;
-    if (nuevoProducto !== undefined && nuevoProducto !== null) {
-      dataToUpdate.productoNombre = String(nuevoProducto).trim();
-    }
-
-    // 3. Cantidad y Unidad
-    const nuevaCantidad = dto.cantidadSolicitada !== undefined ? dto.cantidadSolicitada : dto.cantidad;
-    if (nuevaCantidad !== undefined && nuevaCantidad !== null && nuevaCantidad !== '') {
-      const cantNum = parseFloat(nuevaCantidad);
-      if (!isNaN(cantNum) && cantNum >= 0) {
-        dataToUpdate.cantidadSolicitada = cantNum;
-      }
-    }
-
-    const nuevaUnidad = dto.unidadMedida !== undefined ? dto.unidadMedida : dto.unidad;
-    if (nuevaUnidad !== undefined && nuevaUnidad !== null) {
-      dataToUpdate.unidadMedida = String(nuevaUnidad).trim().toUpperCase();
-    }
-
-    // 4. Monto Total
-    const nuevoMonto = dto.montoTotal !== undefined ? dto.montoTotal : dto.precioTotal;
-    if (nuevoMonto !== undefined && nuevoMonto !== null && nuevoMonto !== '') {
-      const montoNum = parseFloat(nuevoMonto);
-      if (!isNaN(montoNum) && montoNum >= 0) {
-        dataToUpdate.montoTotal = montoNum;
-      }
-    }
-
-    // 5. Condición de Pago
-    if (dto.condicionPago !== undefined && dto.condicionPago !== null) {
-      dataToUpdate.condicionPago = String(dto.condicionPago).trim();
-    }
-
-    // 6. Prioridad
-    if (dto.prioridad !== undefined && dto.prioridad !== null) {
-      const p = String(dto.prioridad).toUpperCase().trim();
-      if (['URGENTE', 'NORMAL', 'PROGRAMADO'].includes(p)) {
-        dataToUpdate.prioridad = p;
-      }
-    }
-
-    // 7. Estado
-    const estadoAnterior = pedidoExistente.estado;
-    if (dto.estado !== undefined && dto.estado !== null) {
-      const est = String(dto.estado).toUpperCase().trim();
-      const estadosValidos = [
-        'NUEVO',
-        'PENDIENTE_REVISION',
-        'VALIDANDO',
-        'APROBADO',
-        'EN_PRODUCCION',
-        'DEVUELTO',
-        'RECHAZADO',
-        'ENTREGADO',
-      ];
-      if (estadosValidos.includes(est)) {
-        dataToUpdate.estado = est;
-      }
-    }
-
-    // 8. Fecha Prometida
-    if (dto.fechaPrometida !== undefined && dto.fechaPrometida !== null && dto.fechaPrometida !== '') {
-      const parsedDate = new Date(dto.fechaPrometida);
-      if (!isNaN(parsedDate.getTime())) {
-        dataToUpdate.fechaPrometida = parsedDate;
-      }
-    }
-
-    // 8.1 Fecha que llegó (createdAt / fechaLlegada / fechaEmision)
-    const fechaLlegadaInput = dto.createdAt || dto.fechaLlegada || dto.fechaEmision;
-    if (fechaLlegadaInput !== undefined && fechaLlegadaInput !== null && fechaLlegadaInput !== '') {
-      const parsedLlegada = new Date(fechaLlegadaInput);
-      if (!isNaN(parsedLlegada.getTime())) {
-        dataToUpdate.createdAt = parsedLlegada;
-      }
-    }
-
-    // 9. Tipo Comprobante
-    if (dto.tipoComprobante !== undefined) {
-      dataToUpdate.tipoComprobante = dto.tipoComprobante ? String(dto.tipoComprobante).trim() : null;
-    }
-
-    // 10. Fórmula (FM-xxx o UUID)
-    if (dto.formulaId !== undefined && dto.formulaId !== null) {
-      const formulaInput = String(dto.formulaId).trim();
-      if (formulaInput) {
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formulaInput)) {
-          const fFound = await this.prisma.formulaMaster.findUnique({ where: { id: formulaInput } }).catch(() => null);
-          if (fFound) dataToUpdate.formulaId = fFound.id;
-        } else {
-          const matchCode = formulaInput.match(/FM-\d+[\w-]*/i)?.[0] || formulaInput;
-          let found = await this.prisma.formulaMaster.findFirst({
-            where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
-          }).catch(() => null);
-
-          if (!found) {
-            found = await this.prisma.formulaMaster.create({
-              data: {
-                codigoFormula: matchCode.toUpperCase(),
-                nombreProducto: dataToUpdate.productoNombre || pedidoExistente.productoNombre || `Fórmula ${matchCode}`,
-                estado: 'ACTIVA',
-                densidadTeorica: 1.0,
-              },
-            }).catch(() => null);
-          }
-          if (found) dataToUpdate.formulaId = found.id;
-        }
-      }
-    }
-
-    // 11. Notas u Observaciones
-    if (dto.observaciones !== undefined || dto.notasAdmin !== undefined) {
-      const nota = dto.observaciones !== undefined ? dto.observaciones : dto.notasAdmin;
-      if (typeof nota === 'string') {
-        dataToUpdate.notasAdmin = nota;
-      }
-    }
-
-    const pedidoActualizado = await db.pedidoComercial.update({
-      where: { id },
-      data: dataToUpdate,
-      include: {
-        formula: true,
-        aditivos: { include: { insumo: true } },
-      },
-    });
-
-    // Si cambió a APROBADO desde otro estado, notificar a planta
-    if (dataToUpdate.estado === 'APROBADO' && estadoAnterior !== 'APROBADO') {
-      if (this.produccionGateway && this.produccionGateway.server) {
-        this.produccionGateway.server.emit('pedido:aprobado', pedidoActualizado);
-      }
-    }
-
-    if (this.produccionGateway && this.produccionGateway.server) {
-      this.produccionGateway.server.emit('pedido:actualizado', pedidoActualizado);
-      this.produccionGateway.server.emit('lote:estado_actualizado', pedidoActualizado);
-    }
-
-    return pedidoActualizado;
+  async actualizarPedido(id: string, dto: any, actorId?: string) {
+    return new CommercialOrderWorkflow(this.prisma, this.produccionGateway).update(id, dto, actorId);
   }
 
   // 3.2 Eliminar Pedido / Cotización
@@ -689,222 +312,8 @@ export class PedidosAdminService {
   }
 
   // 4. Aprobar Pedido y Transferir a Control de Producción & QA
-  async aprobarPedido(id: string) {
-    const db = this.prisma as any;
-    const pedido = await db.pedidoComercial.findUnique({
-      where: { id },
-      include: {
-        formula: true,
-        aditivos: { include: { insumo: true } },
-      },
-    });
-
-    if (!pedido) {
-      throw new NotFoundException('Pedido no encontrado.');
-    }
-
-    const pedidoActualizado = await db.pedidoComercial.update({
-      where: { id },
-      data: { estado: 'APROBADO' },
-    });
-
-    // Desglosar items si existen
-    let itemsParsed: any[] = [];
-    if (pedido.notasAdmin) {
-      try {
-        const parsed = JSON.parse(pedido.notasAdmin);
-        if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-          itemsParsed = parsed.items;
-        }
-      } catch {}
-    }
-
-    const supervisor = await this.prisma.usuario.findFirst({
-      where: { rol: { nombre: 'PRODUCCION_ALMACEN' } },
-    });
-    if (!supervisor) {
-      throw new BadRequestException(
-        'No hay usuario con rol PRODUCCION_ALMACEN para asignar como supervisor. Configure el personal de planta primero.',
-      );
-    }
-
-    const fraganciaAditivo = pedido.aditivos?.find(
-      (a: any) => a.tipo === 'FRAGANCIA' || a.insumo?.tipo === 'FRAGANCIA' || a.insumo?.nombre?.toLowerCase().includes('fragancia')
-    );
-    const pigmentoAditivo = pedido.aditivos?.find(
-      (a: any) => a.tipo === 'PIGMENTO' || a.insumo?.tipo === 'PIGMENTO' || a.insumo?.nombre?.toLowerCase().includes('pigmento')
-    );
-
-    const defaultFragancia = pedido.aromaText || pedido.aroma || fraganciaAditivo?.insumo?.nombre || 'SIN FRAGANCIA';
-    const defaultColor = pedido.colorText || pedido.color || pigmentoAditivo?.insumo?.nombre || 'TRANSPARENTE';
-
-    // Si tiene múltiples items, crear una orden de producción por cada producto
-    if (itemsParsed.length > 0) {
-      for (let i = 0; i < itemsParsed.length; i++) {
-        const item = itemsParsed[i];
-        const numPart = pedido.codigoOrden.replace(/\D/g, '') || '0841';
-        const codigoLote = `LOT-2024-${numPart}-${i + 1}`;
-
-        let formulaId: string | null = null;
-        if (item.formulaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.formulaId)) {
-          const exists = await this.prisma.formulaMaster.findUnique({ where: { id: item.formulaId } }).catch(() => null);
-          if (exists) formulaId = exists.id;
-        }
-
-        if (!formulaId) {
-          const matchCode = (item.codigoFM || item.codigo || item.productoNombre || '').match(/FM-\d+[\w-]*/i)?.[0];
-          if (matchCode) {
-            let found = await this.prisma.formulaMaster.findFirst({
-              where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
-            }).catch(() => null);
-            if (!found) {
-              found = await this.prisma.formulaMaster.create({
-                data: {
-                  codigoFormula: matchCode,
-                  nombreProducto: item.productoNombre || item.descripcion || `Fórmula ${matchCode}`,
-                  estado: 'ACTIVA',
-                  densidadTeorica: 1.0,
-                },
-              }).catch(() => null);
-            }
-            if (found) formulaId = found.id;
-          }
-        }
-
-        if (!formulaId) {
-          let fallback = await this.prisma.formulaMaster.findFirst().catch(() => null);
-          if (!fallback) {
-            fallback = await this.prisma.formulaMaster.create({
-              data: {
-                codigoFormula: 'FM-0001',
-                nombreProducto: item.productoNombre || 'Fórmula Base',
-                estado: 'ACTIVA',
-                densidadTeorica: 1.0,
-              },
-            }).catch(() => null);
-          }
-          if (fallback) formulaId = fallback.id;
-        }
-
-        const itemColor = item.color || item.colorText || defaultColor;
-        const itemFragancia = item.aroma || item.aromaText || defaultFragancia;
-
-        if (formulaId) {
-          const existe = await this.prisma.ordenProduccion.findFirst({ where: { codigoLote } }).catch(() => null);
-          if (!existe) {
-            await this.prisma.ordenProduccion.create({
-              data: {
-                codigoLote,
-                formulaId,
-                cantidadPlanificada: Number(item.cantidad) || 100,
-                clienteNombre: pedido.clienteNombre,
-                supervisorId: supervisor.id,
-                colorEspecificado: itemColor,
-                fraganciaEspecificada: itemFragancia,
-                estado: 'EN_PROCESO',
-                pasoProceso: 'PENDIENTE_ASIGNACION',
-                pedidoComercialId: pedido.id,
-              },
-            }).catch((err: any) => console.log('Error creando ordenProduccion item:', err));
-          } else {
-            await this.prisma.ordenProduccion.update({
-              where: { id: existe.id },
-              data: {
-                colorEspecificado: itemColor,
-                fraganciaEspecificada: itemFragancia,
-              },
-            }).catch(() => null);
-          }
-        }
-      }
-    } else {
-      // Pedido único
-      let targetFormulaId: string | null = null;
-      if (pedido.formulaId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pedido.formulaId)) {
-        const exists = await this.prisma.formulaMaster.findUnique({ where: { id: pedido.formulaId } }).catch(() => null);
-        if (exists) targetFormulaId = exists.id;
-      }
-
-      if (!targetFormulaId) {
-        const matchCode = (pedido.productoNombre || '').match(/FM-\d+[\w-]*/i)?.[0];
-        if (matchCode) {
-          let found = await this.prisma.formulaMaster.findFirst({
-            where: { codigoFormula: { contains: matchCode, mode: 'insensitive' } },
-          }).catch(() => null);
-          if (!found) {
-            found = await this.prisma.formulaMaster.create({
-              data: {
-                codigoFormula: matchCode,
-                nombreProducto: pedido.productoNombre || `Fórmula ${matchCode}`,
-                estado: 'ACTIVA',
-                densidadTeorica: 1.0,
-              },
-            }).catch(() => null);
-          }
-          if (found) targetFormulaId = found.id;
-        }
-      }
-
-      if (!targetFormulaId) {
-        let fallback = await this.prisma.formulaMaster.findFirst().catch(() => null);
-        if (fallback) targetFormulaId = fallback.id;
-      }
-
-      if (targetFormulaId) {
-        const codigoLote = `LOT-2024-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`;
-        const existeOp = await this.prisma.ordenProduccion.findFirst({ where: { codigoLote } }).catch(() => null);
-        if (!existeOp) {
-          await this.prisma.ordenProduccion.create({
-            data: {
-              codigoLote,
-              formulaId: targetFormulaId,
-              cantidadPlanificada: pedido.cantidadSolicitada,
-              clienteNombre: pedido.clienteNombre,
-              supervisorId: supervisor.id,
-              colorEspecificado: defaultColor,
-              fraganciaEspecificada: defaultFragancia,
-              estado: 'EN_PROCESO',
-              pasoProceso: 'PENDIENTE_ASIGNACION',
-              pedidoComercialId: pedido.id,
-            },
-          }).catch((err: any) => console.log('Error creando ordenProduccion:', err));
-        } else {
-          await this.prisma.ordenProduccion.update({
-            where: { id: existeOp.id },
-            data: {
-              colorEspecificado: defaultColor,
-              fraganciaEspecificada: defaultFragancia,
-            },
-          }).catch(() => null);
-        }
-      }
-    }
-
-
-    // Emitir eventos por WebSocket hacia todas las pantallas (Administración y Planta)
-    this.produccionGateway.emitirEstadoActualizado({
-      ordenId: pedido.id,
-      codigoLote: `LOT-2024-${pedido.codigoOrden.replace(/\D/g, '') || '0841'}`,
-      clienteNombre: pedido.clienteNombre,
-      nuevoEstado: 'APROBADO',
-      pasoProceso: 'PENDIENTE_ASIGNACION',
-      timestamp: new Date().toISOString(),
-    });
-
-    if (this.produccionGateway && this.produccionGateway.server) {
-      this.produccionGateway.server.emit('order:status_updated', {
-        ordenId: pedido.id,
-        codigoOrden: pedido.codigoOrden,
-        estado: 'APROBADO',
-      });
-      this.produccionGateway.server.emit('order:accepted_by_plant', {
-        ordenId: pedido.id,
-        codigoOrden: pedido.codigoOrden,
-        estado: 'APROBADO',
-      });
-    }
-
-    return pedidoActualizado;
+  async aprobarPedido(id: string, actorId?: string) {
+    return new CommercialOrderWorkflow(this.prisma, this.produccionGateway).approve(id, actorId);
   }
 
   // 5. Devolver Pedido a Administración por falta de stock/insumos
@@ -925,71 +334,9 @@ export class PedidosAdminService {
   }
 
   // 5.5 Convertir Cotización Comercial en Pedido de Producción (Aceptado por Cliente)
-  async convertirCotizacionAPedido(id: string, dto?: any) {
-    const db = this.prisma as any;
-    const cotizacion = await db.pedidoComercial.findUnique({ where: { id } });
-    if (!cotizacion) {
-      throw new NotFoundException('Cotización no encontrada.');
-    }
-
-    // Generar código de Orden de Producción OP-YYYY-NNN secuencial y trazable
-    const year = new Date().getFullYear();
-    let seq = (await db.pedidoComercial.count({ where: { docType: 'OP' } })) + 1;
-    let nuevoCodigo = dto?.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
-    while (await db.pedidoComercial.findUnique({ where: { codigoOrden: nuevoCodigo } })) {
-      seq++;
-      nuevoCodigo = dto?.code || `OP-${year}-${String(seq).padStart(3, '0')}`;
-    }
-
-    // Preservar estructura JSON de items para no perder el desglose de productos
-    let updatedNotasAdmin = cotizacion.notasAdmin;
-    let itemsParsed: any[] = [];
-    if (cotizacion.notasAdmin) {
-      try {
-        const parsed = JSON.parse(cotizacion.notasAdmin);
-        if (parsed && Array.isArray(parsed.items)) {
-          itemsParsed = parsed.items;
-          if (dto?.observaciones) {
-            parsed.observaciones = dto.observaciones;
-          }
-          updatedNotasAdmin = JSON.stringify(parsed);
-        }
-      } catch {
-        updatedNotasAdmin = dto?.observaciones || cotizacion.notasAdmin;
-      }
-    }
-
-    const pedidoConvertido = await db.pedidoComercial.update({
-      where: { id },
-      data: {
-        codigoOrden: nuevoCodigo,
-        codigoRefAdmin: cotizacion.codigoOrden, // Guarda referencia al código de cotización COT-...
-        docType: 'OP',
-        estado: 'PENDIENTE_REVISION',
-        prioridad: dto?.prioridad || cotizacion.prioridad || 'NORMAL',
-        notasAdmin: updatedNotasAdmin,
-      },
-    });
-
-    // Transmitir orden a Planta vía WebSocket con itemsList
-    if (this.produccionGateway && this.produccionGateway.server) {
-      this.produccionGateway.server.emit('order:created_to_plant', {
-        ...pedidoConvertido,
-        itemsList: itemsParsed,
-      });
-    }
-
-    return {
-      success: true,
-      message: `Cotización ${cotizacion.codigoOrden} convertida exitosamente a Orden de Producción ${nuevoCodigo} y transmitida a Planta.`,
-      pedido: {
-        ...pedidoConvertido,
-        itemsList: itemsParsed,
-      },
-    };
+  async convertirCotizacionAPedido(id: string, dto?: any, actorId?: string) {
+    return new CommercialOrderWorkflow(this.prisma, this.produccionGateway).convert(id, dto, actorId);
   }
-
-
 
   // 6. Limpiar datos de prueba para iniciar en limpio como nuevo sistema
   async limpiarDatos() {
@@ -1016,48 +363,36 @@ export class PedidosAdminService {
 
   // Helper privado para calcular stock de insumos cruzando la fórmula con los Insumos en Kardex
   private async calcularStockPedido(pedido: any) {
-    if (!pedido.formula || !pedido.formula.detalles || pedido.formula.detalles.length === 0) {
-      return {
-        stockCompleto: false,
-        insumosFaltantesCount: 0,
-        detalles: [],
-      };
+    let lines = pedido.items || [];
+    if (!lines.length) {
+      let raw = [];
+      try { raw = JSON.parse(pedido.notasAdmin || '{}').items || []; } catch { /* plain notes */ }
+      if (raw.length) {
+        lines = await Promise.all(raw.map(async (item: any) => ({ cantidad: Number(item.cantidad), unidadMedida: item.unidadMedida || item.unidad,
+          formulaId: item.formulaId, productoNombre: item.productoNombre, metadata: item,
+          formula: await this.prisma.formulaMaster.findUnique({ where: { id: item.formulaId }, include: { detalles: { include: { insumo: true } } } }),
+        })));
+      } else lines = [{ cantidad: Number(pedido.cantidadSolicitada), unidadMedida: pedido.unidadMedida,
+        formulaId: pedido.formulaId, formula: pedido.formula, metadata: {}, productoNombre: pedido.productoNombre }];
     }
-
-    const cantidadBatch = cantidadLoteKg(Number(pedido.cantidadSolicitada), pedido.unidadMedida || 'KG', Number(pedido.formula.densidadTeorica));
-    const detallesCalculados = [];
-    let insumosFaltantesCount = 0;
-
-    for (const det of pedido.formula.detalles) {
-      const porcentaje = Number(det.porcentaje || 0);
-      const requerido = (cantidadBatch * 1000 * porcentaje) / 100;
-
-      // Obtener el stock real del insumo directamente de la relación cargada (cero consultas N+1 a la BD)
-      const insumoDb = det.insumo || null;
-
-      const disponible = insumoDb && unidadStock(insumoDb.unidadMedida) === 'GR' ? Number(insumoDb.stockReal) : 0;
-      const suficiente = disponible >= requerido;
-
-      if (!suficiente) {
-        insumosFaltantesCount++;
+    const requirements = new Map<string, any>();
+    for (const line of lines) {
+      if (!line.formula) throw new BadRequestException('Falta identificar la fórmula de un producto.');
+      const kg = masaLoteKg({ ...line.metadata, cantidad: Number(line.cantidad), unidadMedida: line.unidadMedida });
+      const recipe = new CommercialOrderWorkflow(this.prisma, this.produccionGateway).recipe(line);
+      for (const detail of recipe.componentes) {
+        const ingredient = line.formula.detalles.find((d: any) => d.insumoId === detail.insumoId)?.insumo || await this.prisma.insumo.findUnique({ where: { id: detail.insumoId } });
+        if (!ingredient) throw new BadRequestException('Falta identificar el insumo de un ingrediente.');
+        const amount = new Prisma.Decimal(consumoFormulaGramos(kg, detail.porcentaje, ingredient));
+        const previous = requirements.get(ingredient.id);
+        requirements.set(ingredient.id, { ingredient, required: previous ? previous.required.plus(amount) : amount });
       }
-
-      detallesCalculados.push({
-        codigo: insumoDb?.codigo || 'QC-001',
-        nombre: insumoDb?.nombre || det.insumo?.nombre || 'Insumo Químico',
-        unidadMedida: 'GR',
-        requerido: parseFloat(requerido.toFixed(2)),
-        disponible: parseFloat(disponible.toFixed(2)),
-        faltante: suficiente ? 0 : parseFloat((requerido - disponible).toFixed(2)),
-        suficiente,
-      });
     }
-
-    return {
-      stockCompleto: insumosFaltantesCount === 0,
-      insumosFaltantesCount,
-      detalles: detallesCalculados,
-    };
+    const detalles = [...requirements.values()].map(({ ingredient, required }) => ({ codigo: ingredient.codigo, nombre: ingredient.nombre,
+      unidadMedida: unidadStock(ingredient), requerido: required.toNumber(), disponible: Number(ingredient.stockReal),
+      faltante: Math.max(0, required.minus(ingredient.stockReal).toNumber()), suficiente: required.lte(ingredient.stockReal) }));
+    const missing = detalles.filter(d => !d.suficiente).length;
+    return { stockCompleto: missing === 0, insumosFaltantesCount: missing, detalles };
   }
 
   /**
@@ -1093,6 +428,9 @@ export class PedidosAdminService {
       include: { ordenesProduccion: true },
     });
     if (!pedido) throw new NotFoundException('Pedido no encontrado.');
+
+    if (pedido.docType !== 'OP' || pedido.importeValidado === false) throw new BadRequestException('Se requiere un pedido con importe documentado para emitir el comprobante.');
+    if (pedido.moneda && pedido.moneda !== 'PEN') throw new BadRequestException('La cuenta por cobrar en soles requiere conversión monetaria documentada; no se asume un tipo de cambio.');
 
     if (pedido.tipoComprobante) {
       throw new BadRequestException(

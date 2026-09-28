@@ -1,4 +1,4 @@
-import { cantidadEnStock, costoPorUnidadStock, factorUnidad, unidadStock } from '../common/stock-units';
+import { cantidadEnStock, costoPorUnidadStock, StockUnit, unidadStock } from '../common/stock-units';
 import {
   BadRequestException,
   ConflictException,
@@ -293,11 +293,11 @@ export class OrdenesCompraService {
       cantidadOC,
       precioOC,
       unidadOC,
-      insumoFinal.unidadMedida,
+      insumoFinal,
     );
 
     const stockAnterior = Number(insumoFinal.stockReal);
-    const costoAnterior = costoPorUnidadStock(Number(insumoFinal.costoUnitario), insumoFinal.unidadMedida);
+    const costoAnterior = costoPorUnidadStock(Number(insumoFinal.costoUnitario), insumoFinal);
     const valorAnterior = stockAnterior * costoAnterior;
     const valorCompra = cantidad * precioCompra;
     const stockNuevo = new Prisma.Decimal(stockAnterior).plus(cantidad).toDecimalPlaces(4).toNumber();
@@ -309,7 +309,7 @@ export class OrdenesCompraService {
       data: {
         stockReal: stockNuevo,
         stockTeorico: stockNuevo,
-        costoUnitario: costoPromedio * factorUnidad(insumoFinal.unidadMedida),
+        costoUnitario: costoPromedio * cantidadEnStock(1, insumoFinal.unidadMedida, insumoFinal),
       },
     });
 
@@ -320,7 +320,7 @@ export class OrdenesCompraService {
         familia: insumoFinal.familia.nombre,
         categoriaNombre: insumoFinal.familia.nombre,
         proveedorCliente: oc.proveedorNombre,
-        unidadMedida: unidadStock(insumoFinal.unidadMedida),
+        unidadMedida: unidadStock(insumoFinal),
         fecha: new Date(),
         tipoDoc: 'OC',
         numero: oc.codigoOC,
@@ -437,10 +437,10 @@ export class OrdenesCompraService {
     cantidadOC: number,
     precioOC: number,
     unidadOC: UnidadMedida,
-    unidadInsumo: UnidadMedida,
+    unidadInsumo: StockUnit,
   ): { cantidad: number; precioUnitario: number } {
     const cantidad = cantidadEnStock(cantidadOC, unidadOC, unidadInsumo);
-    return { cantidad, precioUnitario: costoPorUnidadStock(precioOC, unidadOC) };
+    return { cantidad, precioUnitario: new Prisma.Decimal(cantidadOC).mul(precioOC).div(cantidad).toNumber() };
   }
 
   private categoriaKardex(tipo: TipoInsumo | null, familia: string): CategoriaKardex {

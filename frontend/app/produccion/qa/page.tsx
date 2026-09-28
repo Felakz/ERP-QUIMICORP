@@ -43,8 +43,8 @@ export interface RecetaItemUI {
   componente: string;
   tipo?: 'BASE' | 'FRAGANCIA' | 'PIGMENTO' | 'ENVASE' | 'OTRO';
   porcentaje: number;
-  pesoTeorico: number;
-  gramosCalculados: number;
+  pesoTeorico: number | null;
+  gramosCalculados: number | null;
   stockReal?: number;
   suficiente?: boolean;
   esAditivo?: boolean;
@@ -65,6 +65,10 @@ interface LoteQAUI {
   observacionesQA?: string;
   motivoRechazo?: string;
   formula: RecetaItemUI[];
+  conversionPendiente?: string | null;
+  unidadMedida: string;
+  cantidadPlanificada: number;
+  cantidadObtenida: number | null;
 }
 
 const QUICK_INCIDENTS = [
@@ -100,12 +104,22 @@ export default function ProduccionQAPage() {
   const [showRecetaModal, setShowRecetaModal] = useState<boolean>(false);
   const [recetaData, setRecetaData] = useState<any>(null);
   const [loadingReceta, setLoadingReceta] = useState<boolean>(false);
+  const [liberando, setLiberando] = useState(false);
+  const [pesoBrutoKg, setPesoBrutoKg] = useState('');
+  const [taraKg, setTaraKg] = useState('');
+  const [referenciaPesaje, setReferenciaPesaje] = useState('');
+  const [cantidadFabricada, setCantidadFabricada] = useState('');
+  const [usarConsumosReales, setUsarConsumosReales] = useState(false);
+  const [cargandoConsumos, setCargandoConsumos] = useState(false);
+  const [consumosReales, setConsumosReales] = useState<Array<{ insumoId: string; nombre: string; unidadMedida: string; cantidad: string; documentoSoporte: string }>>([]);
+  useEffect(() => { setPesoBrutoKg(''); setTaraKg(''); setReferenciaPesaje(''); setUsarConsumosReales(false); setConsumosReales([]); }, [selectedLoteId]);
 
   const [programacionData, setProgramacionData] = useState<{
     fecha: string;
     resumen: {
       totalOrdenes: number;
       totalKgProgramados: string;
+      totalConversionesPendientes?: number;
       totalTerminados: number;
       totalEnProceso: number;
       totalPendientes: number;
@@ -156,6 +170,7 @@ export default function ProduccionQAPage() {
           resumen: {
             totalOrdenes: ordenesSincronizadas.length,
             totalKgProgramados: data.resumen?.totalKgProgramados || '0.00',
+            totalConversionesPendientes: data.resumen?.totalConversionesPendientes || 0,
             totalTerminados: terminados,
             totalEnProceso: enProceso,
             totalPendientes: pendientes,
@@ -193,13 +208,13 @@ export default function ProduccionQAPage() {
         const data = res.data;
         if (data.length > 0) {
           lotesFromApi = data.map((o: any) => {
-            const cantidadKg = Number(o.cantidadPlanificadaKg ?? o.cantidadPlanificada);
+            const cantidadKg = o.cantidadPlanificadaKg == null ? null : Number(o.cantidadPlanificadaKg);
             let formulaItems: RecetaItemUI[] = [];
 
-            if (o.formula?.detalles && Array.isArray(o.formula.detalles)) {
-              formulaItems = o.formula.detalles.map((d: any) => {
-                const pct = Number(d.porcentaje || 10);
-                const gramos = cantidadKg * 1000 * (pct / 100);
+            if (Array.isArray(o.recetaDetalles)) {
+              formulaItems = o.recetaDetalles.map((d: any) => {
+                const pct = Number(d.porcentaje);
+                const gramos = cantidadKg == null ? null : cantidadKg * 1000 * (pct / 100);
                 const stockGramos = Number(d.insumo?.stockReal || 0);
                 return {
                   insumoId: d.insumoId,
@@ -207,45 +222,12 @@ export default function ProduccionQAPage() {
                   componente: d.insumo?.nombre || 'Insumo Base',
                   tipo: (d.insumo?.tipo as any) || 'BASE',
                   porcentaje: pct,
-                  pesoTeorico: Math.round((gramos / 1000) * 100) / 100,
-                  gramosCalculados: Math.round(gramos * 100) / 100,
+                  pesoTeorico: gramos == null ? null : gramos / 1000,
+                  gramosCalculados: gramos,
                   stockReal: stockGramos,
-                  suficiente: stockUnit(d.insumo?.unidadMedida || 'GR') === 'GR' && stockGramos >= gramos,
+                  suficiente: gramos != null && stockUnit(d.insumo?.unidadStock || d.insumo?.unidadMedida || 'GR') === 'GR' && stockGramos >= gramos,
                   esAditivo: false,
                 };
-              });
-            }
-
-            // Aadir Fragancia y Color si vienen especificados
-            if (o.fraganciaEspecificada && o.fraganciaEspecificada !== 'SIN FRAGANCIA') {
-              const pct = 1.0;
-              const gramos = cantidadKg * 1000 * (pct / 100);
-              formulaItems.push({
-                sku: 'AD-FRAG',
-                componente: o.fraganciaEspecificada,
-                tipo: 'FRAGANCIA',
-                porcentaje: pct,
-                pesoTeorico: Math.round((gramos / 1000) * 100) / 100,
-                gramosCalculados: Math.round(gramos * 100) / 100,
-                stockReal: 0,
-                suficiente: false,
-                esAditivo: true,
-              });
-            }
-
-            if (o.colorEspecificado && o.colorEspecificado !== 'TRANSPARENTE') {
-              const pct = 0.5;
-              const gramos = cantidadKg * 1000 * (pct / 100);
-              formulaItems.push({
-                sku: 'AD-PIGM',
-                componente: o.colorEspecificado,
-                tipo: 'PIGMENTO',
-                porcentaje: pct,
-                pesoTeorico: Math.round((gramos / 1000) * 100) / 100,
-                gramosCalculados: Math.round(gramos * 100) / 100,
-                stockReal: 0,
-                suficiente: false,
-                esAditivo: true,
               });
             }
 
@@ -259,9 +241,13 @@ export default function ProduccionQAPage() {
               nombreProducto: o.formula?.nombreProducto || o.clienteNombre || 'Fórmula Industrial',
               codigoLote: o.codigoLote,
               clienteNombre: o.clienteNombre || 'Cliente Quimicorp SAC',
-              rendimiento: `${cantidadKg.toLocaleString()} KG`,
-              mermaPercentage: o.mermaCalculada
-                ? `${(Number(o.mermaCalculada) / (cantidadKg || 1)) * 100}%`
+              unidadMedida: o.unidadMedida || o.pedidoItem?.unidadMedida || o.pedidoComercial?.unidadMedida || 'Por confirmar',
+              conversionPendiente: o.conversionPendiente,
+              cantidadPlanificada: Number(o.cantidadPlanificada),
+              cantidadObtenida: o.cantidadObtenida == null ? null : Number(o.cantidadObtenida),
+              rendimiento: `${Number(o.cantidadPlanificada).toLocaleString()} ${o.unidadMedida || o.pedidoItem?.unidadMedida || o.pedidoComercial?.unidadMedida || 'Por confirmar'}`,
+              mermaPercentage: o.mermaCalculada && cantidadKg
+                ? `${(Number(o.mermaCalculada) / cantidadKg) * 100}%`
                 : '—',
               operarios: o.operariosAsignados ? o.operariosAsignados.split(', ').filter(Boolean) : [],
               fechaEnvio: 'Hoy, ' + new Date(o.createdAt || Date.now()).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
@@ -338,6 +324,17 @@ export default function ProduccionQAPage() {
   }, []);
 
   const selectedLote = lotes.find((l) => l.id === selectedLoteId) || null;
+  useEffect(() => { setCantidadFabricada(selectedLote ? String(selectedLote.cantidadObtenida ?? selectedLote.cantidadPlanificada) : ''); }, [selectedLoteId, selectedLote?.cantidadObtenida, selectedLote?.cantidadPlanificada]);
+  const habilitarConsumosReales = async (active: boolean) => {
+    setUsarConsumosReales(active);
+    if (!active || !selectedLote) return;
+    setCargandoConsumos(true);
+    const response = await apiFetch<any>(`/produccion/ordenes/${selectedLote.id}/receta`);
+    if (response.ok && response.data?.ingredientes?.length) {
+      setConsumosReales(response.data.ingredientes.map((i: any) => ({ insumoId: i.insumoId, nombre: i.nombre, unidadMedida: i.unidadStock, cantidad: '', documentoSoporte: '' })));
+    } else { setUsarConsumosReales(false); alert(response.error || 'No se pudo obtener la receta.'); }
+    setCargandoConsumos(false);
+  };
 
   // Global Theme Color Tokens
   const cardBg = isDark ? 'bg-[#0F141C] border-[#1A2232]' : 'bg-white border-slate-200 shadow-sm';
@@ -374,25 +371,18 @@ export default function ProduccionQAPage() {
     const updated = lotes.map((l) =>
       l.id === selectedLote.id ? { ...l, operarios: newOperarios, pasoProceso: newPaso } : l
     );
-    setLotes(updated);
-
     const operariosStr = newOperarios.length > 0 ? newOperarios.join(', ') : 'Sin Asignar';
-    setProgramacionData((prev) => ({
-      ...prev,
-      ordenes: prev.ordenes.map((ord) =>
-        ord.id === selectedLote.id || ord.codigoLote === selectedLote.codigoLote
-          ? { ...ord, operarios: operariosStr }
-          : ord
-      ),
-    }));
 
     try {
-      await apiFetch('/produccion/ordenes/operarios', {
+      const response = await apiFetch('/produccion/ordenes/operarios', {
         method: 'PATCH',
         body: JSON.stringify({ ordenProduccionId: selectedLote.id, operarios: newOperarios }),
       });
-    } catch (e) {
-      alert('Error al guardar la asignación de operarios en el servidor. Los cambios se mantienen localmente.');
+      if (!response.ok) throw new Error(response.error || 'No se pudo asignar los operarios.');
+      setLotes(updated);
+      setProgramacionData(prev => ({ ...prev, ordenes: prev.ordenes.map(ord => ord.id === selectedLote.id ? { ...ord, operarios: operariosStr } : ord) }));
+    } catch (e: any) {
+      alert(e.message || 'Error al guardar la asignación de operarios.');
     }
   };
 
@@ -408,10 +398,8 @@ export default function ProduccionQAPage() {
     const updated = lotes.map((l) =>
       l.id === selectedLote.id ? { ...l, pasoProceso: nuevoPaso } : l
     );
-    setLotes(updated);
-
     try {
-      await apiFetch('/produccion/ordenes/paso', {
+      const response = await apiFetch('/produccion/ordenes/paso', {
         method: 'PATCH',
         body: JSON.stringify({
           ordenProduccionId: selectedLote.id,
@@ -419,8 +407,10 @@ export default function ProduccionQAPage() {
           observacionesQA: observacionInput,
         }),
       });
-    } catch (e) {
-      alert('Error al guardar el cambio de paso en el servidor. Los cambios se mantienen localmente.');
+      if (!response.ok) throw new Error(response.error || 'No se pudo guardar el cambio.');
+      setLotes(updated);
+    } catch (e: any) {
+      alert(e.message || 'Error al guardar el cambio de paso en el servidor.');
     }
   };
 
@@ -464,23 +454,51 @@ export default function ProduccionQAPage() {
 
   // Finalize & Liberate Lote QA (Transaction to Kardex & Etiquetas)
   const handleFinalizarYLiberar = async () => {
-    if (!selectedLote) return;
+    if (!selectedLote || liberando) return;
 
     if (selectedLote.operarios.length === 0) {
       alert('⚠️ Asigna al menos un operario para habilitar la fabricación y liberación.');
       return;
     }
+    if (!cantidadFabricada || !Number.isFinite(Number(cantidadFabricada)) || Number(cantidadFabricada) <= 0) {
+      alert('Registra la cantidad realmente fabricada en la unidad del lote.'); return;
+    }
+    if (usarConsumosReales && (cargandoConsumos || !consumosReales.length || consumosReales.some(i => i.cantidad === '' || !Number.isFinite(Number(i.cantidad)) || Number(i.cantidad) < 0 || !i.documentoSoporte.trim()))) {
+      alert('Completa la cantidad y soporte de todos los ingredientes. Cero requiere también su justificación.'); return;
+    }
 
+    const pesaje: { pesoBrutoKg?: number; taraKg?: number; pesoNetoKg?: number; fuenteConversion?: string } = {};
+    if (pesoBrutoKg || taraKg || referenciaPesaje) {
+      const neto = Number(pesoBrutoKg) - Number(taraKg);
+      if (!pesoBrutoKg || taraKg === '' || !Number.isFinite(neto) || neto <= 0 || Number(taraKg) < 0 || !referenciaPesaje.trim()) {
+        alert('Registra un peso bruto mayor a la tara y la referencia del pesaje.'); return;
+      }
+      pesaje.pesoNetoKg = Math.round(neto * 10000) / 10000;
+      pesaje.pesoBrutoKg = Number(pesoBrutoKg);
+      pesaje.taraKg = Number(taraKg);
+      pesaje.fuenteConversion = referenciaPesaje.trim();
+    }
+    if (selectedLote.conversionPendiente && !pesaje.pesoNetoKg && !usarConsumosReales) {
+      alert(selectedLote.conversionPendiente); return;
+    }
+    setLiberando(true);
     try {
-      await apiFetch('/produccion/qa/aprobar', {
+      const response = await apiFetch('/produccion/qa/aprobar', {
         method: 'PATCH',
         body: JSON.stringify({
           ordenProduccionId: selectedLote.id,
           observacionesQA: observacionInput,
+          cantidadObtenida: Number(cantidadFabricada),
+          ...(usarConsumosReales ? { consumosReales: consumosReales.map(i => ({ insumoId: i.insumoId, cantidad: Number(i.cantidad), unidadMedida: i.unidadMedida, documentoSoporte: i.documentoSoporte.trim() })) } : {}),
+          ...pesaje,
         }),
       });
-    } catch (e) {
-      alert('Error al enviar la liberación QA al servidor. Verifique la conexión con Planta.');
+      if (!response.ok) throw new Error(response.error || 'No se pudo liberar el lote.');
+    } catch (e: any) {
+      alert(e.message || 'Error al enviar la liberación QA al servidor.');
+      return;
+    } finally {
+      setLiberando(false);
     }
 
 
@@ -666,7 +684,7 @@ export default function ProduccionQAPage() {
                 <div class="summary-val">${programacionData.resumen.totalOrdenes}</div>
               </div>
               <div class="summary-item">
-                <div style="font-size: 10px; color: #64748b;">TOTAL KG/LT</div>
+                <div style="font-size: 10px; color: #64748b;">MASA VALIDADA (KG)</div>
                 <div class="summary-val">${programacionData.resumen.totalKgProgramados}</div>
               </div>
               <div class="summary-item">
@@ -817,14 +835,15 @@ export default function ProduccionQAPage() {
             <div className={`rounded-xl p-4 border relative overflow-hidden ${cardBg}`}>
               <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500" />
               <div className={`text-[10px] font-bold tracking-widest uppercase ${textTitle}`}>
-                TOTAL KG/LT PROGRAMADOS
+                MASA PROGRAMADA VALIDADA
               </div>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className={`text-2xl font-black font-mono ${textValue}`}>
                   {programacionData.resumen.totalKgProgramados}
                 </span>
-                <span className="text-xs text-slate-400 font-sans">KG/LT</span>
+                <span className="text-xs text-slate-400 font-sans">KG</span>
               </div>
+              {!!programacionData.resumen.totalConversionesPendientes && <p className="text-xs text-amber-500 mt-2">{programacionData.resumen.totalConversionesPendientes} lote(s) pendientes de peso o unidad; excluidos de la suma.</p>}
             </div>
 
             {/* KPI 3: TERMINADOS */}
@@ -1163,6 +1182,27 @@ export default function ProduccionQAPage() {
             <div className="space-y-5">
               {/* Card Header del Lote Seleccionado */}
               <div className={`rounded-xl p-5 border space-y-4 ${cardBg}`}>
+                <label className="block text-xs">Cantidad realmente fabricada ({selectedLote.unidadMedida})<input type="number" min="0.0001" step="0.0001" value={cantidadFabricada} onChange={e => setCantidadFabricada(e.target.value)} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
+                <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={usarConsumosReales} onChange={e => habilitarConsumosReales(e.target.checked)} disabled={cargandoConsumos} />Registrar consumos reales con documento de soporte</label>
+                {usarConsumosReales && <div className="space-y-3">
+                  <p className="text-xs">Completa todos los insumos según la hoja de fabricación. Si no se usó uno, registra cero y explica la sustitución en el soporte.</p>
+                  {cargandoConsumos ? <p className="text-xs">Cargando ingredientes…</p> : consumosReales.map((i, index) => <div key={i.insumoId} className="grid grid-cols-2 gap-2">
+                    <label className="text-xs">{i.nombre} ({i.unidadMedida})<input type="number" min="0" step="0.0001" value={i.cantidad} onChange={e => setConsumosReales(rows => rows.map((r,n) => n === index ? { ...r, cantidad: e.target.value } : r))} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
+                    <label className="text-xs">Documento / motivo<input value={i.documentoSoporte} onChange={e => setConsumosReales(rows => rows.map((r,n) => n === index ? { ...r, documentoSoporte: e.target.value } : r))} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
+                  </div>)}
+                </div>}
+                {stockUnit(selectedLote.unidadMedida) === 'ML' && (
+                  <div className="space-y-2">
+                    <p className="text-xs">Pesaje del lote en litros: registra el peso bruto y la tara en KG para calcular su peso neto.</p>
+                    {selectedLote.conversionPendiente && <p className="text-xs text-amber-500">{selectedLote.conversionPendiente}</p>}
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="text-xs">Peso bruto KG<input type="number" min="0" step="0.0001" value={pesoBrutoKg} onChange={e => setPesoBrutoKg(e.target.value)} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
+                      <label className="text-xs">Tara KG<input type="number" min="0" step="0.0001" value={taraKg} onChange={e => setTaraKg(e.target.value)} className={`block w-full p-2 rounded border ${inputBg}`} /></label>
+                    </div>
+                    <label className="block text-xs">Referencia del pesaje<input value={referenciaPesaje} onChange={e => setReferenciaPesaje(e.target.value)} placeholder="Hoja de fabricación / registro de balanza" className={`block w-full p-2 rounded border ${inputBg}`} /></label>
+                    {pesoBrutoKg && taraKg !== '' && <p className="text-xs">Peso neto: {(Number(pesoBrutoKg) - Number(taraKg)).toFixed(4)} KG</p>}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded border font-mono ${badgeCyan}`}>
@@ -1441,6 +1481,7 @@ export default function ProduccionQAPage() {
 
                     <button
                       onClick={handleFinalizarYLiberar}
+                      disabled={liberando}
                       className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-3.5 text-xs font-bold transition-all font-sans shadow-lg ${
                         isDark
                           ? 'bg-gradient-to-r from-[#00F2C3] to-teal-500 text-slate-950 hover:opacity-95 shadow-cyan-500/20'
@@ -1448,7 +1489,7 @@ export default function ProduccionQAPage() {
                       }`}
                     >
                       <Check className="h-4 w-4 stroke-[3]" />
-                      <span>🚀 Finalizar & Liberar Lote (QA)</span>
+                      <span>{liberando ? 'Registrando liberación…' : 'Finalizar & Liberar Lote (QA)'}</span>
                     </button>
                   </div>
                 )}
@@ -1511,7 +1552,7 @@ export default function ProduccionQAPage() {
                 </div>
                 <div>
                   <h3 className={`text-sm font-bold ${textValue}`}>Fórmula y Pasos — {selectedLote?.codigoLote || recetaData?.codigoLote}</h3>
-                  <p className={`text-xs ${textTitle}`}>{recetaData?.productoNombre || selectedLote?.nombreProducto} • {recetaData?.cantidadPlanificadaKg || ''} KG</p>
+                  <p className={`text-xs ${textTitle}`}>{recetaData?.productoNombre || selectedLote?.nombreProducto} · {recetaData?.cantidadPlanificadaKg == null ? 'Peso pendiente' : `${recetaData.cantidadPlanificadaKg} KG`}</p>
                 </div>
               </div>
               <button onClick={() => setShowRecetaModal(false)} className={`p-2 rounded-lg border ${isDark ? 'border-slate-700 text-slate-400 hover:bg-slate-800' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}>
@@ -1550,11 +1591,11 @@ export default function ProduccionQAPage() {
                             <td className="p-2 font-mono font-bold text-cyan-500">{ing.codigo}</td>
                             <td className="p-2 font-medium">{ing.nombre} {ing.esAditivo && <span className="ml-1 px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px]">{ing.tipo}</span>}</td>
                             <td className="p-2 text-center font-mono">{Number(ing.porcentaje).toFixed(3)}%</td>
-                            <td className="p-2 text-right font-mono">{Number(ing.gramosCalculados).toLocaleString()} g</td>
-                            <td className="p-2 text-right font-mono font-bold text-teal-600 dark:text-[#00F2C3]">{(Number(ing.gramosCalculados)/1000).toFixed(3)} KG</td>
+                            <td className="p-2 text-right font-mono">{ing.gramosCalculados == null ? 'Pendiente' : `${Number(ing.gramosCalculados).toLocaleString()} ${ing.unidadMedida || 'GR'}`}</td>
+                            <td className="p-2 text-right font-mono font-bold text-teal-600 dark:text-[#00F2C3]">{ing.gramosCalculados == null || ing.unidadMedida === 'ML' ? '—' : `${(Number(ing.gramosCalculados)/1000).toFixed(3)} KG`}</td>
                             <td className="p-2 text-center">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${ing.suficiente ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}`}>
-                                {ing.suficiente ? 'OK' : 'Falta'}
+                                {ing.suficiente == null ? 'Por calcular' : ing.suficiente ? 'OK' : 'Falta'}
                               </span>
                             </td>
                           </tr>

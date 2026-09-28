@@ -25,18 +25,18 @@ export class KardexService {
       const insumo = await tx.insumo.findUnique({ where: { id: dto.insumoId }, include: { familia: true } });
       if (!insumo) throw new NotFoundException(`Insumo ${dto.insumoId} no encontrado.`);
       // Without an explicit unit the endpoint accepts the stock unit (GR/ML/UN).
-      const cantidad = cantidadEnStock(dto.cantidad, dto.unidadMedida || unidadStock(insumo.unidadMedida), insumo.unidadMedida);
+      const cantidad = cantidadEnStock(dto.cantidad, dto.unidadMedida || unidadStock(insumo), insumo);
       const stockAnterior = new Prisma.Decimal(insumo.stockReal);
       const salida = MOVIMIENTOS_EGRESO.includes(dto.tipoMovimiento) || dto.tipoMovimiento === TipoMovimientoKardex.AJUSTE_FINO;
       const stockNuevo = salida ? stockAnterior.minus(cantidad) : stockAnterior.plus(cantidad);
-      if (stockNuevo.isNegative()) throw new ConflictException(`Stock insuficiente. Disponible: ${stockAnterior} ${unidadStock(insumo.unidadMedida)}, solicitado: ${cantidad}.`);
+      if (stockNuevo.isNegative()) throw new ConflictException(`Stock insuficiente. Disponible: ${stockAnterior} ${unidadStock(insumo)}, solicitado: ${cantidad}.`);
       await tx.insumo.update({ where: { id: dto.insumoId }, data: { stockReal: stockNuevo } });
-      const costo = costoPorUnidadStock(Number(insumo.costoUnitario), insumo.unidadMedida);
+      const costo = costoPorUnidadStock(Number(insumo.costoUnitario), insumo);
       const categoria = insumo.tipo === 'ENVASE' ? CategoriaKardex.ENVASE : insumo.tipo === 'BASE' ? CategoriaKardex.MATERIA_PRIMA : CategoriaKardex.INSUMO;
       await tx.kardexMovimiento.create({ data: {
         insumoId: insumo.id, categoriaKardex: categoria,
         productoNombre: insumo.nombre, familia: insumo.familia.nombre,
-        unidadMedida: unidadStock(insumo.unidadMedida), tipoDoc: 'MOV',
+        unidadMedida: unidadStock(insumo), tipoDoc: 'MOV',
         numero: dto.documentoReferencia, proveedorCliente: dto.documentoReferencia || 'Movimiento de almacén',
         tipoOperacion: salida ? (dto.tipoMovimiento === TipoMovimientoKardex.MERMA ? TipoMovimiento.SALIDA_MERMA : TipoMovimiento.SALIDA_CONSUMO_PRODUCCION) : TipoMovimiento.ENTRADA_AJUSTE,
         cantidadEntrada: salida ? 0 : cantidad, cantidadSalida: salida ? cantidad : 0,
@@ -123,7 +123,7 @@ export class KardexService {
     // insumo vinculado tiene costo unitario, calcularlos (dato real, no inventado).
     return movimientos.map((m) => {
       const costoReal = Number(
-        m.costoUnitario ?? (m.insumo ? costoPorUnidadStock(Number(m.insumo.costoUnitario), m.insumo.unidadMedida) : 0)
+        m.costoUnitario ?? (m.insumo ? costoPorUnidadStock(Number(m.insumo.costoUnitario), m.insumo) : 0)
       );
       const cEntrada = Number(m.cantidadEntrada || 0);
       const cSalida = Number(m.cantidadSalida || 0);
@@ -135,8 +135,8 @@ export class KardexService {
 
       return {
         ...m,
-        unidadSaldo: m.insumo ? unidadStock(m.insumo.unidadMedida) : m.unidadMedida,
-        requiereConciliacionUnidad: !!m.insumo && m.unidadMedida !== unidadStock(m.insumo.unidadMedida),
+        unidadSaldo: m.insumo ? unidadStock(m.insumo) : m.unidadMedida,
+        requiereConciliacionUnidad: !!m.insumo && m.unidadMedida !== unidadStock(m.insumo),
         costoUnitario: costoReal,
         montoEntradaPen: montoEntrada,
         montoSalidaPen: montoSalida,
@@ -218,7 +218,7 @@ export class KardexService {
         const primerSaldo = Number(mov.saldoFinal);
         const primerEntrada = Number(mov.cantidadEntrada);
         const primerSalida = Number(mov.cantidadSalida);
-        const unidadSaldo = mov.insumo ? unidadStock(mov.insumo.unidadMedida) : mov.unidadMedida;
+        const unidadSaldo = mov.insumo ? unidadStock(mov.insumo) : mov.unidadMedida;
         const requiereConciliacionUnidad = mov.unidadMedida !== unidadSaldo;
         const stockInicial = requiereConciliacionUnidad ? null : primerSaldo - primerEntrada + primerSalida;
 
