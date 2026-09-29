@@ -24,15 +24,11 @@ export class SentryExceptionFilter implements ExceptionFilter {
         if (request?.user) {
           scope.setUser({
             id: request.user.id || request.user.sub,
-            email: request.user.email,
             role: request.user.role,
           });
         }
-        scope.setExtra('url', request.url);
+        scope.setExtra('route', request.route?.path || request.path);
         scope.setExtra('method', request.method);
-        scope.setExtra('body', request.body);
-        scope.setExtra('query', request.query);
-        scope.setExtra('ip', request.ip || request.headers?.['x-forwarded-for']);
         Sentry.captureException(exception);
       });
     }

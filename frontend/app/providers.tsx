@@ -1,5 +1,6 @@
 'use client';
 
+import { MonitoringSession } from '@/components/MonitoringSession';
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/lib/ThemeContext';
@@ -20,6 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
+          <MonitoringSession />
           <SocketProvider>{children}</SocketProvider>
         </AuthProvider>
       </ThemeProvider>

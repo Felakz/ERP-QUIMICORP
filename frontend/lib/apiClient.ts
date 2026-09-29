@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/nextjs';
 /**
  * Centralized API client for QUIMICORP ERP frontend
  * Handles JWT authentication, dynamic host resolution, automatic token refresh/fallback, and error normalization.
@@ -75,6 +76,15 @@ export async function apiFetch<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<{ data: T | null; error: string | null; ok: boolean; status: number }> {
+  const started = Date.now();
+  const method = options.method || 'GET';
+  const route = endpoint.split('?')[0];
+  const record = (status: number) => {
+    const attributes = { method, route, status, durationMs: Date.now()-started };
+    Sentry.addBreadcrumb({ category: 'erp.action', message: `${method} ${route}`, data: attributes, level: status >= 400 ? 'warning' : 'info' });
+    if (status >= 400) Sentry.logger.warn('ERP action failed', attributes);
+    else if (method !== 'GET') Sentry.logger.info('ERP action completed', attributes);
+  };
   const token = await getAuthToken();
   const baseUrl = getApiBaseUrl();
 
@@ -92,6 +102,7 @@ export async function apiFetch<T = any>(
       headers,
     });
 
+    record(res.status);
     // Si devuelve 401 Unauthorized, limpiar sesión y redirigir al login
     if (res.status === 401) {
       clearAuthAndRedirectToLogin();
@@ -112,6 +123,7 @@ export async function apiFetch<T = any>(
     const data = await res.json().catch(() => null);
     return { data, error: null, ok: true, status: res.status };
   } catch (err: any) {
+    record(0);
     return {
       data: null,
       error: err.message || 'Error de conexión con el servidor',

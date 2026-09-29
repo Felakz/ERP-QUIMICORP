@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { costoRegistradoPedido, resumirRentabilidad } from './profitability';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { CostoOperativoPeriodoDto } from './dto/costo-operativo.dto';
@@ -290,240 +291,91 @@ export class FacturacionService {
 
   /** Rango de fechas compartido por los reportes de rentabilidad. */
   private rangoFechas(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
-    const start = (() => {
-      const now = new Date();
-      if (startDateStr) return new Date(`${startDateStr}T00:00:00`);
-      if (dateRange === 'ESTE_ANO') return new Date(now.getFullYear(), 0, 1);
-      if (dateRange === 'MES_ANTERIOR') return new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      return new Date(now.getFullYear(), now.getMonth(), 1);
-    })();
-    const end = (() => {
-      const now = new Date();
-      if (endDateStr) return new Date(`${endDateStr}T23:59:59.999`);
-      if (dateRange === 'ESTE_ANO') return new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-      if (dateRange === 'MES_ANTERIOR') return new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-      return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    })();
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Lima', year:'numeric',month:'2-digit' }).formatToParts(now);
+    const year = Number(parts.find(p=>p.type==='year').value), month = Number(parts.find(p=>p.type==='month').value);
+    const first = dateRange==='ESTE_ANO' ? new Date(Date.UTC(year,0,1)) : new Date(Date.UTC(year,month-(dateRange==='MES_ANTERIOR'?2:1),1));
+    const last = dateRange==='ESTE_ANO' ? new Date(Date.UTC(year,11,31)) : new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0));
+    const start = new Date(`${startDateStr || first.toISOString().slice(0,10)}T00:00:00-05:00`);
+    const end = new Date(`${endDateStr || last.toISOString().slice(0,10)}T23:59:59.999-05:00`);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start>end) throw new BadRequestException('El rango de fechas es inválido.');
     return { start, end };
   }
 
-  /** Costo total real de un pedido: fórmula + indirectos + aditivos + adicionales. */
-  private costoTotalPedido(p: PedidoConCosto, costosPorPeriodo: Map<string, CostoOperativoCalculado>): number {
-    let total = 0;
-    if (p.formula?.detalles?.length) {
-      const costoUnit = p.formula.detalles.reduce(
-        (acc, d) => acc + Number(d.insumo?.costoUnitario || 0) * (Number(d.porcentaje || 0) / 100),
-        0,
-      );
-      const costoIndirecto = this.costoIndirectoUnitario(new Date(p.createdAt), costosPorPeriodo);
-      total += (costoUnit + costoIndirecto) * Number(p.cantidadSolicitada || 0);
-    }
-    total += p.aditivos.reduce(
-      (acc, aditivo) => acc + (Number(aditivo.gramosCalculados || 0) / 1000) * Number(aditivo.insumo?.costoUnitario || 0),
-      0,
-    );
-    total += p.adicionales.reduce(
-      (acc, adicional) => acc + Number(adicional.cantidad || 0) * Number(adicional.costoUnitario || adicional.insumo?.costoUnitario || 0),
-      0,
-    );
-    return total;
-  }
-
-  /** Rentabilidad & Margen: Facturado vs Cobrado vs Invertido (COGS real) vs Utilidad. */
-  async rentabilidad(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
-    const { start, end } = this.rangoFechas(dateRange, startDateStr, endDateStr);
-    const whereDate = { gte: start, lte: end };
-    const [cuentas, pagos, pedidos, ordenesCompra, costosOperativos] = await Promise.all([
-      this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: whereDate }, select: { montoTotal: true, pedidoId: true, ordenProd: true } }),
-      this.prisma.pagoAbono.aggregate({ where: { fechaAbono: whereDate }, _sum: { montoAbonado: true } }),
-      this.prisma.pedidoComercial.findMany({
-        where: { createdAt: whereDate, estado: { not: 'RECHAZADO' } },
-        include: {
-          formula: { include: { detalles: { include: { insumo: true } } } },
-          aditivos: { include: { insumo: true } },
-          adicionales: { include: { insumo: true } },
-        },
-      }),
-      this.prisma.ordenCompra.findMany({
-        where: { estado: 'RECIBIDO', updatedAt: whereDate },
-        select: { totalPEN: true },
-      }),
-      this.prisma.costoOperativoPeriodo.findMany(),
-    ]);
-    const costosPorPeriodo = new Map<string, CostoOperativoCalculado>(
-      costosOperativos.map((costo) => [
-        costo.periodo,
-        {
-          cantidadBase: Number(costo.cantidadBase),
-          manoObraLote: Number(costo.manoObraLote),
-          supervisionLote: Number(costo.supervisionLote),
-          depreciacionLote: Number(costo.depreciacionLote),
-          energiaLote: Number(costo.energiaLote),
-          usoLocalLote: Number(costo.usoLocalLote),
-        },
-      ]),
-    );
-    const facturado = cuentas.reduce((a, c) => a + Number(c.montoTotal || 0), 0);
-    const cobrado = Number(pagos._sum.montoAbonado || 0);
-    let invertido = 0;
-    for (const p of pedidos) {
-      invertido += this.costoTotalPedido(p, costosPorPeriodo);
-    }
-    const egresos = ordenesCompra.reduce((total, orden) => total + Number(orden.totalPEN), 0);
-    const utilidad = facturado - invertido;
-    const margen = facturado > 0 ? (utilidad / facturado) * 100 : 0;
-    // Serie mensual últimos 12 meses para gráfico
-    const now = new Date();
-    const serie: any[] = [];
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
-    const allCuentas = await this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } }, select: { montoTotal: true, fechaEmision: true } });
-    const allPagos = await this.prisma.pagoAbono.findMany({ where: { fechaAbono: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } }, select: { montoAbonado: true, fechaAbono: true } });
-    const [allPedidos, allOrdenesCompra] = await Promise.all([
-      this.prisma.pedidoComercial.findMany({
-      where: { createdAt: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) }, estado: { not: 'RECHAZADO' } },
-      include: {
-        formula: { include: { detalles: { include: { insumo: true } } } },
-        aditivos: { include: { insumo: true } },
-        adicionales: { include: { insumo: true } },
-      },
-      }),
-      this.prisma.ordenCompra.findMany({
-        where: { estado: 'RECIBIDO', updatedAt: { gte: new Date(now.getFullYear() - 1, now.getMonth(), 1) } },
-        select: { totalPEN: true, updatedAt: true },
-      }),
-    ]);
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const m = d.getMonth(), y = d.getFullYear();
-      const mc = allCuentas.filter((c: any) => new Date(c.fechaEmision).getMonth() === m && new Date(c.fechaEmision).getFullYear() === y).reduce((a: number, c: any) => a + Number(c.montoTotal || 0), 0);
-      const mp = allPagos.filter((p: any) => new Date(p.fechaAbono).getMonth() === m && new Date(p.fechaAbono).getFullYear() === y).reduce((a: number, p: any) => a + Number(p.montoAbonado || 0), 0);
-        const mpeds = allPedidos.filter((p: any) => new Date(p.createdAt).getMonth() === m && new Date(p.createdAt).getFullYear() === y);
-      let inv = 0;
-      for (const p of mpeds) {
-        inv += this.costoTotalPedido(p, costosPorPeriodo);
-      }
-      const egr = allOrdenesCompra
-        .filter((orden) => new Date(orden.updatedAt).getMonth() === m && new Date(orden.updatedAt).getFullYear() === y)
-        .reduce((total, orden) => total + Number(orden.totalPEN), 0);
-      const util = mc - inv;
-      const marg = mc > 0 ? (util / mc) * 100 : 0;
-      serie.push({ month: months[m], year: y, facturado: mc, cobrado: mp, invertido: inv, egresos: egr, utilidad: util, margen: Number(marg.toFixed(1)) });
-    }
-    // Tabla por cliente (top 20 por margen)
-    const porCliente = await this.prisma.cuentaCobrar.groupBy({ by: ['clienteRuc', 'clienteNombre'], where: { fechaEmision: whereDate }, _sum: { montoTotal: true }, _count: true });
-    const costosPorCliente = new Map<string, number>();
-    for (const pedido of pedidos) {
-      costosPorCliente.set(
-        pedido.clienteRuc,
-        (costosPorCliente.get(pedido.clienteRuc) || 0) + this.costoTotalPedido(pedido, costosPorPeriodo),
-      );
-    }
-    const tabla = porCliente.map((g: any) => {
-      const fact = Number(g._sum.montoTotal || 0);
-       const inv = costosPorCliente.get(g.clienteRuc) || 0;
-       const util = fact - inv;
-      return { ruc: g.clienteRuc, cliente: g.clienteNombre, facturado: fact, invertido: inv, utilidad: util, margen: fact > 0 ? Number(((util / fact) * 100).toFixed(1)) : 0, docs: g._count };
-    }).sort((a, b) => b.utilidad - a.utilidad).slice(0, 20);
-    // Desglose teórico vs real por fórmula (top 8)
-    const porFormula = new Map<string, { formula: string; facturado: number; teorico: number; cantidad: number }>();
-    for (const p of pedidos) {
-      const key = p.productoNombre || p.formula?.nombreProducto || 'SIN FORMULA';
-      const cur = porFormula.get(key) || { formula: key, facturado: 0, teorico: 0, cantidad: 0 };
-      cur.facturado += Number(p.montoTotal || 0);
-      cur.teorico += this.costoTotalPedido(p, costosPorPeriodo);
-      cur.cantidad += Number(p.cantidadSolicitada || 0);
-      porFormula.set(key, cur);
-    }
-    const desglose = [...porFormula.values()].map(v => {
-      const real = v.teorico;
-      const desvio = 0;
-      return { formula: v.formula, facturado: v.facturado, teorico: v.teorico, real, desvio: Number(desvio.toFixed(1)), cantidad: v.cantidad };
-    }).sort((a, b) => b.facturado - a.facturado).slice(0, 8);
-    return { facturado, cobrado, invertido, egresos, utilidad, margen: Number(margen.toFixed(1)), serie, tabla, desglose };
-  }
-
-  /** Rentabilidad por venta: cada pedido con su facturado, costo real, utilidad y margen. */
-  async rentabilidadPorPedido(dateRange: string = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string, ruc?: string) {
-    const { start, end } = this.rangoFechas(dateRange, startDateStr, endDateStr);
-    const whereDate = { gte: start, lte: end };
-    const [pedidos, cuentas, costosOperativos] = await Promise.all([
-      this.prisma.pedidoComercial.findMany({
-        where: {
-          createdAt: whereDate,
-          estado: { not: 'RECHAZADO' },
-          ...(ruc && ruc.trim() ? { clienteRuc: ruc.trim() } : {}),
-        },
-        include: {
-          formula: { include: { detalles: { include: { insumo: true } } } },
-          aditivos: { include: { insumo: true } },
-          adicionales: { include: { insumo: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.cuentaCobrar.findMany({
-        select: { pedidoId: true, ordenProd: true, montoTotal: true },
-      }),
-      this.prisma.costoOperativoPeriodo.findMany(),
-    ]);
-    const costosPorPeriodo = new Map<string, CostoOperativoCalculado>(
-      costosOperativos.map((costo) => [
-        costo.periodo,
-        {
-          cantidadBase: Number(costo.cantidadBase),
-          manoObraLote: Number(costo.manoObraLote),
-          supervisionLote: Number(costo.supervisionLote),
-          depreciacionLote: Number(costo.depreciacionLote),
-          energiaLote: Number(costo.energiaLote),
-          usoLocalLote: Number(costo.usoLocalLote),
-        },
-      ]),
-    );
-    // Vínculo comprobante→pedido: pedidoId (nuevos) u ordenProd=codigoOrden (legacy).
-    const facturadoPorPedido = new Map<string, number>();
-    const facturadoPorOrden = new Map<string, number>();
-    for (const c of cuentas) {
-      const monto = Number(c.montoTotal || 0);
-      if (c.pedidoId) facturadoPorPedido.set(c.pedidoId, (facturadoPorPedido.get(c.pedidoId) || 0) + monto);
-      if (c.ordenProd) facturadoPorOrden.set(c.ordenProd, (facturadoPorOrden.get(c.ordenProd) || 0) + monto);
-    }
-    const ventas = pedidos.map((p) => {
-      const costo = this.costoTotalPedido(p, costosPorPeriodo);
-      const facturado = facturadoPorPedido.get(p.id)
-        ?? (p.codigoOrden ? facturadoPorOrden.get(p.codigoOrden) ?? 0 : 0);
-      const utilidad = facturado - costo;
-      return {
-        pedidoId: p.id,
-        codigoOrden: p.codigoOrden,
-        fecha: p.createdAt,
-        estado: p.estado,
-        clienteRuc: p.clienteRuc,
-        clienteNombre: p.clienteNombre,
-        productoNombre: p.productoNombre,
-        cantidadSolicitada: Number(p.cantidadSolicitada || 0),
-        facturado,
-        costo,
-        utilidad,
-        margen: facturado > 0 ? Number(((utilidad / facturado) * 100).toFixed(1)) : 0,
-      };
+  /** The same invoice cohort drives total, customer and order summaries. */
+  private async reporteRentabilidad(start: Date, end: Date, ruc?: string) {
+    const cuentas = await this.prisma.cuentaCobrar.findMany({ where: { fechaEmision: { gte: start, lte: end }, ...(ruc ? { clienteRuc: ruc } : {}) } });
+    const ids = cuentas.map(c => c.pedidoId).filter(Boolean);
+    const codes = cuentas.filter(c => !c.pedidoId).map(c => c.ordenProd).filter(Boolean);
+    const pedidos = await this.prisma.pedidoComercial.findMany({ where: { OR: [{ id: { in: ids } }, { codigoOrden: { in: codes } }] }, include: { items: true, ordenesProduccion: true } });
+    const lotCodes = pedidos.flatMap(p => p.ordenesProduccion.map(l => l.codigoLote));
+    const movements = lotCodes.length ? await this.prisma.kardexMovimiento.findMany({ where: { OR: [{ numero: { in: lotCodes } }, { otp: { in: lotCodes.map(c => `OTP-${c}`) } }] } }) : [];
+    const operational = await this.prisma.costoOperativoPeriodo.findMany();
+    const assigned = new Set<string>();
+    const ventas: any[] = pedidos.map(p => {
+      const docs = cuentas.filter(c => c.pedidoId ? c.pedidoId === p.id : c.ordenProd === p.codigoOrden);
+      docs.forEach(c => assigned.add(c.id));
+      const facturado = Number(new Prisma.Decimal(docs.reduce((sum,c) => sum + Number(c.montoTotal),0)).div('1.18').toDecimalPlaces(2));
+      const recorded = costoRegistradoPedido(p, movements);
+      const pendientes = [...recorded.pendientes];
+      let operationalProjection = 0;
+      const operationalBreakdown = p.ordenesProduccion.map(l => {
+        const date = l.fechaCierre || l.createdAt;
+        const period = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+        const config = operational.find(c => c.periodo === period);
+        const snapshot = l.recetaSnapshot as any;
+        // Mass of the manufactured batch, not a guessed conversion of sold litres.
+        const mass = ['KG','GR'].includes(l.unidadMedida) ? Number(l.cantidadObtenida || 0)/(l.unidadMedida==='GR'?1000:1) : Number(snapshot?.pesaje?.netoKg || 0);
+        if (!config || Number(config.cantidadBase)<=0 || mass<=0) return { lote:l.codigoLote,periodo:period,pendiente:true,motivo:'Falta período operativo configurado o masa obtenida documentada' };
+        const unitCost = [config.manoObraLote,config.supervisionLote,config.depreciacionLote,config.energiaLote,config.usoLocalLote].reduce((sum,c)=>sum+Number(c),0)/Number(config.cantidadBase);
+        const amount=Number(new Prisma.Decimal(mass).mul(unitCost).toDecimalPlaces(2));
+        operationalProjection+=amount;
+        return {lote:l.codigoLote,periodo:period,pendiente:false,masaKg:mass,costoPorKg:unitCost,monto:amount};
+      });
+      if (p.moneda !== 'PEN') pendientes.push('Moneda extranjera: tipo de cambio documentado pendiente');
+      if (Math.abs(docs.reduce((sum,c) => sum + Number(c.montoTotal),0) - Number(p.montoTotal)) > 0.02) pendientes.push('Facturación del período distinta del total del pedido; asignación de costos pendiente');
+      const utilidad = Number(new Prisma.Decimal(facturado).minus(recorded.costo).toDecimalPlaces(2));
+      return { pedidoId: p.id, codigoOrden: p.codigoOrden, fecha: docs[0]?.fechaEmision || p.createdAt, estado: p.estado,
+        clienteRuc: p.clienteRuc, clienteNombre: p.clienteNombre, productoNombre: p.productoNombre,
+        cantidadSolicitada: Number(p.cantidadSolicitada), unidadMedida: p.unidadMedida,
+        productos: p.items.map(i => ({ nombre: i.productoNombre, cantidad: Number(i.cantidad), unidad: i.unidadMedida })),
+        facturado, costo: recorded.costo, materiales: recorded.materiales, adicionales: recorded.adicionales, utilidad: pendientes.length ? null : utilidad,
+        margen: !pendientes.length && facturado > 0 ? Number((utilidad/facturado*100).toFixed(2)) : null,
+        margenIndicativo: !pendientes.length && facturado > 0 ? Number((utilidad/facturado*100).toFixed(2)) : null,
+        pendientes, operativosEstimados:operationalProjection, proyeccionConOperativos: pendientes.length ? null : Number(new Prisma.Decimal(utilidad).minus(operationalProjection).toDecimalPlaces(2)), operativosDetalle:operationalBreakdown, lotes: recorded.lotes, documentos: docs.map(c => ({ codigo: c.codigoDoc, total: Number(c.montoTotal) })) };
     });
-    const totales = ventas.reduce(
-      (acc, v) => ({
-        facturado: acc.facturado + v.facturado,
-        costo: acc.costo + v.costo,
-        cantidad: acc.cantidad + v.cantidadSolicitada,
-        ventas: acc.ventas + 1,
-      }),
-      { facturado: 0, costo: 0, cantidad: 0, ventas: 0 },
-    );
-    const utilidadTotal = totales.facturado - totales.costo;
-    return {
-      ventas,
-      totales: {
-        ...totales,
-        utilidad: utilidadTotal,
-        margen: totales.facturado > 0 ? Number(((utilidadTotal / totales.facturado) * 100).toFixed(1)) : 0,
-      },
-    };
+    for (const c of cuentas.filter(c => !assigned.has(c.id))) ventas.push({ pedidoId: c.id, codigoOrden: c.ordenProd || c.codigoDoc, fecha: c.fechaEmision, estado: 'SIN_VINCULO', clienteRuc: c.clienteRuc, clienteNombre: c.clienteNombre, productoNombre: c.producto || '', cantidadSolicitada: 0, unidadMedida: '', productos: [], facturado: Number(new Prisma.Decimal(c.montoTotal).div('1.18').toDecimalPlaces(2)), costo: 0, materiales: 0, adicionales: 0, utilidad: null, margen: null, margenIndicativo: null, pendientes: ['Comprobante sin pedido vinculado: costo desconocido'], lotes: [], documentos: [{ codigo: c.codigoDoc, total: Number(c.montoTotal) }] });
+    ventas.sort((a,b) => new Date(b.fecha).getTime()-new Date(a.fecha).getTime());
+    const clientes = new Map<string, any[]>();
+    for (const v of ventas) { const key = v.clienteRuc || v.clienteNombre; clientes.set(key, [...(clientes.get(key)||[]),v]); }
+    const tabla = [...clientes.entries()].map(([ruc, list]) => ({ ruc, cliente: list[0].clienteNombre, ...resumirRentabilidad(list), docs: list.reduce((sum,v) => sum+v.documentos.length,0) }));
+    return { ventas, tabla, totales: resumirRentabilidad(ventas), criterio: 'Facturación del período sin IGV (total / 1,18), menos costos registrados de materiales y adicionales. Margen bruto de materiales; no utilidad neta. Mano de obra, energía y otros gastos operativos requieren asignación independiente.' };
+  }
+
+  async rentabilidad(dateRange = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string) {
+    const { start, end } = this.rangoFechas(dateRange, startDateStr, endDateStr);
+    const report = await this.reporteRentabilidad(start,end);
+    const [pagos, compras] = await Promise.all([
+      this.prisma.pagoAbono.aggregate({ where: { fechaAbono: { gte:start,lte:end } }, _sum: { montoAbonado:true } }),
+      this.prisma.ordenCompra.findMany({ where: { estado:'RECIBIDO',updatedAt:{gte:start,lte:end} },select:{totalPEN:true} }),
+    ]);
+    const serie = [];
+    const now = this.rangoFechas('MES_ACTUAL').start;
+    for (let i=11;i>=0;i--) {
+      const calendar = new Date(Date.UTC(now.getFullYear(),now.getMonth()-i,1));
+      const ending = new Date(Date.UTC(calendar.getUTCFullYear(),calendar.getUTCMonth()+1,0));
+      const first = new Date(`${calendar.toISOString().slice(0,10)}T00:00:00-05:00`);
+      const last = new Date(`${ending.toISOString().slice(0,10)}T23:59:59.999-05:00`);
+      const monthly = first.getTime()===start.getTime() && last.getTime()===end.getTime() ? report : await this.reporteRentabilidad(first,last);
+      const [cash,oc] = await Promise.all([this.prisma.pagoAbono.aggregate({where:{fechaAbono:{gte:first,lte:last}},_sum:{montoAbonado:true}}),this.prisma.ordenCompra.aggregate({where:{estado:'RECIBIDO',updatedAt:{gte:first,lte:last}},_sum:{totalPEN:true}})]);
+      serie.push({month:['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'][calendar.getUTCMonth()],year:calendar.getUTCFullYear(),...monthly.totales,cobrado:Number(cash._sum.montoAbonado||0),egresos:Number(oc._sum.totalPEN||0)});
+    }
+    return { ...report.totales, cobrado: Number(pagos._sum.montoAbonado||0), egresos: compras.reduce((s,c)=>s+Number(c.totalPEN),0), tabla:report.tabla,serie,desglose:[],criterio:report.criterio };
+  }
+
+  async rentabilidadPorPedido(dateRange = 'MES_ACTUAL', startDateStr?: string, endDateStr?: string, ruc?: string) {
+    const {start,end} = this.rangoFechas(dateRange,startDateStr,endDateStr);
+    return this.reporteRentabilidad(start,end,ruc?.trim());
   }
 
   private costoIndirectoUnitario(

@@ -12,14 +12,26 @@ interface RentabilidadData {
   cobrado: number;
   invertido: number;
   egresos: number;
-  utilidad: number;
-  margen: number;
-  serie: { month: string; year: number; facturado: number; cobrado: number; invertido: number; egresos: number; utilidad: number; margen: number }[];
-  tabla: { ruc: string; cliente: string; facturado: number; invertido: number; utilidad: number; margen: number; docs: number }[];
+  utilidad: number | null;
+  margen: number | null;
+  pedidosPendientes?: number;
+  criterio?: string;
+  serie: { month: string; year: number; facturado: number; cobrado: number; invertido: number; egresos: number; utilidad: number | null; margen: number | null }[];
+  tabla: { ruc: string; cliente: string; facturado: number; invertido: number; utilidad: number | null; margen: number | null; pedidosPendientes: number; docs: number }[];
   desglose: { formula: string; facturado: number; teorico: number; real: number; desvio: number; cantidad: number }[];
 }
 
+const margenTexto = (n: number | null) => n == null ? 'Por validar' : `${n.toFixed(1)}%`;
 interface VentaRentabilidad {
+  operativosEstimados?: number;
+  proyeccionConOperativos?: number | null;
+  operativosDetalle?: {lote:string;periodo:string;pendiente:boolean;motivo?:string;masaKg?:number;costoPorKg?:number;monto?:number}[];
+  pendientes: string[];
+  productos: {nombre: string; cantidad: number; unidad: string}[];
+  materiales: number;
+  adicionales: number;
+  documentos: {codigo: string; total: number}[];
+  lotes: {lote: string; costo: number; movimientos: {id: string; insumo: string; cantidadSalida: number; cantidadEntrada: number; unidad: string; costoUnitario: number; monto: number; pendiente: boolean}[]}[];
   pedidoId: string;
   codigoOrden: string;
   fecha: string;
@@ -30,18 +42,21 @@ interface VentaRentabilidad {
   cantidadSolicitada: number;
   facturado: number;
   costo: number;
-  utilidad: number;
-  margen: number;
+  utilidad: number | null;
+  margen: number | null;
+  pedidosPendientes?: number;
+  criterio?: string;
 }
 
 interface VentasRentabilidadData {
   ventas: VentaRentabilidad[];
-  totales: { facturado: number; costo: number; cantidad: number; ventas: number; utilidad: number; margen: number };
+  totales: { facturado: number; costo: number; cantidad: number; ventas: number; utilidad: number | null; margen: number | null };
 }
 
-const fmt = (n: number, currency: string, igv: boolean, tc: number) => {
+const fmt = (n: number | null, currency: string, igv: boolean, tc: number) => {
+  if (n == null) return 'Por validar';
   let v = n;
-  if (igv) v = v * 1.18;
+
   if (currency === 'USD') v = v / (tc || 3.75);
   const prefix = currency === 'USD' ? '$' : 'S/';
   return `${prefix} ${v.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -56,6 +71,9 @@ export default function FacturacionPage() {
   const textValue = isDark ? 'text-slate-100' : 'text-slate-900';
   const textMuted = isDark ? 'text-slate-400' : 'text-slate-500';
 
+  const [clienteSeleccionado, setClienteSeleccionado] = useState('');
+  const [detallePedido, setDetallePedido] = useState<VentaRentabilidad|null>(null);
+  const [error, setError] = useState('');
   const [data, setData] = useState<RentabilidadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [rango, setRango] = useState('MES_ACTUAL');
@@ -72,18 +90,20 @@ export default function FacturacionPage() {
   const [searchVentas, setSearchVentas] = useState('');
   const [pageVentas, setPageVentas] = useState(1);
   const pageVentasSize = 10;
+  const resumenCliente = data?.tabla.find(c => c.ruc === clienteSeleccionado);
 
   const cargar = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       let url = `/facturacion/rentabilidad?rango=${rango}`;
       if (fechaDesde) url += `&desde=${fechaDesde}`;
       if (fechaHasta) url += `&hasta=${fechaHasta}`;
-      const res = await apiFetch<RentabilidadData>(url);
-      if (res.data) setData(res.data);
-      const resVentas = await apiFetch<VentasRentabilidadData>(url.replace('/rentabilidad?', '/rentabilidad/por-pedido?'));
-      if (resVentas.data) setVentasData(resVentas.data);
-    } catch { setData(null); } finally { setLoading(false); }
+      const [res, resVentas] = await Promise.all([apiFetch<RentabilidadData>(url), apiFetch<VentasRentabilidadData>(url.replace('/rentabilidad?', '/rentabilidad/por-pedido?'))]);
+      if (!res.ok || !res.data) throw Error(res.error || 'No se pudo cargar rentabilidad');
+      setData(res.data);
+      if (!resVentas.ok || !resVentas.data) throw Error(resVentas.error || 'No se pudieron cargar los pedidos');
+      setVentasData(resVentas.data);
+    } catch (e: any) { setData(null); setVentasData(null); setError(e.message); } finally { setLoading(false); }
   }, [rango, fechaDesde, fechaHasta]);
 
   const irAFichaCliente = async (ruc: string) => {
@@ -102,13 +122,14 @@ export default function FacturacionPage() {
   };
 
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { if (detallePedido) document.getElementById('detalle-rentabilidad')?.scrollIntoView({behavior:'smooth'}); }, [detallePedido]);
 
   const kpis = data ? [
-    { label: 'Facturado Bruto', valor: data.facturado, icon: Wallet, accent: 'text-sky-400', bg: 'from-sky-500/15 to-cyan-500/10', sub: 'Devengado del período' },
+    { label: 'Facturado sin IGV', valor: data.facturado, icon: Wallet, accent: 'text-sky-400', bg: 'from-sky-500/15 to-cyan-500/10', sub: 'Devengado del período' },
     { label: 'Cobrado Efectivo', valor: data.cobrado, icon: PiggyBank, accent: 'text-emerald-400', bg: 'from-emerald-500/15 to-teal-500/10', sub: 'Flujo en bancos' },
     { label: 'Egresos (Compras)', valor: data.egresos, icon: DollarSign, accent: 'text-rose-400', bg: 'from-rose-500/15 to-red-500/10', sub: 'OCs del período *' },
-    { label: 'Costo Directo Real', valor: data.invertido, icon: Factory, accent: 'text-amber-400', bg: 'from-amber-500/15 to-orange-500/10', sub: 'Materia prima e insumos' },
-    { label: 'Margen Operativo Bruto', valor: data.utilidad, icon: TrendingUp, accent: 'text-violet-400', bg: 'from-violet-500/15 to-purple-500/10', sub: `${data.margen.toFixed(1)}% margen` },
+    { label: 'Costo validado parcial', valor: data.invertido, icon: Factory, accent: 'text-amber-400', bg: 'from-amber-500/15 to-orange-500/10', sub: 'Excluye importes pendientes de validación' },
+    { label: 'Diferencia provisional', valor: data.utilidad, icon: TrendingUp, accent: 'text-violet-400', bg: 'from-violet-500/15 to-purple-500/10', sub: margenTexto(data.margen) },
   ] : [];
 
   const periodoVisual = fechaDesde && fechaHasta
@@ -132,8 +153,8 @@ export default function FacturacionPage() {
     if (!data) return;
     const win = window.open('', '_blank');
     if (!win) return;
-    const rows = data.tabla.map(r => `<tr><td>${r.ruc}</td><td>${r.cliente}</td><td style="text-align:right">S/ ${r.facturado.toFixed(2)}</td><td style="text-align:right">S/ ${r.invertido.toFixed(2)}</td><td style="text-align:right">${r.margen.toFixed(1)}%</td></tr>`).join('');
-    win.document.write(`<html><head><title>Rentabilidad ${periodoVisual}</title><style>body{font-family:Arial;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px}th{background:#0D1421;color:#fff}</style></head><body><h2>QUIMICORP PERU S.A.C. — RUC 20601234567</h2><p>Periodo: ${periodoVisual} — ${new Date().toLocaleDateString('es-PE')}</p><p>Facturado: S/ ${data.facturado.toFixed(2)} | Cobrado: S/ ${data.cobrado.toFixed(2)} | Invertido: S/ ${data.invertido.toFixed(2)} | Utilidad: S/ ${data.utilidad.toFixed(2)} (${data.margen.toFixed(1)}%)</p><table><tr><th>RUC</th><th>Cliente</th><th>Facturado</th><th>Costo Real</th><th>Margen</th></tr>${rows}</table></body></html>`);
+    const rows = data.tabla.map(r => `<tr><td>${r.ruc}</td><td>${r.cliente}</td><td style="text-align:right">S/ ${r.facturado.toFixed(2)}</td><td style="text-align:right">S/ ${r.invertido.toFixed(2)}</td><td style="text-align:right">${margenTexto(r.margen)}</td></tr>`).join('');
+    win.document.write(`<html><head><title>Rentabilidad ${periodoVisual}</title><style>body{font-family:Arial;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px}th{background:#0D1421;color:#fff}</style></head><body><h2>QUIMICORP PERU S.A.C. — RUC 20601234567</h2><p>Periodo: ${periodoVisual} — ${new Date().toLocaleDateString('es-PE')}</p><p>Facturado: S/ ${data.facturado.toFixed(2)} | Cobrado: S/ ${data.cobrado.toFixed(2)} | Invertido: S/ ${data.invertido.toFixed(2)} | Utilidad: S/ ${(data.utilidad == null ? 'Por validar' : data.utilidad.toFixed(2))} (${margenTexto(data.margen)})</p><table><tr><th>RUC</th><th>Cliente</th><th>Facturado</th><th>Costo validado parcial</th><th>Margen</th></tr>${rows}</table></body></html>`);
     win.document.close(); win.print();
   };
 
@@ -146,7 +167,7 @@ export default function FacturacionPage() {
           <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 text-violet-400"><Scale className="w-5 h-5" /></div>
           <div>
             <h1 className={`text-sm font-black uppercase tracking-wide ${textValue}`}>Análisis de Rentabilidad & Margen</h1>
-            <p className={`text-[11px] ${textMuted}`}>Ingresos Facturados vs. Costo Real de Producción vs. Utilidad Neta — devengado × masa real</p>
+            <p className={`text-[11px] ${textMuted}`}>Facturación sin IGV menos materiales y adicionales registrados — margen bruto; gastos operativos sin asignar</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -225,8 +246,7 @@ export default function FacturacionPage() {
 
       <div className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3 ${cardBg}`}>
         <div className="flex items-center gap-1">
-          <button onClick={() => setIncluyeIgv(false)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${!incluyeIgv ? 'bg-[#00F2C3] text-slate-950' : 'text-slate-400'}`}>Neto</button>
-          <button onClick={() => setIncluyeIgv(true)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${incluyeIgv ? 'bg-[#00F2C3] text-slate-950' : 'text-slate-400'}`}>Con IGV 18%</button>
+          <span className="text-xs">Margen sin IGV; cobros y compras muestran sus importes registrados</span>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setCurrency('PEN')} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${currency === 'PEN' ? 'bg-[#00F2C3] text-slate-950' : 'text-slate-400'}`}>S/ PEN</button>
@@ -269,7 +289,7 @@ export default function FacturacionPage() {
         {data?.serie && data.serie.length > 1 && (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-[11px]">
-              <thead><tr className="text-[9px] uppercase text-slate-500"><th className="text-left px-2 py-1">Mes</th><th className="text-right px-2 py-1">Facturado</th><th className="text-right px-2 py-1">Egresos</th><th className="text-right px-2 py-1">Utilidad</th><th className="text-right px-2 py-1">Margen</th><th className="text-right px-2 py-1">MoM</th></tr></thead>
+              <thead><tr className="text-[9px] uppercase text-slate-500"><th className="text-left px-2 py-1">Mes</th><th className="text-right px-2 py-1">Facturado</th><th className="text-right px-2 py-1">Egresos</th><th className="text-right px-2 py-1">Diferencia provisional</th><th className="text-right px-2 py-1">Margen</th><th className="text-right px-2 py-1">MoM</th></tr></thead>
               <tbody>
                 {data.serie.slice(-6).map((r, i, arr) => {
                   const prev = i > 0 ? arr[i - 1] : null;
@@ -280,7 +300,7 @@ export default function FacturacionPage() {
                       <td className="px-2 py-1 text-right">{fmt(r.facturado, currency, incluyeIgv, tc)}</td>
                       <td className="px-2 py-1 text-right text-rose-400">{fmt(r.egresos, currency, incluyeIgv, tc)}</td>
                       <td className="px-2 py-1 text-right text-emerald-400">{fmt(r.utilidad, currency, incluyeIgv, tc)}</td>
-                      <td className="px-2 py-1 text-right">{r.margen.toFixed(1)}%</td>
+                      <td className="px-2 py-1 text-right">{margenTexto(r.margen)}</td>
                       <td className={`px-2 py-1 text-right font-bold ${mom >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{prev ? `${mom >= 0 ? '+' : ''}${mom.toFixed(1)}%` : '—'}</td>
                     </tr>
                   );
@@ -291,9 +311,11 @@ export default function FacturacionPage() {
         )}
       </div>
 
+      {error && <p role="alert" className="text-rose-500">{error}</p>}
+      {data && <p className="text-xs text-amber-500">{data.criterio} {data.pedidosPendientes || 0} pedidos tienen costos o asignaciones pendientes. El margen definitivo se muestra como «Por validar»; los costos faltantes no representan utilidad confirmada.</p>}
       <div className={`rounded-2xl border shadow-sm overflow-hidden ${cardBg}`}>
         <div className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b ${isDark ? 'border-[#1A2232]' : 'border-slate-200'}`}>
-          <p className={`text-[11px] font-black uppercase ${textValue}`}>Auditoría por Contrato / Producto — {data?.tabla.length || 0} clientes</p>
+          <p className={`text-[11px] font-black uppercase ${textValue}`}>Rentabilidad por cliente — {data?.tabla.length || 0} clientes</p>
           <div className="flex items-center gap-2">
             <input value={searchTabla} onChange={e => { setSearchTabla(e.target.value); setPage(1); }} placeholder="Buscar RUC/cliente..." className={`px-3 py-1.5 rounded-xl border text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-white border-slate-200'}`} />
             <button onClick={() => setSortMargen(s => s === 'desc' ? 'asc' : 'desc')} className={`px-3 py-1.5 rounded-xl border text-[11px] font-bold ${isDark ? 'border-[#1A2232] text-slate-300' : 'border-slate-200'}`}>Margen {sortMargen === 'desc' ? '↓' : '↑'}</button>
@@ -304,21 +326,21 @@ export default function FacturacionPage() {
             <thead><tr className={`text-[9px] uppercase ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
               <th className="text-left px-3 py-2.5 font-black">RUC / Cliente</th>
               <th className="text-right px-3 py-2.5 font-black">Facturado</th>
-              <th className="text-right px-3 py-2.5 font-black">Costo Real</th>
+              <th className="text-right px-3 py-2.5 font-black">Costo validado parcial</th>
               <th className="text-right px-3 py-2.5 font-black">Margen</th>
               <th className="text-center px-3 py-2.5 font-black">Docs</th>
             </tr></thead>
             <tbody>
               {(() => {
-                const filtrada = (data?.tabla || []).filter(r => !searchTabla || r.ruc.includes(searchTabla) || r.cliente.toLowerCase().includes(searchTabla.toLowerCase())).sort((a, b) => sortMargen === 'desc' ? b.margen - a.margen : a.margen - b.margen);
+                const filtrada = (data?.tabla || []).filter(r => !searchTabla || r.ruc.includes(searchTabla) || r.cliente.toLowerCase().includes(searchTabla.toLowerCase())).sort((a, b) => sortMargen === 'desc' ? (b.margen ?? -Infinity) - (a.margen ?? -Infinity) : (a.margen ?? -Infinity) - (b.margen ?? -Infinity));
                 const totalPages = Math.max(1, Math.ceil(filtrada.length / pageSize));
                 const pag = filtrada.slice((page - 1) * pageSize, page * pageSize);
                 return pag.map(r => (
                 <tr key={r.ruc} className={`border-t ${isDark ? 'border-[#131A29]' : 'border-slate-100'}`}>
-                  <td className="px-3 py-2.5"><button type="button" onClick={() => irAFichaCliente(r.ruc)} className="text-left hover:underline cursor-pointer" title="Ver ficha, pedidos y comprobantes del cliente"><div className="font-bold text-[12px] text-sky-400">{r.cliente}</div><div className="text-[10px] font-mono text-slate-500">{r.ruc}</div></button></td>
+                  <td className="px-3 py-2.5"><button type="button" onClick={() => { setClienteSeleccionado(r.ruc); setDetallePedido(null); setSearchVentas(''); setPageVentas(1); document.getElementById('rentabilidad-pedidos')?.scrollIntoView({behavior:'smooth'}); }} className="text-left hover:underline cursor-pointer" title="Ver rentabilidad de sus pedidos"><div className="font-bold text-[12px] text-sky-400">{r.cliente}</div><div className="text-[10px] font-mono text-slate-500">{r.ruc}</div></button></td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-black text-slate-100">{fmt(r.facturado, currency, incluyeIgv, tc)}</td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-bold text-amber-400">{fmt(r.invertido, currency, incluyeIgv, tc)}</td>
-                  <td className="px-3 py-2.5 text-right"><span className={`px-2 py-1 rounded-full text-[11px] font-black ${r.margen >= 30 ? 'bg-emerald-500/20 text-emerald-400' : r.margen >= 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{r.margen.toFixed(1)}%</span><div className="text-[10px] text-slate-500">{fmt(r.utilidad, currency, incluyeIgv, tc)}</div></td>
+                  <td className="px-3 py-2.5 text-right"><span className={`px-2 py-1 rounded-full text-[11px] font-black ${(r.margen ?? -1) >= 30 ? 'bg-emerald-500/20 text-emerald-400' : (r.margen ?? -1) >= 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{margenTexto(r.margen)}</span><div className="text-[10px] text-slate-500">{fmt(r.utilidad, currency, incluyeIgv, tc)}</div></td>
                   <td className="px-3 py-2.5 text-center text-[11px] font-bold text-slate-400">{r.docs}</td>
                 </tr>
               )); })()}
@@ -341,11 +363,11 @@ export default function FacturacionPage() {
         })()}
       </div>
 
-      <div className={`rounded-2xl border p-4 ${cardBg}`}>
+      <div id="rentabilidad-pedidos" className={`rounded-2xl border p-4 ${cardBg}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div><p className={`text-[11px] font-black uppercase ${textValue}`}>Rentabilidad por Venta</p><p className={`text-[10px] ${textMuted}`}>Cada pedido con su facturado, costo real, utilidad y margen — clic en el cliente para ver su ficha</p></div>
+          <div><p className={`text-[11px] font-black uppercase ${textValue}`}>Rentabilidad por pedido {clienteSeleccionado && `— ${clienteSeleccionado}`}</p>{clienteSeleccionado && <button className="underline text-cyan-500" onClick={() => setClienteSeleccionado('')}>Ver todos los clientes</button>}<p className={`text-[10px] ${textMuted}`}>Selecciona «Ver cálculo» en el pedido para revisar costos, cantidades, documentos y pendientes</p></div>
           <div className="flex items-center gap-2">
-            {ventasData && <span className="text-[10px] font-bold text-slate-400">{ventasData.totales.ventas} ventas · Margen {ventasData.totales.margen.toFixed(1)}%</span>}
+            {ventasData && <span className="text-[10px] font-bold text-slate-400">{resumenCliente ? ventasData.ventas.filter(v=>v.clienteRuc===clienteSeleccionado).length : ventasData.totales.ventas} ventas · Margen {margenTexto(resumenCliente ? resumenCliente.margen : ventasData.totales.margen)}</span>}
             <input value={searchVentas} onChange={e => { setSearchVentas(e.target.value); setPageVentas(1); }} placeholder="Buscar orden/cliente/producto..." className={`px-3 py-1.5 rounded-xl border text-xs ${isDark ? 'bg-[#151D2A] border-[#1A2232] text-slate-200' : 'bg-white border-slate-200'}`} />
           </div>
         </div>
@@ -358,28 +380,28 @@ export default function FacturacionPage() {
               <th className="text-left px-3 py-2.5 font-black">Producto</th>
               <th className="text-right px-3 py-2.5 font-black">Cant.</th>
               <th className="text-right px-3 py-2.5 font-black">Facturado</th>
-              <th className="text-right px-3 py-2.5 font-black">Costo Real</th>
-              <th className="text-right px-3 py-2.5 font-black">Utilidad</th>
+              <th className="text-right px-3 py-2.5 font-black">Costo validado parcial</th>
+              <th className="text-right px-3 py-2.5 font-black">Diferencia provisional</th>
               <th className="text-right px-3 py-2.5 font-black">Margen</th>
             </tr></thead>
             <tbody>
               {(() => {
                 const q = searchVentas.toLowerCase().trim();
-                const filtradas = (ventasData?.ventas || []).filter(v => !q || v.codigoOrden.toLowerCase().includes(q) || v.clienteNombre.toLowerCase().includes(q) || v.clienteRuc.includes(q) || (v.productoNombre || '').toLowerCase().includes(q));
+                const filtradas = (ventasData?.ventas || []).filter(v => (!clienteSeleccionado || v.clienteRuc === clienteSeleccionado) && (!q || v.codigoOrden.toLowerCase().includes(q) || v.clienteNombre.toLowerCase().includes(q) || v.clienteRuc.includes(q) || (v.productoNombre || '').toLowerCase().includes(q)));
                 const totalPages = Math.max(1, Math.ceil(filtradas.length / pageVentasSize));
                 const pag = filtradas.slice((pageVentas - 1) * pageVentasSize, pageVentas * pageVentasSize);
                 if (pag.length === 0) return <tr><td colSpan={9} className="px-3 py-4 text-center text-[11px] text-slate-500">Sin ventas en el período.</td></tr>;
                 return pag.map(v => (
                 <tr key={v.pedidoId} className={`border-t ${isDark ? 'border-[#131A29]' : 'border-slate-100'}`}>
                   <td className="px-3 py-2.5 text-[11px] font-mono text-slate-400">{new Date(v.fecha).toLocaleDateString('es-PE')}</td>
-                  <td className="px-3 py-2.5 text-[11px] font-bold font-mono text-slate-200">{v.codigoOrden}</td>
+                  <td className="px-3 py-2.5 text-[11px] font-bold font-mono text-slate-200"><button className="underline text-cyan-500" onClick={() => setDetallePedido(v)}>{v.codigoOrden} · Ver cálculo</button></td>
                   <td className="px-3 py-2.5"><button type="button" onClick={() => irAFichaCliente(v.clienteRuc)} className="text-left hover:underline cursor-pointer" title="Ver ficha del cliente"><div className="font-bold text-[12px] text-sky-400">{v.clienteNombre}</div><div className="text-[10px] font-mono text-slate-500">{v.clienteRuc}</div></button></td>
                   <td className="px-3 py-2.5 text-[11px] text-slate-300">{v.productoNombre}</td>
-                  <td className="px-3 py-2.5 text-right text-[11px] text-slate-400">{v.cantidadSolicitada.toLocaleString('es-PE')}</td>
+                  <td className="px-3 py-2.5 text-right text-[11px] text-slate-400">{v.productos?.map((p,i) => <div key={i}>{p.cantidad} {p.unidad}</div>) || v.cantidadSolicitada.toLocaleString('es-PE')}</td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-black text-slate-100">{fmt(v.facturado, currency, incluyeIgv, tc)}</td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-bold text-amber-400">{fmt(v.costo, currency, incluyeIgv, tc)}</td>
                   <td className="px-3 py-2.5 text-right text-[12px] font-bold text-emerald-400">{fmt(v.utilidad, currency, incluyeIgv, tc)}</td>
-                  <td className="px-3 py-2.5 text-right"><span className={`px-2 py-1 rounded-full text-[11px] font-black ${v.margen >= 30 ? 'bg-emerald-500/20 text-emerald-400' : v.margen >= 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{v.margen.toFixed(1)}%</span></td>
+                  <td className="px-3 py-2.5 text-right"><span className={`px-2 py-1 rounded-full text-[11px] font-black ${(v.margen ?? -1) >= 30 ? 'bg-emerald-500/20 text-emerald-400' : (v.margen ?? -1) >= 15 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>{margenTexto(v.margen)}</span></td>
                 </tr>
               )); })()}
             </tbody>
@@ -387,7 +409,7 @@ export default function FacturacionPage() {
         </div>
         {(() => {
           const q = searchVentas.toLowerCase().trim();
-          const filtradas = (ventasData?.ventas || []).filter(v => !q || v.codigoOrden.toLowerCase().includes(q) || v.clienteNombre.toLowerCase().includes(q) || v.clienteRuc.includes(q) || (v.productoNombre || '').toLowerCase().includes(q));
+          const filtradas = (ventasData?.ventas || []).filter(v => (!clienteSeleccionado || v.clienteRuc === clienteSeleccionado) && (!q || v.codigoOrden.toLowerCase().includes(q) || v.clienteNombre.toLowerCase().includes(q) || v.clienteRuc.includes(q) || (v.productoNombre || '').toLowerCase().includes(q)));
           const totalPages = Math.max(1, Math.ceil(filtradas.length / pageVentasSize));
           return filtradas.length > pageVentasSize ? (
           <div className={`flex items-center justify-between px-4 py-2 border-t text-xs ${isDark ? 'border-[#1A2232] text-slate-400' : 'border-slate-200'}`}>
@@ -401,6 +423,16 @@ export default function FacturacionPage() {
           ) : null;
         })()}
       </div>
+
+      {detallePedido && <div id="detalle-rentabilidad" className={`rounded-2xl border p-4 space-y-3 ${cardBg}`}>
+        <div className="flex justify-between"><h2 className="font-bold">Cálculo de {detallePedido.codigoOrden} — {detallePedido.clienteNombre}</h2><button onClick={() => setDetallePedido(null)}>Cerrar</button></div>
+        <p className="text-xs">Comprobantes: {detallePedido.documentos?.map(d=>`${d.codigo}: S/ ${d.total.toFixed(2)} con IGV`).join(' · ')}</p>
+        <p className="text-xs">Materiales {fmt(detallePedido.materiales, currency, false, tc)} + adicionales {fmt(detallePedido.adicionales,currency,false,tc)} = costo validado parcial {fmt(detallePedido.costo,currency,false,tc)}. Facturación sin IGV {fmt(detallePedido.facturado,currency,false,tc)} − costo = {fmt(detallePedido.utilidad,currency,false,tc)}. Margen bruto: {margenTexto(detallePedido.margen)}.</p>
+        <p className="text-xs">Proyección de operativos según configuración mensual: {fmt(detallePedido.operativosEstimados || 0,currency,false,tc)}. Diferencia proyectada con operativos: {fmt(detallePedido.proyeccionConOperativos ?? detallePedido.utilidad,currency,false,tc)}. Son importes estimados, no gastos reales comprobados.</p>
+        {detallePedido.operativosDetalle?.map(d=><p key={d.lote} className="text-xs">{d.lote} · {d.periodo}: {d.pendiente?d.motivo:`${d.masaKg} KG × S/ ${d.costoPorKg?.toFixed(6)} por KG = S/ ${d.monto?.toFixed(2)}`}</p>)}
+        {!!detallePedido.pendientes?.length && <ul className="list-disc pl-5 text-xs text-amber-500">{detallePedido.pendientes.map(p=><li key={p}>{p}</li>)}</ul>}
+        {detallePedido.lotes?.map(l=><div key={l.lote} className="overflow-x-auto"><h3 className="font-bold">{l.lote}: {fmt(l.costo,currency,false,tc)}</h3><table className="w-full text-xs"><thead><tr>{['Insumo','Salida','Devolución','Unidad','Costo unitario','Monto','Valorización'].map(t=><th className="p-2 text-left" key={t}>{t}</th>)}</tr></thead><tbody>{l.movimientos.map(m=><tr key={m.id}><td className="p-2">{m.insumo}</td><td>{m.cantidadSalida}</td><td>{m.cantidadEntrada}</td><td>{m.unidad}</td><td>{m.costoUnitario.toLocaleString('es-PE',{maximumFractionDigits:6})}</td><td>{fmt(m.monto,currency,false,tc)}</td><td>{m.pendiente?'Pendiente':'Registrada'}</td></tr>)}</tbody></table></div>)}
+      </div>}
 
     </div>
   );
