@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {detallesVinculados}=require('../dist/formulas/formula-integrity');
+const {detallesVinculados,auditarFormula}=require('../dist/formulas/formula-integrity');
 const ingredient={id:'inventory-a',nombre:'ACEITE',codigo:'INS-A'};
 const tx={insumo:{findMany:async()=>[ingredient]}};
 const original=[{id:'detail-a',insumoId:ingredient.id,nombreComponente:'ACEITE',porcentaje:100}];
@@ -22,4 +22,17 @@ test('empty, repeated detail IDs and invalid quantities are rejected',async()=>{
  await assert.rejects(detallesVinculados(tx,[]));
  await assert.rejects(detallesVinculados(tx,[...original,...original],original));
  for(const porcentaje of [-1,0,NaN,Infinity,null,true,''])await assert.rejects(detallesVinculados(tx,[{insumoId:ingredient.id,porcentaje}]));
+});
+
+test('formula audit uses a valid legacy FK and retains the authenticated actor ID',async()=>{
+ let saved;
+ const tx={
+  user:{findUnique:async()=>({id:'login-user'})},
+  usuario:{findUnique:async()=>null,findFirst:async()=>({id:'erp-audit-account'})},
+  auditLog:{create:async({data})=>{saved=data;return data;}},
+ };
+ await auditarFormula(tx,'login-user','EDITAR_FORMULA',{id:'formula-a'},{id:'formula-a'});
+ assert.equal(saved.usuarioId,'erp-audit-account');
+ assert.equal(saved.datosNuevos.actorAutenticado,'login-user');
+ await assert.rejects(auditarFormula({...tx,usuario:{findUnique:async()=>null,findFirst:async()=>null}},'login-user','EDITAR_FORMULA',{id:'formula-a'},{id:'formula-a'}),/cuenta ERP/);
 });

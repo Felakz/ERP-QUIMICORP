@@ -320,7 +320,7 @@ export class FormulasService {
       });
       await auditarFormula(tx, actorId, 'EDITAR_FORMULA', formula, updated);
       return updated;
-    });
+    }, { maxWait: 10000, timeout: 30000 });
   }
 
   async eliminar(id: string) {

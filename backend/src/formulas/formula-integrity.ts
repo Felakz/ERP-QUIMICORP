@@ -35,7 +35,15 @@ export async function detallesVinculados(tx: any, input: any, previous: any[] = 
 
 export async function auditarFormula(tx: any, actorId: string, action: string, before: any, after: any) {
   if (!actorId) throw new BadRequestException('Se requiere un usuario autenticado para guardar la fórmula.');
+  // JWT authenticates against `users`, while audit_logs.usuarioId references
+  // the legacy `usuarios` table. Keep the authenticated ID in the audit payload
+  // and use the existing ERP audit account only for the required foreign key.
+  const actor = await tx.user.findUnique({ where: { id: actorId }, select: { id: true } });
+  if (!actor) throw new BadRequestException('El usuario autenticado ya no existe.');
+  const auditUser = await tx.usuario.findUnique({ where: { id: actorId }, select: { id: true } })
+    || await tx.usuario.findFirst({ where: { dni: '70000000' }, select: { id: true } });
+  if (!auditUser) throw new BadRequestException('No existe la cuenta ERP para registrar la auditoría de fórmulas.');
   const json = (value: any) => JSON.parse(JSON.stringify(value));
-  await tx.auditLog.create({ data: { usuarioId: actorId, accion: action, tablaAfectada: 'formulas_master', registroId: after?.id || before.id,
-    datosAnteriores: json({ formula: before }), datosNuevos: json({ formula: after }) } });
+  await tx.auditLog.create({ data: { usuarioId: auditUser.id, accion: action, tablaAfectada: 'formulas_master', registroId: after?.id || before.id,
+    datosAnteriores: json({ formula: before }), datosNuevos: json({ actorAutenticado: actor.id, formula: after }) } });
 }
